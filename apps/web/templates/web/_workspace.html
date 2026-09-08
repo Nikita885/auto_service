@@ -1,0 +1,85 @@
+{% comment %}
+Рабочее место сотрудника: сводка за день, фильтры, таблица записей и живые
+черновики. Один и тот же фрагмент подключают и страница мастера, и панель
+администратора — чтобы смена выглядела одинаково у всех.
+{% endcomment %}
+
+<section class="section" style="margin-top:0">
+  <div class="section-head">
+    <div>
+      <h2>Смена</h2>
+      <p id="day-caption">Записи за выбранный день.</p>
+    </div>
+    <div class="row">
+      <button class="btn btn-sm" id="btn-reload" type="button">Обновить</button>
+      <label class="row" style="gap:6px">
+        <input type="checkbox" id="auto-refresh" style="width:auto" checked>
+        <span class="hint">автообновление</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="grid grid-4" id="summary"></div>
+</section>
+
+<section class="section">
+  <div class="card card-flat" style="padding:14px">
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px">
+      <div class="field">
+        <label for="f-date">Дата</label>
+        <input id="f-date" type="date">
+      </div>
+      <div class="field">
+        <label for="f-point">Адрес</label>
+        <select id="f-point"><option value="">Все адреса</option></select>
+      </div>
+      <div class="field">
+        <label for="f-status">Статус</label>
+        <select id="f-status">
+          <option value="">Любой</option>
+          <option value="pending">Ожидают</option>
+          <option value="in_progress">В работе</option>
+          <option value="completed">Выполнены</option>
+          <option value="cancelled_by_client,cancelled_by_master">Отменённые</option>
+          <option value="no_show">Не приехали</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-search">Поиск</label>
+        <input id="f-search" placeholder="Код, имя, телефон, номер">
+      </div>
+      <div class="field" style="justify-content:flex-end">
+        <button class="btn" id="btn-reset" type="button">Сбросить</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:16px">
+    <table>
+      <thead>
+        <tr>
+          <th>Время</th>
+          <th>Код</th>
+          <th>Клиент</th>
+          <th>Автомобиль</th>
+          <th>Масло</th>
+          <th class="num">Сумма</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <h2>Записываются прямо сейчас</h2>
+      <p>Незавершённые черновики: у клиента есть пять минут, слот уже удерживается.</p>
+    </div>
+    <span class="badge badge-accent" id="live-count" hidden></span>
+  </div>
+  <div class="stack" id="live"></div>
+</section>

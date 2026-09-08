@@ -1,0 +1,35 @@
+{% comment %}
+Вход для сотрудников — общий для панели мастера и панели администратора.
+Тот же вход по SMS, что и у клиента: отдельных паролей у сотрудников нет,
+пароль существует только для Django-админки.
+{% endcomment %}
+
+<section class="section" id="auth-section" style="margin-top:0">
+  <div class="card card-pad-lg" style="max-width:440px;margin-inline:auto">
+    <div class="card-head">
+      <div>
+        <div class="card-title">{{ auth_title }}</div>
+        <div class="card-sub" id="auth-sub">Вход по коду из SMS, как у клиентов.</div>
+      </div>
+    </div>
+
+    <div class="stack" id="auth-step-phone">
+      <div class="field">
+        <label for="phone">Телефон</label>
+        <input id="phone" type="tel" inputmode="tel" value="{{ demo_phone }}" autocomplete="tel">
+      </div>
+      <button class="btn btn-primary btn-block" id="btn-otp" type="button">Получить код</button>
+      <p class="hint">Демо-доступ: <span class="mono">{{ demo_phone }}</span></p>
+    </div>
+
+    <div class="stack" id="auth-step-code" hidden>
+      <div class="field">
+        <label for="code">Код из SMS</label>
+        <input id="code" class="code-input" inputmode="numeric" maxlength="4" autocomplete="one-time-code">
+      </div>
+      <p class="hint" id="otp-hint"></p>
+      <button class="btn btn-primary btn-block" id="btn-login" type="button">Войти</button>
+      <button class="btn btn-ghost btn-block" id="btn-otp-back" type="button">Изменить номер</button>
+    </div>
+  </div>
+</section>

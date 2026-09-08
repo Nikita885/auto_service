@@ -1,0 +1,30 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% block title %}Панель мастера — Автосервис{% endblock %}
+
+{% block brand_sub %}<span class="brand-sub">Мастер</span>{% endblock %}
+
+{% block nav %}
+  <a href="/">Сайт клиента</a>
+  <a href="/admin-panel/">Администратор</a>
+  <a href="/api/docs/">API</a>
+{% endblock %}
+
+{% block header_actions %}
+  <span class="badge" id="me-badge" hidden></span>
+  <button class="icon-btn" id="btn-signout" type="button" title="Выйти" aria-label="Выйти" hidden></button>
+{% endblock %}
+
+{% block content %}
+  {% include "web/_staff_auth.html" with auth_title="Вход для мастера" demo_phone="+79000000001" %}
+
+  <div id="workspace" hidden>
+    {% include "web/_workspace.html" %}
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'web/js/staff.js' %}"></script>
+<script>Staff.init({ role: "master" });</script>
+{% endblock %}

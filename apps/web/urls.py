@@ -1,10 +1,13 @@
 from django.urls import path
 
-from apps.web.views import ClientDemoView, MasterDemoView
+from apps.web.views import AdminView, ClientView, MasterView
 
 app_name = "web"
 
 urlpatterns = [
-    path("", ClientDemoView.as_view(), name="client"),
-    path("master/", MasterDemoView.as_view(), name="master"),
+    path("", ClientView.as_view(), name="client"),
+    path("master/", MasterView.as_view(), name="master"),
+    # Не "admin/" — этот префикс занят Django-админкой, которая остаётся
+    # инструментом для правки справочников.
+    path("admin-panel/", AdminView.as_view(), name="admin"),
 ]

@@ -57,8 +57,9 @@ Backend-платформа для сети автосервисов с **одн�
 
 ## 4. Что уже сделано (всё работает и проверено)
 
-Серверная часть **готова полностью**. 52 теста зелёные, ruff чистый, OpenAPI
-генерируется без предупреждений, сквозной сценарий прогнан по живому HTTP.
+Серверная часть **готова полностью**, поверх неё работает веб-интерфейс.
+65 тестов зелёные, ruff чистый, OpenAPI генерируется без предупреждений,
+сквозной сценарий прогнан по живому HTTP.
 
 ### Реализовано
 
@@ -73,8 +74,13 @@ Backend-платформа для сети автосервисов с **одн�
   список записывающихся прямо сейчас.
 - Склад масла с резервированием и списанием при завершении работ.
 - Журнал уведомлений, SMS через Celery, абстракция SMS-провайдера.
+- Метрики администратора: выручка, средний чек, доли отмен и неявок, воронка
+  записи, динамика по дням, загрузка по часам, точки, ходовые масла, склад,
+  клиентская база. Права — отдельный `IsAdmin`, мастеру закрыто.
 - Django-админка, healthcheck, демо-данные при первом старте.
-- Две тестовые HTML-страницы без стилей для ручной проверки сценария.
+- Веб-интерфейс на чистых HTML/CSS/JS: сайт клиента `/`, рабочее место мастера
+  `/master/`, панель администратора с метриками `/admin-panel/`. Светлая и тёмная
+  темы, адаптив, обновление access-токена, WebSocket на клиентской странице.
 
 ### Чего ещё нет
 
@@ -101,10 +107,12 @@ apps/
     events.py      публикация событий
     tasks.py       Celery
   master/          API приложения мастера
+    metrics.py     расчёт сводной аналитики для администратора
   notifications/   журнал + SMS-провайдеры (console / http_gateway)
-  web/             тестовые HTML-страницы без стилей
+  web/             веб-интерфейс: templates/web/*.html + static/web/{css,js}
 
 tests/             conftest.py + test_auth.py + test_draft_flow.py + test_master.py
+                   + test_metrics.py
 ```
 
 ## 6. Архитектурные правила — их важно соблюдать
@@ -201,6 +209,10 @@ tests/             conftest.py + test_auth.py + test_draft_flow.py + test_master
 обязательна), `POST .../start/`, `POST .../complete/`, `POST .../no-show/`,
 `GET /master/bookings/summary/?date=`, `GET /master/live-drafts/`
 
+**Администратор:** `GET /master/metrics/?date_from=&date_to=&service_point=` —
+сводная аналитика одним ответом (`totals`, `funnel`, `by_day`, `by_hour`,
+`by_point`, `top_oils`, `clients`, `stock`, `live`). Только роль `admin`.
+
 **WebSocket:** `ws://host/ws/booking/?token=<access JWT>` — события
 `draft.updated`, `draft.expired`, `draft.closed`, `booking.created`,
 `booking.updated`, `booking.cancelled`. Payload совпадает с форматом REST.
@@ -232,9 +244,12 @@ OTP_DEBUG_EXPOSE_CODE=True           # в проде обязательно Fals
 ```bash
 cp .env.example .env
 docker compose build api && docker compose up -d   # или make up
-make test    # 52 теста
+make test    # 65 тестов
 make lint    # ruff
 ```
+
+Страницы: `/` — клиент, `/master/` — мастер, `/admin-panel/` — администратор
+с метриками, `/admin/` — Django-админка, `/api/docs/` — Swagger.
 
 Демо-учётки: админ `+79000000000 / admin12345`, мастер `+79000000001 / master12345`.
 SMS-код в разработке приходит в поле `debug_code` ответа и в логи воркера.

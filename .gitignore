@@ -12,3 +12,6 @@ htmlcov/
 .ruff_cache/
 .idea/
 .vscode/
+# Локальные переопределения compose: у каждого разработчика свои
+# занятые порты и пути.
+docker-compose.override.yml

@@ -1,0 +1,45 @@
+{% load static %}<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Автосервис{% endblock %}</title>
+<meta name="description" content="{% block description %}Замена масла в сети автосервисов: запись онлайн за четыре шага.{% endblock %}">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛢️</text></svg>">
+<link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+</head>
+<body>
+
+<header class="header">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3s6 6.3 6 10.2A6 6 0 0 1 6 13.2C6 9.3 12 3 12 3z"/>
+        </svg>
+      </span>
+      <span>Автосервис</span>
+      {% block brand_sub %}{% endblock %}
+    </a>
+
+    <nav class="nav">{% block nav %}{% endblock %}</nav>
+
+    <span class="spacer"></span>
+
+    {% block header_actions %}{% endblock %}
+    <button class="icon-btn" id="theme-toggle" type="button" title="Сменить тему" aria-label="Сменить тему"></button>
+  </div>
+</header>
+
+<main class="page">
+  <div class="wrap">
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<script src="{% static 'web/js/core.js' %}"></script>
+<script>App.theme.init();</script>
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

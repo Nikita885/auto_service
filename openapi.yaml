@@ -758,6 +758,42 @@ paths:
                 items:
                   $ref: '#/components/schemas/LiveDraft'
           description: ''
+  /api/v1/master/metrics/:
+    get:
+      operationId: master_metrics_retrieve
+      description: 'Сводная аналитика по сети: выручка и средний чек, статусы записей,
+        воронка записи, динамика по дням, загрузка по часам, сравнение точек, популярные
+        позиции масла, остатки склада и клиентская база. По умолчанию — последние
+        30 дней в часовом поясе сети; при фильтре по точке сутки считаются в её поясе.
+        Доступно только роли `admin`.'
+      summary: Метрики за период
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+        description: YYYY-MM-DD, начало периода
+      - in: query
+        name: date_to
+        schema:
+          type: string
+        description: YYYY-MM-DD, конец периода
+      - in: query
+        name: service_point
+        schema:
+          type: string
+        description: UUID точки — фильтр
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Metrics'
+          description: ''
   /api/v1/service-points/:
     get:
       operationId: service_points_list
@@ -1329,6 +1365,23 @@ components:
       - pending
       - revenue
       - total
+    FunnelStep:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        count:
+          type: integer
+        share:
+          type: number
+          format: double
+      required:
+      - count
+      - key
+      - label
+      - share
     LiveDraft:
       type: object
       description: Кто прямо сейчас записывается. Полезно, чтобы понимать нагрузку.
@@ -1677,6 +1730,297 @@ components:
           maxLength: 500
       required:
       - reason
+    Metrics:
+      type: object
+      properties:
+        period:
+          $ref: '#/components/schemas/MetricsPeriod'
+        totals:
+          $ref: '#/components/schemas/MetricsTotals'
+        funnel:
+          $ref: '#/components/schemas/MetricsFunnel'
+        by_day:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricsDay'
+        by_hour:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricsHour'
+        by_point:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricsPoint'
+        top_oils:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricsOil'
+        clients:
+          $ref: '#/components/schemas/MetricsClients'
+        stock:
+          $ref: '#/components/schemas/MetricsStock'
+        live:
+          $ref: '#/components/schemas/MetricsLive'
+      required:
+      - by_day
+      - by_hour
+      - by_point
+      - clients
+      - funnel
+      - live
+      - period
+      - stock
+      - top_oils
+      - totals
+    MetricsClients:
+      type: object
+      properties:
+        total:
+          type: integer
+        new:
+          type: integer
+        returning:
+          type: integer
+      required:
+      - new
+      - returning
+      - total
+    MetricsDay:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        total:
+          type: integer
+        completed:
+          type: integer
+        cancelled:
+          type: integer
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - cancelled
+      - completed
+      - date
+      - revenue
+      - total
+    MetricsFunnel:
+      type: object
+      properties:
+        started:
+          type: integer
+        point_selected:
+          type: integer
+        oil_selected:
+          type: integer
+        slot_selected:
+          type: integer
+        confirmed:
+          type: integer
+        expired:
+          type: integer
+        cancelled:
+          type: integer
+        restarted:
+          type: integer
+        alive:
+          type: integer
+        conversion:
+          type: number
+          format: double
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/FunnelStep'
+      required:
+      - alive
+      - cancelled
+      - confirmed
+      - conversion
+      - expired
+      - oil_selected
+      - point_selected
+      - restarted
+      - slot_selected
+      - started
+      - steps
+    MetricsHour:
+      type: object
+      properties:
+        hour:
+          type: integer
+        total:
+          type: integer
+      required:
+      - hour
+      - total
+    MetricsLive:
+      type: object
+      properties:
+        drafts_now:
+          type: integer
+        upcoming:
+          type: integer
+      required:
+      - drafts_now
+      - upcoming
+    MetricsOil:
+      type: object
+      properties:
+        oil_title:
+          type: string
+        total:
+          type: integer
+        completed:
+          type: integer
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - completed
+      - oil_title
+      - revenue
+      - total
+    MetricsPeriod:
+      type: object
+      properties:
+        date_from:
+          type: string
+          format: date
+        date_to:
+          type: string
+          format: date
+        days:
+          type: integer
+        timezone:
+          type: string
+      required:
+      - date_from
+      - date_to
+      - days
+      - timezone
+    MetricsPoint:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        total:
+          type: integer
+        completed:
+          type: integer
+        cancelled:
+          type: integer
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - cancelled
+      - completed
+      - id
+      - name
+      - revenue
+      - total
+    MetricsStock:
+      type: object
+      properties:
+        threshold:
+          type: integer
+        total_quantity:
+          type: integer
+        low_count:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricsStockItem'
+      required:
+      - items
+      - low_count
+      - threshold
+      - total_quantity
+    MetricsStockItem:
+      type: object
+      properties:
+        point:
+          type: string
+        oil:
+          type: string
+        quantity:
+          type: integer
+        is_low:
+          type: boolean
+      required:
+      - is_low
+      - oil
+      - point
+      - quantity
+    MetricsTotals:
+      type: object
+      properties:
+        total:
+          type: integer
+        completed:
+          type: integer
+        pending:
+          type: integer
+        in_progress:
+          type: integer
+        cancelled:
+          type: integer
+        cancelled_by_client:
+          type: integer
+        cancelled_by_master:
+          type: integer
+        no_show:
+          type: integer
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        oil_revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        work_revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        avg_check:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        cancel_rate:
+          type: number
+          format: double
+        no_show_rate:
+          type: number
+          format: double
+        completion_rate:
+          type: number
+          format: double
+      required:
+      - avg_check
+      - cancel_rate
+      - cancelled
+      - cancelled_by_client
+      - cancelled_by_master
+      - completed
+      - completion_rate
+      - in_progress
+      - no_show
+      - no_show_rate
+      - oil_revenue
+      - pending
+      - revenue
+      - total
+      - work_revenue
     NoShowRequest:
       type: object
       properties:

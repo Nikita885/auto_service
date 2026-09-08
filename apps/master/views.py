@@ -19,19 +19,22 @@ from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.booking.constants import BookingStatus
 from apps.booking.models import Booking, BookingDraft
 from apps.booking.services import booking as booking_service
 from apps.catalog.models import ServicePoint
-from apps.common.exceptions import ValidationError
-from apps.common.permissions import IsMaster
+from apps.common.exceptions import NotFoundError, ValidationError
+from apps.common.permissions import IsAdmin, IsMaster
+from apps.master import metrics
 from apps.master.serializers import (
     DaySummarySerializer,
     LiveDraftSerializer,
     MasterBookingDetailSerializer,
     MasterBookingSerializer,
     MasterCancelSerializer,
+    MetricsSerializer,
     NoShowSerializer,
 )
 
@@ -248,3 +251,44 @@ class LiveDraftListView(mixins.ListModelMixin, viewsets.GenericViewSet):
         if allowed is not None:
             qs = qs.filter(service_point_id__in=allowed)
         return qs.order_by("created_at")
+
+
+@extend_schema(tags=["Мастер"])
+class MetricsView(APIView):
+    """Сводная аналитика сети. Только для роли `admin`.
+
+    Вьюха тонкая: разбирает фильтры, зовёт `metrics.collect` и отдаёт
+    результат. Все вычисления живут в `apps/master/metrics.py`.
+    """
+
+    permission_classes = [IsAdmin]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("date_from", str, description="YYYY-MM-DD, начало периода"),
+            OpenApiParameter("date_to", str, description="YYYY-MM-DD, конец периода"),
+            OpenApiParameter("service_point", str, description="UUID точки — фильтр"),
+        ],
+        responses={200: MetricsSerializer},
+        summary="Метрики за период",
+        description=(
+            "Сводная аналитика по сети: выручка и средний чек, статусы записей, "
+            "воронка записи, динамика по дням, загрузка по часам, сравнение точек, "
+            "популярные позиции масла, остатки склада и клиентская база. "
+            "По умолчанию — последние 30 дней в часовом поясе сети; при фильтре по "
+            "точке сутки считаются в её поясе. Доступно только роли `admin`."
+        ),
+    )
+    def get(self, request: Request) -> Response:
+        point = None
+        if point_id := request.query_params.get("service_point"):
+            point = ServicePoint.objects.filter(pk=point_id).first()
+            if point is None:
+                raise NotFoundError("Точка не найдена", code="point_not_found")
+
+        period = metrics.resolve_period(
+            request.query_params.get("date_from"),
+            request.query_params.get("date_to"),
+            point,
+        )
+        return Response(MetricsSerializer(metrics.collect(period, point)).data)

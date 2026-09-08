@@ -106,3 +106,121 @@ class DaySummarySerializer(serializers.Serializer):
     cancelled = serializers.IntegerField()
     no_show = serializers.IntegerField()
     revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+# --------------------------------------------------------------- метрики
+# Схема отдаётся явно, а не через `dict`: по ней генерируется OpenAPI, и
+# админ-панель (как и любой будущий клиент) знает состав ответа заранее.
+
+
+class MetricsPeriodSerializer(serializers.Serializer):
+    date_from = serializers.DateField()
+    date_to = serializers.DateField()
+    days = serializers.IntegerField()
+    timezone = serializers.CharField()
+
+
+class MetricsTotalsSerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    completed = serializers.IntegerField()
+    pending = serializers.IntegerField()
+    in_progress = serializers.IntegerField()
+    cancelled = serializers.IntegerField()
+    cancelled_by_client = serializers.IntegerField()
+    cancelled_by_master = serializers.IntegerField()
+    no_show = serializers.IntegerField()
+    revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    oil_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    work_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    avg_check = serializers.DecimalField(max_digits=12, decimal_places=2)
+    cancel_rate = serializers.FloatField()
+    no_show_rate = serializers.FloatField()
+    completion_rate = serializers.FloatField()
+
+
+class FunnelStepSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    label = serializers.CharField()
+    count = serializers.IntegerField()
+    share = serializers.FloatField()
+
+
+class MetricsFunnelSerializer(serializers.Serializer):
+    started = serializers.IntegerField()
+    point_selected = serializers.IntegerField()
+    oil_selected = serializers.IntegerField()
+    slot_selected = serializers.IntegerField()
+    confirmed = serializers.IntegerField()
+    expired = serializers.IntegerField()
+    cancelled = serializers.IntegerField()
+    restarted = serializers.IntegerField()
+    alive = serializers.IntegerField()
+    conversion = serializers.FloatField()
+    steps = FunnelStepSerializer(many=True)
+
+
+class MetricsDaySerializer(serializers.Serializer):
+    date = serializers.DateField()
+    total = serializers.IntegerField()
+    completed = serializers.IntegerField()
+    cancelled = serializers.IntegerField()
+    revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class MetricsHourSerializer(serializers.Serializer):
+    hour = serializers.IntegerField()
+    total = serializers.IntegerField()
+
+
+class MetricsPointSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    name = serializers.CharField()
+    total = serializers.IntegerField()
+    completed = serializers.IntegerField()
+    cancelled = serializers.IntegerField()
+    revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class MetricsOilSerializer(serializers.Serializer):
+    oil_title = serializers.CharField()
+    total = serializers.IntegerField()
+    completed = serializers.IntegerField()
+    revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class MetricsClientsSerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    new = serializers.IntegerField()
+    returning = serializers.IntegerField()
+
+
+class MetricsStockItemSerializer(serializers.Serializer):
+    point = serializers.CharField()
+    oil = serializers.CharField()
+    quantity = serializers.IntegerField()
+    is_low = serializers.BooleanField()
+
+
+class MetricsStockSerializer(serializers.Serializer):
+    threshold = serializers.IntegerField()
+    total_quantity = serializers.IntegerField()
+    low_count = serializers.IntegerField()
+    items = MetricsStockItemSerializer(many=True)
+
+
+class MetricsLiveSerializer(serializers.Serializer):
+    drafts_now = serializers.IntegerField()
+    upcoming = serializers.IntegerField()
+
+
+class MetricsSerializer(serializers.Serializer):
+    period = MetricsPeriodSerializer()
+    totals = MetricsTotalsSerializer()
+    funnel = MetricsFunnelSerializer()
+    by_day = MetricsDaySerializer(many=True)
+    by_hour = MetricsHourSerializer(many=True)
+    by_point = MetricsPointSerializer(many=True)
+    top_oils = MetricsOilSerializer(many=True)
+    clients = MetricsClientsSerializer()
+    stock = MetricsStockSerializer()
+    live = MetricsLiveSerializer()
