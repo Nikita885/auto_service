@@ -1,0 +1,13 @@
+# LF во всём репозитории. Критично для docker/entrypoint.sh: с CRLF
+# контейнер падает на shebang («bad interpreter»), а Windows-клон
+# по умолчанию подставил бы именно CRLF.
+* text=auto eol=lf
+
+*.sh    text eol=lf
+Makefile text eol=lf
+*.py    text eol=lf
+*.yml   text eol=lf
+*.html  text eol=lf
+
+# Сгенерированная схема — не считать её изменения в diff-статистике
+openapi.yaml linguist-generated=true

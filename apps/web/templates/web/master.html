@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Автосервис — панель мастера (тестовая страница)</title>
+</head>
+<body>
+
+<h1>Панель мастера</h1>
+<p>Прототип второй версии приложения — для сотрудников. <a href="/">Клиентская страница</a> · <a href="/api/docs/">Документация API</a></p>
+
+<hr>
+
+<h2>Вход</h2>
+<div id="auth-box">
+  <p>Демо-мастер: <code>+79000000001</code></p>
+  <p>
+    <label>Телефон: <input id="phone" value="+79000000001" size="20"></label>
+    <button id="btn-otp">Получить код</button>
+  </p>
+  <p>
+    <label>Код: <input id="code" size="8"></label>
+    <button id="btn-login">Войти</button>
+  </p>
+  <p id="otp-hint"></p>
+</div>
+<div id="auth-info" hidden>
+  <p>Вы вошли как <b id="me-phone"></b> (<span id="me-role"></span>) <button id="btn-logout">Выйти</button></p>
+</div>
+
+<hr>
+
+<h2>Записи</h2>
+<p>
+  <label>Дата: <input id="date" type="date"></label>
+  <label>Поиск: <input id="search" size="20" placeholder="код, имя, телефон, номер"></label>
+  <button id="btn-load">Показать</button>
+</p>
+<div id="summary"></div>
+<table border="1" cellpadding="4">
+  <thead>
+    <tr>
+      <th>Время</th><th>Код</th><th>Клиент</th><th>Телефон</th><th>Авто</th>
+      <th>Масло</th><th>Сумма</th><th>Статус</th><th>Действия</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<hr>
+
+<h2>Записываются прямо сейчас</h2>
+<p><button id="btn-live">Обновить</button></p>
+<div id="live"></div>
+
+<hr>
+
+<h2>Журнал</h2>
+<pre id="log" style="max-height:280px;overflow:auto"></pre>
+
+<script>
+const API = "/api/v1";
+let access = localStorage.getItem("master_access") || null;
+
+const $ = (id) => document.getElementById(id);
+
+function log(...args) {
+  const line = args.map(a => typeof a === "string" ? a : JSON.stringify(a)).join(" ");
+  $("log").textContent = new Date().toLocaleTimeString() + "  " + line + "\n" + $("log").textContent;
+}
+
+async function api(path, {method = "GET", body = null} = {}) {
+  const headers = {"Content-Type": "application/json"};
+  if (access) headers["Authorization"] = "Bearer " + access;
+
+  const res = await fetch(API + path, {
+    method, headers, body: body === null ? null : JSON.stringify(body),
+  });
+  if (res.status === 204) return null;
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    const err = data && data.error ? data.error : {code: res.status, message: res.statusText};
+    log("ОШИБКА", method, path, err);
+    alert(err.message);
+    throw new Error(err.code);
+  }
+  log("OK", method, path);
+  return data;
+}
+
+$("btn-otp").onclick = async () => {
+  const data = await api("/auth/otp/request/", {method: "POST", body: {phone: $("phone").value}});
+  $("otp-hint").textContent = data.debug_code ? "Код: " + data.debug_code : "Код отправлен по SMS.";
+  if (data.debug_code) $("code").value = data.debug_code;
+};
+
+$("btn-login").onclick = async () => {
+  const data = await api("/auth/otp/verify/", {
+    method: "POST", body: {phone: $("phone").value, code: $("code").value},
+  });
+  if (data.user.role === "client") {
+    return alert("Этот номер не сотрудник сервиса.");
+  }
+  access = data.access;
+  localStorage.setItem("master_access", access);
+  showMe(data.user);
+  await load();
+};
+
+$("btn-logout").onclick = () => {
+  localStorage.removeItem("master_access");
+  location.reload();
+};
+
+function showMe(user) {
+  $("auth-box").hidden = true;
+  $("auth-info").hidden = false;
+  $("me-phone").textContent = user.phone;
+  $("me-role").textContent = user.role;
+}
+
+function actionButton(booking, label, path, body) {
+  const btn = document.createElement("button");
+  btn.textContent = label;
+  btn.onclick = async () => {
+    await api("/master/bookings/" + booking.id + "/" + path + "/", {method: "POST", body: body || {}});
+    await load();
+  };
+  return btn;
+}
+
+async function load() {
+  const params = new URLSearchParams();
+  if ($("date").value) params.set("date", $("date").value);
+  if ($("search").value) params.set("search", $("search").value);
+
+  const data = await api("/master/bookings/?" + params.toString());
+  const tbody = $("rows");
+  tbody.innerHTML = "";
+
+  data.results.forEach(b => {
+    const tr = document.createElement("tr");
+    [b.local_time, b.code, b.client_name || "—", b.client_phone,
+     (b.car_model || "—") + " " + (b.car_plate || ""), b.oil_title,
+     b.total_price, b.status_display].forEach(v => {
+      const td = document.createElement("td");
+      td.textContent = v;
+      tr.append(td);
+    });
+
+    const actions = document.createElement("td");
+    if (b.status === "pending") {
+      actions.append(actionButton(b, "В работу", "start"));
+      actions.append(actionButton(b, "Не приехал", "no-show", {reason: "Не явился"}));
+    }
+    if (b.status === "pending" || b.status === "in_progress") {
+      actions.append(actionButton(b, "Выполнено", "complete"));
+      const cancel = document.createElement("button");
+      cancel.textContent = "Отменить";
+      cancel.onclick = async () => {
+        const reason = prompt("Причина отмены (уйдёт клиенту в SMS):");
+        if (!reason) return;
+        await api("/master/bookings/" + b.id + "/cancel/", {method: "POST", body: {reason}});
+        await load();
+      };
+      actions.append(cancel);
+    }
+    tr.append(actions);
+    tbody.append(tr);
+  });
+
+  const s = await api("/master/bookings/summary/" + ($("date").value ? "?date=" + $("date").value : ""));
+  $("summary").textContent =
+    "Сводка за " + s.date + ": всего " + s.total + ", ждут " + s.pending +
+    ", в работе " + s.in_progress + ", выполнено " + s.completed +
+    ", отменено " + s.cancelled + ", неявок " + s.no_show +
+    ", выручка " + s.revenue + " ₽";
+}
+
+$("btn-load").onclick = load;
+
+$("btn-live").onclick = async () => {
+  const drafts = await api("/master/live-drafts/");
+  $("live").innerHTML = drafts.length ? "" : "<i>Сейчас никто не записывается.</i>";
+  drafts.forEach(d => {
+    const p = document.createElement("p");
+    p.textContent = d.client_name + " (" + d.client_phone + ") — шаг «" + d.step +
+      "», масло: " + (d.oil_title || "не выбрано") +
+      ", осталось " + d.seconds_left + " сек.";
+    $("live").append(p);
+  });
+};
+
+(async () => {
+  $("date").value = new Date().toISOString().slice(0, 10);
+  if (!access) return;
+  try {
+    showMe(await api("/auth/me/"));
+    await load();
+  } catch (e) {
+    localStorage.removeItem("master_access");
+    access = null;
+  }
+})();
+</script>
+
+</body>
+</html>

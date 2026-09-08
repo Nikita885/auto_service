@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Автосервис — запись на замену масла (тестовая страница)</title>
+</head>
+<body>
+
+<h1>Замена масла — запись</h1>
+<p>Страница без стилей: она нужна, чтобы вручную прогнать сценарий API. <a href="/master/">Панель мастера</a> · <a href="/api/docs/">Документация API</a></p>
+
+<hr>
+
+<h2>1. Вход по номеру телефона</h2>
+<div id="auth-box">
+  <p>
+    <label>Телефон: <input id="phone" value="+79001234567" size="20"></label>
+    <button id="btn-otp">Получить код</button>
+  </p>
+  <p>
+    <label>Код из SMS: <input id="code" size="8"></label>
+    <button id="btn-login">Войти</button>
+  </p>
+  <p id="otp-hint"></p>
+</div>
+<div id="auth-info" hidden>
+  <p>Вы вошли как <b id="me-phone"></b> (<span id="me-role"></span>) <button id="btn-logout">Выйти</button></p>
+  <p>
+    <label>Имя: <input id="full-name" size="20"></label>
+    <label>Авто: <input id="car-model" size="20"></label>
+    <label>Госномер: <input id="car-plate" size="10"></label>
+    <button id="btn-profile">Сохранить профиль</button>
+  </p>
+</div>
+
+<hr>
+
+<h2>2. Запись</h2>
+<p>
+  <button id="btn-start">Начать запись</button>
+  <button id="btn-restart">Начать заново</button>
+  <button id="btn-drop">Прервать запись</button>
+</p>
+
+<div id="draft-box">
+  <p><i>Черновик не создан.</i></p>
+</div>
+
+<h3>Шаг 1. Адрес</h3>
+<div id="points"></div>
+
+<h3>Шаг 2. Масло</h3>
+<div id="oils"><i>Сначала выберите адрес.</i></div>
+
+<h3>Шаг 3. Время</h3>
+<div id="days"><i>Сначала выберите масло.</i></div>
+<div id="slots"></div>
+
+<h3>Шаг 4. Подтверждение</h3>
+<p>
+  <label>Комментарий: <input id="comment" size="40"></label>
+  <button id="btn-confirm">Подтвердить запись</button>
+</p>
+
+<hr>
+
+<h2>3. Мои записи</h2>
+<p><button id="btn-bookings">Обновить список</button></p>
+<div id="bookings"></div>
+
+<hr>
+
+<h2>Журнал (REST + WebSocket)</h2>
+<pre id="log" style="max-height:320px;overflow:auto"></pre>
+
+<script>
+const API = "/api/v1";
+let access = localStorage.getItem("access") || null;
+let draft = null;
+let ws = null;
+let timer = null;
+
+const $ = (id) => document.getElementById(id);
+
+function log(...args) {
+  const line = args.map(a => typeof a === "string" ? a : JSON.stringify(a, null, 1)).join(" ");
+  $("log").textContent = new Date().toLocaleTimeString() + "  " + line + "\n" + $("log").textContent;
+}
+
+async function api(path, {method = "GET", body = null} = {}) {
+  const headers = {"Content-Type": "application/json"};
+  if (access) headers["Authorization"] = "Bearer " + access;
+
+  const res = await fetch(API + path, {
+    method,
+    headers,
+    body: body === null ? null : JSON.stringify(body),
+  });
+
+  if (res.status === 204) return null;
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    const err = data && data.error ? data.error : {code: res.status, message: res.statusText};
+    log("ОШИБКА", method, path, err);
+    alert(err.message + (err.code ? " [" + err.code + "]" : ""));
+    throw new Error(err.code);
+  }
+  log("OK", method, path, data);
+  return data;
+}
+
+/* ---------------------------------------------------------------- вход */
+$("btn-otp").onclick = async () => {
+  const data = await api("/auth/otp/request/", {method: "POST", body: {phone: $("phone").value}});
+  $("otp-hint").textContent = data.debug_code
+    ? "Код (режим разработки): " + data.debug_code
+    : "Код отправлен по SMS.";
+  if (data.debug_code) $("code").value = data.debug_code;
+};
+
+$("btn-login").onclick = async () => {
+  const data = await api("/auth/otp/verify/", {
+    method: "POST",
+    body: {phone: $("phone").value, code: $("code").value},
+  });
+  access = data.access;
+  localStorage.setItem("access", access);
+  localStorage.setItem("refresh", data.refresh);
+  showMe(data.user);
+  await loadPoints();
+  await loadCurrentDraft();
+  openSocket();
+};
+
+$("btn-logout").onclick = () => {
+  access = null;
+  localStorage.clear();
+  if (ws) ws.close();
+  location.reload();
+};
+
+$("btn-profile").onclick = async () => {
+  const user = await api("/auth/me/", {
+    method: "PATCH",
+    body: {
+      full_name: $("full-name").value,
+      car_model: $("car-model").value,
+      car_plate: $("car-plate").value,
+    },
+  });
+  showMe(user);
+};
+
+function showMe(user) {
+  $("auth-box").hidden = true;
+  $("auth-info").hidden = false;
+  $("me-phone").textContent = user.phone;
+  $("me-role").textContent = user.role;
+  $("full-name").value = user.full_name || "";
+  $("car-model").value = user.car_model || "";
+  $("car-plate").value = user.car_plate || "";
+}
+
+/* ------------------------------------------------------------- черновик */
+function renderDraft(d) {
+  draft = d;
+  if (!d || !d.is_open) {
+    $("draft-box").innerHTML = d
+      ? "<p><b>Черновик закрыт:</b> " + d.step_display + " (" + (d.close_reason || "") + ")</p>"
+      : "<p><i>Черновик не создан.</i></p>";
+    stopTimer();
+    return;
+  }
+
+  $("draft-box").innerHTML =
+    "<p><b>Шаг:</b> " + d.step_display + " — шагов пройдено " +
+    d.progress.completed + " из " + d.progress.total + "</p>" +
+    "<p><b>Следующее действие:</b> " + (d.next_action || "—") + "</p>" +
+    "<p><b>Осталось времени:</b> <span id='ticker'>" + d.seconds_left + "</span> сек.</p>" +
+    "<p><b>Выбрано:</b> адрес — " + (d.service_point ? d.service_point.name : "—") +
+    "; масло — " + (d.oil ? d.oil.title : "—") +
+    "; время — " + (d.slot_start ? new Date(d.slot_start).toLocaleString() : "—") + "</p>";
+
+  startTimer(d.seconds_left);
+}
+
+function startTimer(seconds) {
+  stopTimer();
+  let left = seconds;
+  timer = setInterval(() => {
+    left -= 1;
+    const el = $("ticker");
+    if (el) el.textContent = Math.max(left, 0);
+    if (left <= 0) {
+      stopTimer();
+      loadCurrentDraft();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timer) clearInterval(timer);
+  timer = null;
+}
+
+async function loadCurrentDraft() {
+  const d = await api("/bookings/drafts/current/");
+  renderDraft(d);
+  if (d && d.service_point) await loadOils(d.service_point.id);
+  if (d && d.oil) await loadDays(d.service_point.id);
+}
+
+$("btn-start").onclick = async () => {
+  renderDraft(await api("/bookings/drafts/", {method: "POST", body: {restart: false}}));
+};
+
+$("btn-restart").onclick = async () => {
+  $("oils").innerHTML = "<i>Сначала выберите адрес.</i>";
+  $("days").innerHTML = "<i>Сначала выберите масло.</i>";
+  $("slots").innerHTML = "";
+  renderDraft(await api("/bookings/drafts/", {method: "POST", body: {restart: true}}));
+};
+
+$("btn-drop").onclick = async () => {
+  if (!draft) return alert("Черновика нет");
+  renderDraft(await api("/bookings/drafts/" + draft.id + "/cancel/", {method: "POST"}));
+};
+
+/* ---------------------------------------------------------------- шаги */
+async function loadPoints() {
+  const points = await api("/service-points/");
+  $("points").innerHTML = "";
+  points.forEach(p => {
+    const btn = document.createElement("button");
+    btn.textContent = p.name + " — " + p.address + " (" + p.opens_at.slice(0, 5) + "–" + p.closes_at.slice(0, 5) + ")";
+    btn.onclick = async () => {
+      if (!draft) return alert("Сначала нажмите «Начать запись»");
+      renderDraft(await api("/bookings/drafts/" + draft.id + "/select-point/", {
+        method: "POST", body: {service_point_id: p.id},
+      }));
+      await loadOils(p.id);
+    };
+    $("points").append(btn, document.createElement("br"));
+  });
+}
+
+async function loadOils(pointId) {
+  const oils = await api("/service-points/" + pointId + "/oils/");
+  $("oils").innerHTML = oils.length ? "" : "<i>На этой точке масла закончились.</i>";
+  oils.forEach(o => {
+    const btn = document.createElement("button");
+    btn.textContent = o.title + " — " + o.total_price + " ₽ (в наличии " + o.available_quantity + ")";
+    btn.onclick = async () => {
+      renderDraft(await api("/bookings/drafts/" + draft.id + "/select-oil/", {
+        method: "POST", body: {oil_id: o.id},
+      }));
+      await loadDays(pointId);
+    };
+    $("oils").append(btn, document.createElement("br"));
+  });
+}
+
+async function loadDays(pointId) {
+  const data = await api("/service-points/" + pointId + "/slots/");
+  $("days").innerHTML = data.available_days.length ? "" : "<i>Свободных дней нет.</i>";
+  data.available_days.forEach(day => {
+    const btn = document.createElement("button");
+    btn.textContent = day;
+    btn.onclick = () => loadSlots(pointId, day);
+    $("days").append(btn);
+  });
+}
+
+async function loadSlots(pointId, day) {
+  const data = await api("/service-points/" + pointId + "/slots/?date=" + day);
+  $("slots").innerHTML = "<p>Свободное время на " + day + ":</p>";
+  data.slots.forEach(s => {
+    const btn = document.createElement("button");
+    btn.textContent = s.local_time + " (свободно постов: " + s.free_posts + ")";
+    btn.onclick = async () => {
+      renderDraft(await api("/bookings/drafts/" + draft.id + "/select-slot/", {
+        method: "POST", body: {start_at: s.start_at},
+      }));
+    };
+    $("slots").append(btn);
+  });
+}
+
+$("btn-confirm").onclick = async () => {
+  if (!draft) return alert("Черновика нет");
+  const booking = await api("/bookings/drafts/" + draft.id + "/confirm/", {
+    method: "POST", body: {comment: $("comment").value},
+  });
+  alert("Записаны! Код записи: " + booking.code);
+  await loadCurrentDraft();
+  await loadBookings();
+};
+
+/* ------------------------------------------------------------- записи */
+async function loadBookings() {
+  const data = await api("/bookings/?scope=upcoming");
+  $("bookings").innerHTML = data.results.length ? "" : "<i>Записей нет.</i>";
+  data.results.forEach(b => {
+    const div = document.createElement("div");
+    div.innerHTML = "<b>" + b.code + "</b> — " + new Date(b.start_at).toLocaleString() +
+      ", " + b.service_point.address + ", " + b.oil_title +
+      " — " + b.status_display + " ";
+    if (b.can_cancel) {
+      const btn = document.createElement("button");
+      btn.textContent = "Отменить";
+      btn.onclick = async () => {
+        await api("/bookings/" + b.id + "/cancel/", {method: "POST", body: {reason: "Передумал"}});
+        await loadBookings();
+      };
+      div.append(btn);
+    }
+    $("bookings").append(div);
+  });
+}
+
+$("btn-bookings").onclick = loadBookings;
+
+/* ---------------------------------------------------------- websocket */
+function openSocket() {
+  if (!access) return;
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(proto + "://" + location.host + "/ws/booking/?token=" + access);
+
+  ws.onopen = () => log("WS подключён");
+  ws.onclose = (e) => log("WS закрыт, код", String(e.code));
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    log("WS", msg.event, msg.payload);
+    if (msg.event.startsWith("draft.")) renderDraft(msg.payload);
+    if (msg.event.startsWith("booking.")) loadBookings();
+  };
+}
+
+/* -------------------------------------------------------------- старт */
+(async () => {
+  if (!access) return;
+  try {
+    showMe(await api("/auth/me/"));
+    await loadPoints();
+    await loadCurrentDraft();
+    await loadBookings();
+    openSocket();
+  } catch (e) {
+    localStorage.clear();
+    access = null;
+  }
+})();
+</script>
+
+</body>
+</html>

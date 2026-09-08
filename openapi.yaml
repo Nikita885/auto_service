@@ -1,0 +1,2190 @@
+openapi: 3.0.3
+info:
+  title: Автосервис — API замены масла
+  version: 1.0.0
+  description: 'Бэкенд записи на замену масла: вход по SMS-коду, пошаговая запись
+    с черновиком на 5 минут, панель мастера.'
+paths:
+  /api/v1/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      summary: Мой профиль
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: auth_me_partial_update
+      summary: Обновить профиль
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/auth/otp/request/:
+    post:
+      operationId: auth_otp_request_create
+      summary: Запросить код входа по SMS
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OtpRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OtpRequestRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpRequestResponse'
+          description: ''
+  /api/v1/auth/otp/verify/:
+    post:
+      operationId: auth_otp_verify_create
+      description: Если аккаунта с таким телефоном ещё нет — он создаётся здесь же,
+        поле is_new_user подскажет клиенту, что стоит попросить имя.
+      summary: Проверить код и получить JWT
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OtpVerifyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OtpVerifyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OtpVerifyRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/auth/token/verify/:
+    post:
+      operationId: auth_token_verify_create
+      description: |-
+        Takes a token and indicates if it is valid.  This view provides no
+        information about a token's fitness for a particular use.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+        required: true
+      responses:
+        '200':
+          description: No response body
+  /api/v1/bookings/:
+    get:
+      operationId: bookings_list
+      summary: Мои записи
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: scope
+        schema:
+          type: string
+        description: upcoming | history. По умолчанию — все.
+      tags:
+      - 'Запись: мои записи'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBookingList'
+          description: ''
+  /api/v1/bookings/{id}/:
+    get:
+      operationId: bookings_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - 'Запись: мои записи'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDetail'
+          description: ''
+  /api/v1/bookings/{id}/cancel/:
+    post:
+      operationId: bookings_cancel_create
+      summary: Отменить свою запись
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - 'Запись: мои записи'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          description: ''
+  /api/v1/bookings/drafts/:
+    post:
+      operationId: bookings_drafts_create
+      description: 'Возвращает существующий живой черновик, если он есть. `restart:
+        true` — принудительно начать заново.'
+      summary: Начать запись (создать черновик)
+      tags:
+      - 'Запись: черновик'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartDraftRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StartDraftRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StartDraftRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDraft'
+          description: ''
+  /api/v1/bookings/drafts/{id}/:
+    get:
+      operationId: bookings_drafts_retrieve
+      description: |-
+        Пошаговая запись.
+
+        Черновик создаётся при первом обращении и живёт 5 минут. Каждый шаг
+        возвращает полное состояние — клиенту не нужно склеивать ответы.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this черновик записи.
+        required: true
+      tags:
+      - 'Запись: черновик'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDraft'
+          description: ''
+  /api/v1/bookings/drafts/{id}/cancel/:
+    post:
+      operationId: bookings_drafts_cancel_create
+      description: Освобождает удерживаемый слот и канистру сразу, не дожидаясь таймера.
+      summary: Прервать запись
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this черновик записи.
+        required: true
+      tags:
+      - 'Запись: черновик'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingDraftRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BookingDraftRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BookingDraftRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDraft'
+          description: ''
+  /api/v1/bookings/drafts/{id}/confirm/:
+    post:
+      operationId: bookings_drafts_confirm_create
+      description: Слот и наличие масла проверяются повторно. Если за время заполнения
+        слот заняли — 409 `slot_taken`.
+      summary: 'Шаг 4: подтвердить запись'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this черновик записи.
+        required: true
+      tags:
+      - 'Запись: черновик'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmDraftRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConfirmDraftRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConfirmDraftRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          description: ''
+  /api/v1/bookings/drafts/{id}/select-oil/:
+    post:
+      operationId: bookings_drafts_select_oil_create
+      description: |-
+        Пошаговая запись.
+
+        Черновик создаётся при первом обращении и живёт 5 минут. Каждый шаг
+        возвращает полное состояние — клиенту не нужно склеивать ответы.
+      summary: 'Шаг 2: выбрать масло'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this черновик записи.
+        required: true
+      tags:
+      - 'Запись: черновик'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectOilRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SelectOilRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SelectOilRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDraft'
+          description: ''
+  /api/v1/bookings/drafts/{id}/select-point/:
+    post:
+      operationId: bookings_drafts_select_point_create
+      description: |-
+        Пошаговая запись.
+
+        Черновик создаётся при первом обращении и живёт 5 минут. Каждый шаг
+        возвращает полное состояние — клиенту не нужно склеивать ответы.
+      summary: 'Шаг 1: выбрать адрес'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this черновик записи.
+        required: true
+      tags:
+      - 'Запись: черновик'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectPointRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SelectPointRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SelectPointRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDraft'
+          description: ''
+  /api/v1/bookings/drafts/{id}/select-slot/:
+    post:
+      operationId: bookings_drafts_select_slot_create
+      description: |-
+        Пошаговая запись.
+
+        Черновик создаётся при первом обращении и живёт 5 минут. Каждый шаг
+        возвращает полное состояние — клиенту не нужно склеивать ответы.
+      summary: 'Шаг 3: выбрать время'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this черновик записи.
+        required: true
+      tags:
+      - 'Запись: черновик'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectSlotRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SelectSlotRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SelectSlotRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDraft'
+          description: ''
+  /api/v1/bookings/drafts/current/:
+    get:
+      operationId: bookings_drafts_current_retrieve
+      description: 204, если активной попытки записи нет.
+      summary: Текущий черновик
+      tags:
+      - 'Запись: черновик'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDraft'
+          description: ''
+  /api/v1/master/bookings/:
+    get:
+      operationId: master_bookings_list
+      summary: Список записей
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+        description: YYYY-MM-DD — записи за день
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: scope
+        schema:
+          type: string
+        description: today — ближайшие сутки
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Код, имя, телефон или госномер
+      - in: query
+        name: service_point
+        schema:
+          type: string
+        description: UUID точки
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: 'Через запятую: pending,in_progress'
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMasterBookingList'
+          description: ''
+  /api/v1/master/bookings/{id}/:
+    get:
+      operationId: master_bookings_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterBookingDetail'
+          description: ''
+  /api/v1/master/bookings/{id}/cancel/:
+    post:
+      operationId: master_bookings_cancel_create
+      description: Причина обязательна — она уходит клиенту в SMS. Уведомление отправляется
+        автоматически.
+      summary: Отменить запись
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterCancelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MasterCancelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MasterCancelRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterBooking'
+          description: ''
+  /api/v1/master/bookings/{id}/complete/:
+    post:
+      operationId: master_bookings_complete_create
+      description: Одновременно списывает канистру масла со склада точки.
+      summary: Работы выполнены
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterBookingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MasterBookingRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MasterBookingRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterBooking'
+          description: ''
+  /api/v1/master/bookings/{id}/no-show/:
+    post:
+      operationId: master_bookings_no_show_create
+      summary: Клиент не приехал
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoShowRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NoShowRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NoShowRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterBooking'
+          description: ''
+  /api/v1/master/bookings/{id}/start/:
+    post:
+      operationId: master_bookings_start_create
+      summary: Взять в работу
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterBookingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MasterBookingRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MasterBookingRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterBooking'
+          description: ''
+  /api/v1/master/bookings/summary/:
+    get:
+      operationId: master_bookings_summary_retrieve
+      summary: Сводка за день
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+        description: YYYY-MM-DD
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DaySummary'
+          description: ''
+  /api/v1/master/live-drafts/:
+    get:
+      operationId: master_live_drafts_list
+      description: |-
+        Клиенты, которые записываются прямо сейчас.
+
+        Не обязательный экран, но полезный: видно, что через минуту приедет
+        ещё одна заявка, и на какое масло.
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LiveDraft'
+          description: ''
+  /api/v1/service-points/:
+    get:
+      operationId: service_points_list
+      description: 'Адреса сервиса. Открыты без авторизации: их видно ещё до входа.'
+      tags:
+      - Каталог
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServicePoint'
+          description: ''
+  /api/v1/service-points/{id}/:
+    get:
+      operationId: service_points_retrieve
+      description: 'Адреса сервиса. Открыты без авторизации: их видно ещё до входа.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this точка обслуживания.
+        required: true
+      tags:
+      - Каталог
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServicePoint'
+          description: ''
+  /api/v1/service-points/{point_id}/oils/:
+    get:
+      operationId: service_points_oils_list
+      description: |-
+        Масла, доступные на точке прямо сейчас.
+
+        Живёт в booking, а не в catalog, потому что доступность зависит от
+        броней и черновиков — это область записи, а не справочника.
+      summary: Масла в наличии на точке
+      parameters:
+      - in: path
+        name: point_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Доступность
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AvailableOil'
+          description: ''
+  /api/v1/service-points/{point_id}/slots/:
+    get:
+      operationId: service_points_slots_list
+      summary: Свободное время на точке
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+        description: YYYY-MM-DD. Без параметра вернётся список дат, где есть свободное
+          время.
+      - in: path
+        name: point_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Доступность
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Slot'
+          description: ''
+components:
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        is_new_user:
+          type: boolean
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - access
+      - is_new_user
+      - refresh
+      - user
+    AvailableOil:
+      type: object
+      description: Масло с остатком на конкретной точке с учётом уже занятых канистр.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        brand:
+          type: string
+          title: Бренд
+          maxLength: 80
+        name:
+          type: string
+          title: Название
+          maxLength: 120
+        viscosity:
+          type: string
+          title: Вязкость
+          description: Например, 5W-30
+          maxLength: 16
+        oil_type:
+          allOf:
+          - $ref: '#/components/schemas/OilTypeEnum'
+          title: Тип
+        oil_type_display:
+          type: string
+          readOnly: true
+        volume_liters:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          default: '4.0'
+          title: Объём канистры, л
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена за канистру, ₽
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Стоимость работ, ₽
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        description:
+          type: string
+          title: Описание
+        available_quantity:
+          type: integer
+          readOnly: true
+      required:
+      - available_quantity
+      - brand
+      - id
+      - name
+      - oil_type_display
+      - price
+      - title
+      - total_price
+      - viscosity
+    BlankEnum:
+      enum:
+      - ''
+    Booking:
+      type: object
+      description: Запись глазами клиента.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          title: Код записи
+          maxLength: 8
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          title: Статус
+        status_display:
+          type: string
+          readOnly: true
+        service_point:
+          allOf:
+          - $ref: '#/components/schemas/ServicePoint'
+          readOnly: true
+        oil_title:
+          type: string
+          title: Масло (снимок)
+          maxLength: 255
+        start_at:
+          type: string
+          format: date-time
+          title: Начало
+        end_at:
+          type: string
+          format: date-time
+          title: Окончание
+        oil_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена масла
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена работ
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Итого
+        client_comment:
+          type: string
+          title: Комментарий клиента
+          maxLength: 500
+        cancel_reason:
+          type: string
+          title: Причина отмены
+          maxLength: 500
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+          title: Отменена
+        can_cancel:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создано
+      required:
+      - can_cancel
+      - created_at
+      - end_at
+      - id
+      - oil_price
+      - oil_title
+      - service_point
+      - start_at
+      - status_display
+      - total_price
+      - work_price
+    BookingDetail:
+      type: object
+      description: Запись глазами клиента.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          title: Код записи
+          maxLength: 8
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          title: Статус
+        status_display:
+          type: string
+          readOnly: true
+        service_point:
+          allOf:
+          - $ref: '#/components/schemas/ServicePoint'
+          readOnly: true
+        oil_title:
+          type: string
+          title: Масло (снимок)
+          maxLength: 255
+        start_at:
+          type: string
+          format: date-time
+          title: Начало
+        end_at:
+          type: string
+          format: date-time
+          title: Окончание
+        oil_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена масла
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена работ
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Итого
+        client_comment:
+          type: string
+          title: Комментарий клиента
+          maxLength: 500
+        cancel_reason:
+          type: string
+          title: Причина отмены
+          maxLength: 500
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+          title: Отменена
+        can_cancel:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создано
+        oil:
+          allOf:
+          - $ref: '#/components/schemas/Oil'
+          readOnly: true
+        status_logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingStatusLog'
+          readOnly: true
+      required:
+      - can_cancel
+      - created_at
+      - end_at
+      - id
+      - oil
+      - oil_price
+      - oil_title
+      - service_point
+      - start_at
+      - status_display
+      - status_logs
+      - total_price
+      - work_price
+    BookingDraft:
+      type: object
+      description: |-
+        Состояние процесса записи «как есть».
+
+        Отдаётся и по REST, и в WebSocket одним и тем же кодом — клиент
+        разбирает один формат независимо от канала.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        step:
+          allOf:
+          - $ref: '#/components/schemas/StepEnum'
+          title: Шаг
+        step_display:
+          type: string
+          readOnly: true
+        next_action:
+          type: string
+          readOnly: true
+          nullable: true
+        progress:
+          type: object
+          additionalProperties: {}
+          description: Сколько шагов пройдено — чтобы UI рисовал прогресс без логики.
+          readOnly: true
+        is_open:
+          type: boolean
+          title: Активен
+        is_alive:
+          type: boolean
+          readOnly: true
+        close_reason:
+          title: Причина закрытия
+          oneOf:
+          - $ref: '#/components/schemas/CloseReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        service_point:
+          allOf:
+          - $ref: '#/components/schemas/ServicePoint'
+          readOnly: true
+        oil:
+          allOf:
+          - $ref: '#/components/schemas/Oil'
+          readOnly: true
+        slot_start:
+          type: string
+          format: date-time
+          nullable: true
+          title: Начало слота
+        slot_end:
+          type: string
+          format: date-time
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          title: Истекает
+        seconds_left:
+          type: integer
+          readOnly: true
+        booking_id:
+          type: string
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создано
+      required:
+      - booking_id
+      - created_at
+      - expires_at
+      - id
+      - is_alive
+      - next_action
+      - oil
+      - progress
+      - seconds_left
+      - service_point
+      - slot_end
+      - step_display
+    BookingDraftRequest:
+      type: object
+      description: |-
+        Состояние процесса записи «как есть».
+
+        Отдаётся и по REST, и в WebSocket одним и тем же кодом — клиент
+        разбирает один формат независимо от канала.
+      properties:
+        step:
+          allOf:
+          - $ref: '#/components/schemas/StepEnum'
+          title: Шаг
+        is_open:
+          type: boolean
+          title: Активен
+        close_reason:
+          title: Причина закрытия
+          oneOf:
+          - $ref: '#/components/schemas/CloseReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        slot_start:
+          type: string
+          format: date-time
+          nullable: true
+          title: Начало слота
+        expires_at:
+          type: string
+          format: date-time
+          title: Истекает
+      required:
+      - expires_at
+    BookingStatusLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        from_status:
+          type: string
+          title: Из статуса
+          maxLength: 24
+        to_status:
+          type: string
+          title: В статус
+          maxLength: 24
+        actor_name:
+          type: string
+          nullable: true
+          readOnly: true
+        comment:
+          type: string
+          title: Комментарий
+          maxLength: 500
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создано
+      required:
+      - actor_name
+      - created_at
+      - id
+      - to_status
+    CancelRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+    CloseReasonEnum:
+      enum:
+      - confirmed
+      - expired
+      - cancelled
+      - restarted
+      type: string
+      description: |-
+        * `confirmed` - Запись подтверждена
+        * `expired` - Истекло время
+        * `cancelled` - Отменена клиентом
+        * `restarted` - Начата заново
+    ConfirmDraftRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+          maxLength: 500
+    DaySummary:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        total:
+          type: integer
+        pending:
+          type: integer
+        in_progress:
+          type: integer
+        completed:
+          type: integer
+        cancelled:
+          type: integer
+        no_show:
+          type: integer
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - cancelled
+      - completed
+      - date
+      - in_progress
+      - no_show
+      - pending
+      - revenue
+      - total
+    LiveDraft:
+      type: object
+      description: Кто прямо сейчас записывается. Полезно, чтобы понимать нагрузку.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        step:
+          allOf:
+          - $ref: '#/components/schemas/StepEnum'
+          title: Шаг
+        client_name:
+          type: string
+          readOnly: true
+        client_phone:
+          type: string
+          readOnly: true
+        oil_title:
+          type: string
+          nullable: true
+          readOnly: true
+        slot_start:
+          type: string
+          format: date-time
+          nullable: true
+          title: Начало слота
+        seconds_left:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создано
+      required:
+      - client_name
+      - client_phone
+      - created_at
+      - id
+      - oil_title
+      - seconds_left
+    MasterBooking:
+      type: object
+      description: |-
+        Запись глазами мастера: видно клиента, машину и масло.
+
+        Здесь телефон отдаётся полностью — мастеру нужно позвонить клиенту,
+        если тот опаздывает.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          title: Код записи
+          maxLength: 8
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          title: Статус
+        status_display:
+          type: string
+          readOnly: true
+        service_point:
+          type: string
+          format: uuid
+          title: Точка
+        service_point_name:
+          type: string
+          readOnly: true
+        start_at:
+          type: string
+          format: date-time
+          title: Начало
+        end_at:
+          type: string
+          format: date-time
+          title: Окончание
+        local_time:
+          type: string
+          readOnly: true
+        client_name:
+          type: string
+          title: Имя клиента
+          maxLength: 150
+        client_phone:
+          type: string
+          title: Телефон клиента
+          maxLength: 20
+        car_model:
+          type: string
+          title: Автомобиль
+          maxLength: 120
+        car_plate:
+          type: string
+          title: Госномер
+          maxLength: 16
+        oil_title:
+          type: string
+          title: Масло (снимок)
+          maxLength: 255
+        oil_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена масла
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена работ
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Итого
+        client_comment:
+          type: string
+          title: Комментарий клиента
+          maxLength: 500
+        cancel_reason:
+          type: string
+          title: Причина отмены
+          maxLength: 500
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создано
+      required:
+      - client_phone
+      - created_at
+      - end_at
+      - id
+      - local_time
+      - oil_price
+      - oil_title
+      - service_point
+      - service_point_name
+      - start_at
+      - status_display
+      - total_price
+      - work_price
+    MasterBookingDetail:
+      type: object
+      description: |-
+        Запись глазами мастера: видно клиента, машину и масло.
+
+        Здесь телефон отдаётся полностью — мастеру нужно позвонить клиенту,
+        если тот опаздывает.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          title: Код записи
+          maxLength: 8
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          title: Статус
+        status_display:
+          type: string
+          readOnly: true
+        service_point:
+          type: string
+          format: uuid
+          title: Точка
+        service_point_name:
+          type: string
+          readOnly: true
+        start_at:
+          type: string
+          format: date-time
+          title: Начало
+        end_at:
+          type: string
+          format: date-time
+          title: Окончание
+        local_time:
+          type: string
+          readOnly: true
+        client_name:
+          type: string
+          title: Имя клиента
+          maxLength: 150
+        client_phone:
+          type: string
+          title: Телефон клиента
+          maxLength: 20
+        car_model:
+          type: string
+          title: Автомобиль
+          maxLength: 120
+        car_plate:
+          type: string
+          title: Госномер
+          maxLength: 16
+        oil_title:
+          type: string
+          title: Масло (снимок)
+          maxLength: 255
+        oil_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена масла
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена работ
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Итого
+        client_comment:
+          type: string
+          title: Комментарий клиента
+          maxLength: 500
+        cancel_reason:
+          type: string
+          title: Причина отмены
+          maxLength: 500
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создано
+        status_logs:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+      required:
+      - client_phone
+      - created_at
+      - end_at
+      - id
+      - local_time
+      - oil_price
+      - oil_title
+      - service_point
+      - service_point_name
+      - start_at
+      - status_display
+      - status_logs
+      - total_price
+      - work_price
+    MasterBookingRequest:
+      type: object
+      description: |-
+        Запись глазами мастера: видно клиента, машину и масло.
+
+        Здесь телефон отдаётся полностью — мастеру нужно позвонить клиенту,
+        если тот опаздывает.
+      properties:
+        code:
+          type: string
+          minLength: 1
+          title: Код записи
+          maxLength: 8
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          title: Статус
+        service_point:
+          type: string
+          format: uuid
+          title: Точка
+        start_at:
+          type: string
+          format: date-time
+          title: Начало
+        end_at:
+          type: string
+          format: date-time
+          title: Окончание
+        client_name:
+          type: string
+          title: Имя клиента
+          maxLength: 150
+        client_phone:
+          type: string
+          minLength: 1
+          title: Телефон клиента
+          maxLength: 20
+        car_model:
+          type: string
+          title: Автомобиль
+          maxLength: 120
+        car_plate:
+          type: string
+          title: Госномер
+          maxLength: 16
+        oil_title:
+          type: string
+          minLength: 1
+          title: Масло (снимок)
+          maxLength: 255
+        oil_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена масла
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена работ
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Итого
+        client_comment:
+          type: string
+          title: Комментарий клиента
+          maxLength: 500
+        cancel_reason:
+          type: string
+          title: Причина отмены
+          maxLength: 500
+      required:
+      - client_phone
+      - end_at
+      - oil_price
+      - oil_title
+      - service_point
+      - start_at
+      - total_price
+      - work_price
+    MasterCancelRequest:
+      type: object
+      description: 'Причина обязательна: она уходит клиенту в SMS.'
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required:
+      - reason
+    NoShowRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+    Oil:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        brand:
+          type: string
+          title: Бренд
+          maxLength: 80
+        name:
+          type: string
+          title: Название
+          maxLength: 120
+        viscosity:
+          type: string
+          title: Вязкость
+          description: Например, 5W-30
+          maxLength: 16
+        oil_type:
+          allOf:
+          - $ref: '#/components/schemas/OilTypeEnum'
+          title: Тип
+        oil_type_display:
+          type: string
+          readOnly: true
+        volume_liters:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          default: '4.0'
+          title: Объём канистры, л
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена за канистру, ₽
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Стоимость работ, ₽
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        description:
+          type: string
+          title: Описание
+      required:
+      - brand
+      - id
+      - name
+      - oil_type_display
+      - price
+      - title
+      - total_price
+      - viscosity
+    OilRequest:
+      type: object
+      properties:
+        brand:
+          type: string
+          minLength: 1
+          title: Бренд
+          maxLength: 80
+        name:
+          type: string
+          minLength: 1
+          title: Название
+          maxLength: 120
+        viscosity:
+          type: string
+          minLength: 1
+          title: Вязкость
+          description: Например, 5W-30
+          maxLength: 16
+        oil_type:
+          allOf:
+          - $ref: '#/components/schemas/OilTypeEnum'
+          title: Тип
+        volume_liters:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          default: '4.0'
+          title: Объём канистры, л
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Цена за канистру, ₽
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Стоимость работ, ₽
+        description:
+          type: string
+          title: Описание
+      required:
+      - brand
+      - name
+      - price
+      - viscosity
+    OilTypeEnum:
+      enum:
+      - synthetic
+      - semi_synthetic
+      - mineral
+      type: string
+      description: |-
+        * `synthetic` - Синтетическое
+        * `semi_synthetic` - Полусинтетическое
+        * `mineral` - Минеральное
+    OtpRequestRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+          description: +7 900 123-45-67
+          maxLength: 20
+      required:
+      - phone
+    OtpRequestResponse:
+      type: object
+      properties:
+        phone:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        resend_after_seconds:
+          type: integer
+        debug_code:
+          type: string
+          nullable: true
+          description: Только при OTP_DEBUG_EXPOSE_CODE=True. В проде не приходит.
+      required:
+      - expires_at
+      - phone
+      - resend_after_seconds
+    OtpVerifyRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 20
+        code:
+          type: string
+          minLength: 4
+          maxLength: 8
+      required:
+      - code
+      - phone
+    PaginatedBookingList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+    PaginatedMasterBookingList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MasterBooking'
+    PatchedProfileUpdateRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          maxLength: 150
+        car_model:
+          type: string
+          maxLength: 120
+        car_plate:
+          type: string
+          maxLength: 16
+    RoleEnum:
+      enum:
+      - client
+      - master
+      - admin
+      type: string
+      description: |-
+        * `client` - Клиент
+        * `master` - Мастер
+        * `admin` - Администратор
+    SelectOilRequest:
+      type: object
+      properties:
+        oil_id:
+          type: string
+          format: uuid
+      required:
+      - oil_id
+    SelectPointRequest:
+      type: object
+      properties:
+        service_point_id:
+          type: string
+          format: uuid
+      required:
+      - service_point_id
+    SelectSlotRequest:
+      type: object
+      properties:
+        start_at:
+          type: string
+          format: date-time
+          description: Начало слота в ISO 8601 с таймзоной, ровно как пришло из /slots/.
+      required:
+      - start_at
+    ServicePoint:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 120
+        address:
+          type: string
+          title: Адрес
+          maxLength: 255
+        phone:
+          type: string
+          title: Телефон
+          maxLength: 20
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+          title: Широта
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+          title: Долгота
+        timezone:
+          type: string
+          title: Часовой пояс
+          maxLength: 64
+        opens_at:
+          type: string
+          format: time
+          title: Открытие
+        closes_at:
+          type: string
+          format: time
+          title: Закрытие
+        workdays:
+          title: Рабочие дни
+          description: Дни недели, 0 = понедельник. Пустой список = работает всегда.
+        slot_minutes:
+          type: integer
+          maximum: 32767
+          minimum: 5
+          title: Длительность слота, мин
+        posts_count:
+          type: integer
+          maximum: 32767
+          minimum: 1
+          title: Постов
+          description: Сколько машин обслуживается одновременно — ёмкость одного слота.
+      required:
+      - address
+      - id
+      - name
+    ServicePointRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Название
+          maxLength: 120
+        address:
+          type: string
+          minLength: 1
+          title: Адрес
+          maxLength: 255
+        phone:
+          type: string
+          title: Телефон
+          maxLength: 20
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+          title: Широта
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+          title: Долгота
+        timezone:
+          type: string
+          minLength: 1
+          title: Часовой пояс
+          maxLength: 64
+        opens_at:
+          type: string
+          format: time
+          title: Открытие
+        closes_at:
+          type: string
+          format: time
+          title: Закрытие
+        workdays:
+          title: Рабочие дни
+          description: Дни недели, 0 = понедельник. Пустой список = работает всегда.
+        slot_minutes:
+          type: integer
+          maximum: 32767
+          minimum: 5
+          title: Длительность слота, мин
+        posts_count:
+          type: integer
+          maximum: 32767
+          minimum: 1
+          title: Постов
+          description: Сколько машин обслуживается одновременно — ёмкость одного слота.
+      required:
+      - address
+      - name
+    Slot:
+      type: object
+      properties:
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+        local_time:
+          type: string
+        free_posts:
+          type: integer
+      required:
+      - end_at
+      - free_posts
+      - local_time
+      - start_at
+    StartDraftRequest:
+      type: object
+      properties:
+        restart:
+          type: boolean
+          default: false
+          description: True — выбросить незавершённый черновик и начать заново.
+    StatusEnum:
+      enum:
+      - pending
+      - in_progress
+      - completed
+      - cancelled_by_client
+      - cancelled_by_master
+      - no_show
+      type: string
+      description: |-
+        * `pending` - Ожидает
+        * `in_progress` - В работе
+        * `completed` - Выполнена
+        * `cancelled_by_client` - Отменена клиентом
+        * `cancelled_by_master` - Отменена сервисом
+        * `no_show` - Клиент не приехал
+    StepEnum:
+      enum:
+      - started
+      - point_selected
+      - oil_selected
+      - slot_selected
+      - confirmed
+      - expired
+      - cancelled
+      type: string
+      description: |-
+        * `started` - Начата
+        * `point_selected` - Выбран адрес
+        * `oil_selected` - Выбрано масло
+        * `slot_selected` - Выбрано время
+        * `confirmed` - Подтверждена
+        * `expired` - Истекла
+        * `cancelled` - Отменена клиентом
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    TokenVerifyRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - token
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+          title: Телефон
+        full_name:
+          type: string
+          title: Имя
+          maxLength: 150
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+          title: Роль
+        car_model:
+          type: string
+          title: Марка и модель
+          maxLength: 120
+        car_plate:
+          type: string
+          title: Госномер
+          maxLength: 16
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Дата регистрации
+      required:
+      - date_joined
+      - id
+      - phone
+      - role
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

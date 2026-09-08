@@ -1,0 +1,84 @@
+name: autoservice
+
+# api, worker и beat — это один и тот же код с разной командой запуска.
+# Общий якорь гарантирует, что образ собирается один раз и версии кода
+# в веб-процессе и в фоновых задачах не разъезжаются.
+x-app: &app
+  build:
+    context: .
+    args:
+      REQUIREMENTS: dev
+  image: autoservice-api:latest
+  env_file: .env
+  restart: unless-stopped
+  volumes:
+    - .:/app
+    # Именованные тома поверх bind-mount: каталоги принадлежат пользователю
+    # контейнера, иначе collectstatic и загрузки упираются в права хоста.
+    - static:/app/static
+    - media:/app/media
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-autoservice}
+      POSTGRES_USER: ${POSTGRES_USER:-autoservice}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-autoservice}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autoservice}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    <<: *app
+    command: api
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    <<: *app
+    command: worker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  beat:
+    <<: *app
+    command: beat
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
+  static:
+  media:
