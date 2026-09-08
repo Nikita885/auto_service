@@ -19,9 +19,12 @@ COPY . /app/
 
 RUN adduser --disabled-password --gecos "" appuser \
     && mkdir -p /app/static /app/media \
-    && chown -R appuser:appuser /app
+    && chown -R appuser:appuser /app \
+    # Бит исполнения ставим здесь, а не полагаемся на права из репозитория:
+    # Windows их не отслеживает, и после клона на Linux ENTRYPOINT падал бы
+    # с «permission denied».
+    && chmod +x /app/docker/entrypoint.sh
 USER appuser
 
-COPY --chown=appuser:appuser docker/entrypoint.sh /app/docker/entrypoint.sh
 ENTRYPOINT ["/app/docker/entrypoint.sh"]
 CMD ["api"]
