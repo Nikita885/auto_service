@@ -15,6 +15,7 @@ import ru.autoservice.client.R;
 import ru.autoservice.client.databinding.ActivityAuthBinding;
 import ru.autoservice.client.ui.MainActivity;
 import ru.autoservice.client.ui.common.Ui;
+import ru.autoservice.client.util.PhoneFormat;
 
 /**
  * Вход по номеру телефона.
@@ -57,14 +58,14 @@ public class AuthActivity extends AppCompatActivity {
 
         // Кнопка активна только когда номер введён целиком: нажатие на неполном
         // номере всё равно вернуло бы ошибку с сервера.
-        views.requestCode.setEnabled(PhoneInputFormatter.isComplete(views.phoneInput.getText()));
+        views.requestCode.setEnabled(PhoneFormat.isComplete(views.phoneInput.getText()));
         views.phoneInput.addTextChangedListener(new SimpleTextWatcher(text ->
-                views.requestCode.setEnabled(PhoneInputFormatter.isComplete(text))));
+                views.requestCode.setEnabled(PhoneFormat.isComplete(text))));
 
         // Готово на клавиатуре = отправить код, если номер полный.
         views.phoneInput.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE
-                    && PhoneInputFormatter.isComplete(views.phoneInput.getText())) {
+                    && PhoneFormat.isComplete(views.phoneInput.getText())) {
                 views.requestCode.performClick();
                 return true;
             }
@@ -73,7 +74,7 @@ public class AuthActivity extends AppCompatActivity {
 
         views.requestCode.setOnClickListener(v -> {
             Ui.hideKeyboard(v);
-            model.requestCode(PhoneInputFormatter.toE164(views.phoneInput.getText()));
+            model.requestCode(PhoneFormat.toE164(views.phoneInput.getText()));
         });
 
         views.signIn.setOnClickListener(v -> {
@@ -115,7 +116,7 @@ public class AuthActivity extends AppCompatActivity {
             // Вернуть кнопку в активное состояние можно только если номер
             // по-прежнему введён целиком — иначе запрос уйдёт с обрывком.
             views.requestCode.setEnabled(!busy
-                    && PhoneInputFormatter.isComplete(views.phoneInput.getText()));
+                    && PhoneFormat.isComplete(views.phoneInput.getText()));
             views.signIn.setEnabled(!busy);
         });
 

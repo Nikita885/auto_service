@@ -2,6 +2,13 @@ plugins {
     id 'com.android.application'
 }
 
+// Каталог сборки можно вынести в другое место: -PBUILD_DIR=C:/dev/asbuild.
+// Нужно, когда проект лежит по пути с не-ASCII символами — часть
+// инструментов Android на Windows такие пути не переваривает.
+if (project.hasProperty('BUILD_DIR')) {
+    layout.buildDirectory.set(file("${project.property('BUILD_DIR')}/app"))
+}
+
 android {
     namespace 'ru.autoservice.client'
     compileSdk 35
@@ -81,10 +88,24 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+        // Исходники в UTF-8, а javac на Windows по умолчанию читает файлы в
+        // системной кодировке: без этого комментарии и русские строки
+        // превращаются в мусор, а иногда ломается и сам class-файл.
+        encoding "UTF-8"
     }
 
     packagingOptions {
         resources.excludes += ['META-INF/*.kotlin_module', 'DEBUG', 'LICENSE.txt']
+    }
+}
+
+// Путь проекта содержит кириллицу, а JVM тестового воркера читает classpath в
+// системной кодировке Windows: без явного UTF-8 он просто не находит классы и
+// падает с ClassNotFoundException ещё до запуска тестов.
+tasks.withType(Test).configureEach {
+    jvmArgs '-Dfile.encoding=UTF-8', '-Dsun.jnu.encoding=UTF-8'
+    testLogging {
+        events "passed", "failed", "skipped"
     }
 }
 
