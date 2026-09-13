@@ -42,10 +42,21 @@ android {
         debug {
             applicationIdSuffix ".debug"
             versionNameSuffix "-debug"
-            // Эмулятор видит хост-машину как 10.0.2.2. Открытый http разрешён
-            // только в debug и только для этого адреса (network_security_config).
-            buildConfigField "String", "API_BASE_URL", '"http://10.0.2.2:8000/"'
-            buildConfigField "String", "WS_BASE_URL", '"ws://10.0.2.2:8000/"'
+
+            // Адрес сервера для отладки задаётся снаружи — значением в
+            // gradle.properties или флагом -P при сборке. По умолчанию это
+            // 10.0.2.2: так эмулятор видит localhost хост-машины.
+            //
+            //   телефон в той же сети: -PDEBUG_API_URL=http://192.168.1.10:8000/
+            //   туннель наружу:        -PDEBUG_API_URL=https://xxx.trycloudflare.com/
+            //
+            // Менять код ради смены адреса не нужно: иначе правка однажды
+            // уедет в релиз вместе с чьим-то домашним IP.
+            def debugApi = project.findProperty('DEBUG_API_URL') ?: 'http://10.0.2.2:8000/'
+            def debugWs = project.findProperty('DEBUG_WS_URL') ?: 'ws://10.0.2.2:8000/'
+
+            buildConfigField "String", "API_BASE_URL", "\"${debugApi}\""
+            buildConfigField "String", "WS_BASE_URL", "\"${debugWs}\""
         }
 
         release {

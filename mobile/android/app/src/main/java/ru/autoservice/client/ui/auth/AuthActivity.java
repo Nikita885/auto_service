@@ -2,6 +2,7 @@ package ru.autoservice.client.ui.auth;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.inputmethod.EditorInfo;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -22,6 +23,9 @@ import ru.autoservice.client.ui.common.Ui;
  * не заглядывает — сразу открывается главный экран.
  */
 public class AuthActivity extends AppCompatActivity {
+
+    /** Длина кода из SMS — та же, что на сервере (OTP.CODE_LENGTH). */
+    private static final int CODE_LENGTH = 4;
 
     private ActivityAuthBinding views;
     private AuthViewModel model;
@@ -47,17 +51,44 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     private void bindInputs() {
-        views.phoneInput.setText(model.phone());
+        // Маска ведёт номер: префикс +7 не стирается, цифры группируются.
+        PhoneInputFormatter.attach(views.phoneInput, model.phone());
+        views.phoneInput.requestFocus();
+
+        // Кнопка активна только когда номер введён целиком: нажатие на неполном
+        // номере всё равно вернуло бы ошибку с сервера.
+        views.requestCode.setEnabled(PhoneInputFormatter.isComplete(views.phoneInput.getText()));
+        views.phoneInput.addTextChangedListener(new SimpleTextWatcher(text ->
+                views.requestCode.setEnabled(PhoneInputFormatter.isComplete(text))));
+
+        // Готово на клавиатуре = отправить код, если номер полный.
+        views.phoneInput.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE
+                    && PhoneInputFormatter.isComplete(views.phoneInput.getText())) {
+                views.requestCode.performClick();
+                return true;
+            }
+            return false;
+        });
 
         views.requestCode.setOnClickListener(v -> {
             Ui.hideKeyboard(v);
-            model.requestCode(text(views.phoneInput));
+            model.requestCode(PhoneInputFormatter.toE164(views.phoneInput.getText()));
         });
 
         views.signIn.setOnClickListener(v -> {
             Ui.hideKeyboard(v);
             model.verifyCode(text(views.codeInput));
         });
+
+        // Код из SMS короткий: как только набран целиком — входим сами,
+        // лишнее нажатие тут ни к чему.
+        views.codeInput.addTextChangedListener(new SimpleTextWatcher(text -> {
+            if (text.length() == CODE_LENGTH) {
+                Ui.hideKeyboard(views.codeInput);
+                model.verifyCode(text.toString());
+            }
+        }));
 
         views.resend.setOnClickListener(v -> model.resend());
         views.changePhone.setOnClickListener(v -> model.editPhone());
@@ -81,7 +112,10 @@ public class AuthActivity extends AppCompatActivity {
 
         model.busy().observe(this, busy -> {
             Ui.setVisible(views.progress, busy);
-            views.requestCode.setEnabled(!busy);
+            // Вернуть кнопку в активное состояние можно только если номер
+            // по-прежнему введён целиком — иначе запрос уйдёт с обрывком.
+            views.requestCode.setEnabled(!busy
+                    && PhoneInputFormatter.isComplete(views.phoneInput.getText()));
             views.signIn.setEnabled(!busy);
         });
 
