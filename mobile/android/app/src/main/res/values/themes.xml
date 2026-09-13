@@ -31,7 +31,7 @@
         <item name="postSplashScreenTheme">@style/Theme.AutoService</item>
     </style>
 
-    <!-- ------------------------------------------------------- компоненты -->
+    <!-- ======================================================= компоненты -->
 
     <style name="Widget.AutoService.Button" parent="Widget.Material3.Button">
         <item name="android:minHeight">@dimen/touch_min</item>
@@ -82,7 +82,13 @@
         <item name="strokeWidth">1dp</item>
     </style>
 
-    <!-- ------------------------------------------------------ типографика -->
+    <!-- ====================================================== типографика -->
+
+    <!-- Точка в имени стиля — это наследование: Text.H1 наследует Text.
+         Базовый стиль обязан существовать, иначе AAPT не слинкует ресурсы. -->
+    <style name="Text">
+        <item name="android:textColor">@color/text</item>
+    </style>
 
     <style name="Text.H1">
         <item name="android:textSize">@dimen/text_h1</item>

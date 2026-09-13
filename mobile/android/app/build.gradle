@@ -52,7 +52,13 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+
+            // Подпись подключается только когда ключ реально настроен: иначе
+            // сборка релиза падала бы у любого, кто просто хочет проверить,
+            // что R8 ничего лишнего не вырезал.
+            if (project.findProperty('RELEASE_STORE_FILE')) {
+                signingConfig signingConfigs.release
+            }
 
             // ЗАМЕНИТЬ на боевой домен перед сборкой релиза.
             // Только https и wss: по открытому каналу уходит JWT.

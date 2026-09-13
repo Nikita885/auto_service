@@ -6,7 +6,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.security.crypto.EncryptedSharedPreferences;
-import androidx.security.crypto.MasterKey;
+import androidx.security.crypto.MasterKeys;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -18,6 +18,12 @@ import java.security.GeneralSecurityException;
  * Android Keystore и не покидает устройство. На рутованном телефоне или при
  * снятии бэкапа обычный XML с токенами читается как открытый текст, а
  * refresh-токен живёт 30 дней — этого достаточно, чтобы войти в чужой аккаунт.
+ *
+ * <p>Используется API стабильной версии security-crypto 1.0.0. Класс
+ * {@code MasterKeys} в ней помечен устаревшим, а пришедший ему на смену
+ * {@code MasterKey.Builder} есть только в ветке 1.1.0-alpha — тянуть альфу в
+ * приложение, которое пойдёт в Play, не стоит. При переходе на стабильную
+ * 1.1.x замена займёт три строки вот тут.
  *
  * <p>Если хранилище по какой-то причине не поднялось (редкий сбой Keystore
  * после обновления прошивки), мы не падаем и не скатываемся в незашифрованные
@@ -37,16 +43,15 @@ public final class TokenStorage {
     }
 
     @Nullable
+    @SuppressWarnings("deprecation") // см. комментарий к классу
     private static SharedPreferences createEncrypted(@NonNull Context context) {
         try {
-            MasterKey masterKey = new MasterKey.Builder(context)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .build();
+            String masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC);
 
             return EncryptedSharedPreferences.create(
-                    context,
                     FILE,
-                    masterKey,
+                    masterKeyAlias,
+                    context,
                     EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM);
         } catch (GeneralSecurityException | IOException e) {

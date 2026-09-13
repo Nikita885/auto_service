@@ -43,7 +43,7 @@
             android:text="@string/auth_sub"
             android:textColor="#A7ADB7" />
 
-        <!-- ---------------------------------------------------- шаг: телефон -->
+        <!-- ==================================================== шаг: телефон -->
         <LinearLayout
             android:id="@+id/step_phone"
             android:layout_width="match_parent"
@@ -82,7 +82,7 @@
                 android:text="@string/auth_get_code" />
         </LinearLayout>
 
-        <!-- -------------------------------------------------------- шаг: код -->
+        <!-- ======================================================== шаг: код -->
         <LinearLayout
             android:id="@+id/step_code"
             android:layout_width="match_parent"
