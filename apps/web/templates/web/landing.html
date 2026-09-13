@@ -1,0 +1,360 @@
+{% extends "web/base.html" %}
+{% load humanize static %}
+
+{% block title %}{{ company.NAME }} — {{ company.TAGLINE }}{% endblock %}
+{% block description %}{{ company.NAME }}: замена масла по записи из мобильного приложения или по телефону {{ company.PHONE }}. Свой пост к назначенному времени, масло в наличии, работа за 30 минут.{% endblock %}
+
+{% block extra_head %}<link rel="stylesheet" href="{% static 'web/css/landing.css' %}">{% endblock %}
+
+{% block topbar %}
+<div class="topbar">
+  <div class="wrap topbar-inner">
+    <span class="topbar-item">{{ company.WORKING_HOURS }}</span>
+    <span class="topbar-sep"></span>
+    <span class="topbar-item topbar-hide-sm">{{ points|length }} адреса · запись день в день</span>
+    <span class="spacer"></span>
+    <a class="topbar-phone" href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block nav %}
+  <a href="#service">Услуга</a>
+  <a href="#prices">Цены</a>
+  <a href="#how">Как записаться</a>
+  <a href="#addresses">Адреса</a>
+{% endblock %}
+
+{% block header_actions %}
+  <a class="btn btn-primary btn-sm" href="#app">Скачать приложение</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- ------------------------------------------------------------- главное -->
+<section class="hero-full">
+  <div class="hero-grid">
+    <div class="hero-text">
+      <span class="kicker">Замена масла · {{ points|length }} адреса в городе</span>
+
+      <h1>Приезжаете к своему времени<br>и уезжаете через <span class="hl">30 минут</span></h1>
+
+      <p class="hero-sub">
+        Записываетесь в приложении или по телефону — мы держим за вами пост
+        и канистру. Без очереди, без «оставьте машину до вечера».
+      </p>
+
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="#app">Записаться в приложении</a>
+        <a class="btn btn-lg btn-on-dark" href="tel:{{ company.PHONE }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h4l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2.2 2A17 17 0 0 1 3 5.2 2 2 0 0 1 5 3z"/></svg>
+          {{ company.PHONE }}
+        </a>
+      </div>
+
+      <ul class="hero-list">
+        <li><b>Масло в наличии</b> — резервируем при записи</li>
+        <li><b>Фиксированная цена</b> — работа входит в стоимость</li>
+        <li><b>Напомним за 2 часа</b> — SMS перед визитом</li>
+      </ul>
+    </div>
+
+    <div class="hero-visual" aria-hidden="true">
+      {% include "web/_phone_mockup.html" %}
+    </div>
+  </div>
+
+  <div class="hero-stats">
+    <div class="hstat"><b>{{ company.YEARS_ON_MARKET }}</b><span>лет на рынке</span></div>
+    <div class="hstat"><b>{{ company.CARS_SERVED|intcomma }}</b><span>машин обслужено</span></div>
+    <div class="hstat"><b>30</b><span>минут на замену</span></div>
+    <div class="hstat"><b>4,9</b><span>средняя оценка</span></div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------- что входит -->
+<section class="block" id="service">
+  <div class="block-head">
+    <span class="kicker kicker-dark">Одна услуга — и мы делаем её хорошо</span>
+    <h2>Что входит в замену масла</h2>
+    <p>Фиксированный набор работ. Ничего не «доосмотрим» на месте и не допродадим.</p>
+  </div>
+
+  <div class="bento">
+    <article class="tile tile-dark tile-wide">
+      <h3>Полный цикл за один визит</h3>
+      <ol class="tile-steps">
+        <li>Сливаем отработку, снимаем старый фильтр</li>
+        <li>Ставим новый масляный фильтр и уплотнение</li>
+        <li>Заливаем выбранное масло, проверяем уровень</li>
+        <li>Отмечаем пробег и дату следующей замены</li>
+      </ol>
+    </article>
+
+    <article class="tile tile-accent">
+      <span class="tile-num">30</span>
+      <h3>минут — и вы свободны</h3>
+      <p>Слот занят только вами: пока вы на посту, туда никого не поставят.</p>
+    </article>
+
+    <article class="tile">
+      <h3>Цена известна заранее</h3>
+      <p>В приложении видно итог: масло плюс работа. На месте сумма не меняется.</p>
+    </article>
+
+    <article class="tile tile-wide">
+      <h3>Не приехали — ничего не потеряли</h3>
+      <p>
+        Отменить запись можно самому, не позже чем за час до визита. Пост и канистра
+        сразу освобождаются — никаких звонков и объяснений.
+      </p>
+    </article>
+  </div>
+</section>
+
+<!-- ---------------------------------------------------------------- цены -->
+<section class="block" id="prices">
+  <div class="block-head">
+    <span class="kicker kicker-dark">Прайс</span>
+    <h2>Масло и цены</h2>
+    <p>Итог указан вместе с работой. Наличие на конкретном адресе видно при записи.</p>
+  </div>
+
+  {% if oils %}
+    <div class="price-table-wrap">
+      <table class="price-table">
+        <thead>
+          <tr>
+            <th>Масло</th>
+            <th class="hide-sm">Вязкость</th>
+            <th class="hide-sm">Тип</th>
+            <th class="num">Канистра</th>
+            <th class="num hide-sm">Работа</th>
+            <th class="num">Итого</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for oil in oils %}
+            <tr>
+              <td>
+                <span class="oil-brand">{{ oil.brand }}</span>
+                <span class="oil-name">{{ oil.name }}</span>
+                <span class="oil-sub">{{ oil.volume_liters }} л{% if oil.description %} · {{ oil.description }}{% endif %}</span>
+              </td>
+              <td class="hide-sm"><span class="chip">{{ oil.viscosity }}</span></td>
+              <td class="hide-sm">{{ oil.get_oil_type_display }}</td>
+              <td class="num">{{ oil.price|floatformat:0 }} ₽</td>
+              <td class="num hide-sm">{{ oil.work_price|floatformat:0 }} ₽</td>
+              <td class="num total">{{ oil.total_price|floatformat:0 }} ₽</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="price-foot-note">
+      Не нашли своё масло? Позвоните — подберём по марке и году выпуска:
+      <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+    </p>
+  {% else %}
+    <p class="muted">Прайс уточняйте по телефону <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>.</p>
+  {% endif %}
+</section>
+
+<!-- ------------------------------------------------------ как записаться -->
+<section class="block" id="how">
+  <div class="block-head">
+    <span class="kicker kicker-dark">Два пути</span>
+    <h2>Как записаться</h2>
+    <p>Результат одинаковый: вас ждут в назначенное время, масло отложено.</p>
+  </div>
+
+  <div class="ways">
+    <article class="way way-primary">
+      <span class="way-label">Быстрее</span>
+      <h3>В приложении</h3>
+      <ol class="way-steps">
+        <li><b>Вход по номеру.</b> Придёт код в SMS, пароль не нужен.</li>
+        <li><b>Адрес, масло, время.</b> Показываем только то, что есть в наличии.</li>
+        <li><b>Подтверждение.</b> Придёт SMS с кодом записи.</li>
+      </ol>
+      <a class="btn btn-primary btn-lg btn-block" href="#app">Скачать приложение</a>
+    </article>
+
+    <article class="way">
+      <span class="way-label way-label-muted">Привычнее</span>
+      <h3>По телефону</h3>
+      <ol class="way-steps">
+        <li><b>Звоните в рабочие часы.</b> {{ company.WORKING_HOURS }}.</li>
+        <li><b>Называете марку.</b> Подскажем, какое масло подойдёт.</li>
+        <li><b>Записываем сами.</b> Скажем адрес и время, приезжайте.</li>
+      </ol>
+      <a class="btn btn-lg btn-block btn-outline" href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+    </article>
+  </div>
+</section>
+
+<!-- -------------------------------------------------------------- адреса -->
+<section class="block" id="addresses">
+  <div class="block-head">
+    <span class="kicker kicker-dark">Где нас найти</span>
+    <h2>Адреса</h2>
+    <p>Приезжайте на любой — записи не пересекаются, пост держим за вами.</p>
+  </div>
+
+  <div class="address-grid">
+    {% for point in points %}
+      <article class="address-card">
+        <div class="address-top">
+          <h3>{{ point.name }}</h3>
+          <span class="chip chip-ok">открыто {{ point.opens_at|time:"H:i" }}–{{ point.closes_at|time:"H:i" }}</span>
+        </div>
+        <p class="address-line">{{ point.address }}</p>
+        <div class="address-facts">
+          <div><b>{{ point.posts_count }}</b><span>{% if point.posts_count == 1 %}пост{% else %}поста{% endif %}</span></div>
+          <div><b>{{ point.slot_minutes }}</b><span>мин слот</span></div>
+          <div><b>{{ points|length }}</b><span>адреса сети</span></div>
+        </div>
+        <div class="address-actions">
+          {% if point.phone %}<a class="btn btn-sm" href="tel:{{ point.phone }}">{{ point.phone }}</a>{% endif %}
+          <a class="btn btn-sm btn-ghost" href="https://yandex.ru/maps/?text={{ point.address|urlencode }}" rel="noopener" target="_blank">Маршрут</a>
+        </div>
+      </article>
+    {% empty %}
+      <p class="muted">Адреса уточняйте по телефону <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ---------------------------------------------------------- приложение -->
+<section class="block" id="app">
+  <div class="app-panel">
+    <div class="app-copy">
+      <span class="kicker">Приложение {{ company.NAME }}</span>
+      <h2>Запись за четыре касания</h2>
+      <p>
+        История визитов, напоминание перед приездом и отмена в одно касание.
+        Вход по номеру телефона — регистрироваться отдельно не нужно.
+      </p>
+
+      <div class="store-row">
+        {% if company.APP_STORE_URL %}
+          <a class="store-btn" href="{{ company.APP_STORE_URL }}" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+            <span><small>Загрузить в</small>App Store</span>
+          </a>
+        {% else %}
+          <span class="store-btn is-soon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+            <span><small>Скоро в</small>App Store</span>
+          </span>
+        {% endif %}
+
+        {% if company.GOOGLE_PLAY_URL %}
+          <a class="store-btn" href="{{ company.GOOGLE_PLAY_URL }}" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5v17a1 1 0 0 0 1.5.9l12-8.5a1 1 0 0 0 0-1.7l-12-8.5A1 1 0 0 0 5 3.5z"/></svg>
+            <span><small>Доступно в</small>Google Play</span>
+          </a>
+        {% else %}
+          <span class="store-btn is-soon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5v17a1 1 0 0 0 1.5.9l12-8.5a1 1 0 0 0 0-1.7l-12-8.5A1 1 0 0 0 5 3.5z"/></svg>
+            <span><small>Скоро в</small>Google Play</span>
+          </span>
+        {% endif %}
+      </div>
+
+      {% if not company.APP_STORE_URL and not company.GOOGLE_PLAY_URL %}
+        <p class="app-note">Приложения выходят в ближайшее время. Пока записывайтесь звонком — это быстро.</p>
+      {% endif %}
+    </div>
+
+    <ul class="app-features">
+      <li><b>Свободное время</b><span>только реально свободные слоты</span></li>
+      <li><b>Масло в наличии</b><span>остаток по каждому адресу</span></li>
+      <li><b>Код записи</b><span>назовёте его на посту</span></li>
+      <li><b>Отмена в касание</b><span>за час до визита</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ----------------------------------------------------------------- FAQ -->
+<section class="block" id="faq">
+  <div class="block-head">
+    <span class="kicker kicker-dark">Вопросы</span>
+    <h2>Коротко о важном</h2>
+  </div>
+
+  <div class="faq">
+    <details>
+      <summary>Можно приехать без записи?</summary>
+      <p>Можно, но придётся ждать свободный пост. По записи вас примут в назначенное время — это и есть смысл записи.</p>
+    </details>
+    <details>
+      <summary>Своё масло принимать будете?</summary>
+      <p>Позвоните и уточните: работа считается отдельно, а гарантию на само масло в этом случае мы не даём.</p>
+    </details>
+    <details>
+      <summary>Сколько действует запись, если опаздываю?</summary>
+      <p>Позвоните на адрес — постараемся подвинуть. Если не предупредить, пост через какое-то время отдадут следующему.</p>
+    </details>
+    <details>
+      <summary>Как отменить запись?</summary>
+      <p>В приложении — кнопкой, не позже чем за час до визита. Позже — звонком на адрес.</p>
+    </details>
+    <details>
+      <summary>Чем платить?</summary>
+      <p>Оплата на месте после работ: наличными или картой. Онлайн-оплаты пока нет.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ контакты -->
+<section class="block" id="contacts">
+  <div class="cta-band">
+    <div>
+      <h2>Записать вас на замену?</h2>
+      <p>{{ company.WORKING_HOURS }}. Подберём масло по марке и назовём ближайшее свободное время.</p>
+    </div>
+    <div class="cta-side">
+      <a class="phone-big" href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+      <a class="cta-mail" href="mailto:{{ company.EMAIL }}">{{ company.EMAIL }}</a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block footer %}
+<footer class="footer">
+  <div class="wrap footer-grid">
+    <div class="footer-col footer-brand-col">
+      <div class="footer-brand">{{ company.NAME }}</div>
+      <p>{{ company.TAGLINE }}. {{ company.WORKING_HOURS }}.</p>
+    </div>
+
+    <div class="footer-col">
+      <h4>Разделы</h4>
+      <a href="#service">Услуга</a>
+      <a href="#prices">Цены</a>
+      <a href="#how">Как записаться</a>
+      <a href="#faq">Вопросы</a>
+    </div>
+
+    <div class="footer-col">
+      <h4>Адреса</h4>
+      {% for point in points %}<a href="#addresses">{{ point.name }} — {{ point.address }}</a>{% endfor %}
+    </div>
+
+    <div class="footer-col">
+      <h4>Связаться</h4>
+      <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+      <a href="mailto:{{ company.EMAIL }}">{{ company.EMAIL }}</a>
+      <a href="/master/">Вход для сотрудников</a>
+    </div>
+  </div>
+
+  <div class="wrap footer-bottom">
+    <span>© {{ company.NAME }}</span>
+    <span>Цены на сайте справочные и не являются публичной офертой.</span>
+  </div>
+</footer>
+{% endblock %}

@@ -4,11 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Автосервис{% endblock %}</title>
-<meta name="description" content="{% block description %}Замена масла в сети автосервисов: запись онлайн за четыре шага.{% endblock %}">
+<meta name="description" content="{% block description %}Замена масла по записи: мобильное приложение или звонок.{% endblock %}">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛢️</text></svg>">
 <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+{% block extra_head %}{% endblock %}
 </head>
 <body>
+
+{% block topbar %}{% endblock %}
 
 <header class="header">
   <div class="wrap">
@@ -36,6 +39,8 @@
     {% block content %}{% endblock %}
   </div>
 </main>
+
+{% block footer %}{% endblock %}
 
 <script src="{% static 'web/js/core.js' %}"></script>
 <script>App.theme.init();</script>

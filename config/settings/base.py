@@ -28,6 +28,8 @@ DJANGO_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Нужен лендингу: разряды в числах («14 000 машин»).
+    "django.contrib.humanize",
 ]
 
 THIRD_PARTY_APPS = [
@@ -249,6 +251,24 @@ SMS = {
 BUSINESS_TIMEZONE = env("BUSINESS_TIMEZONE", default="Europe/Moscow")
 
 DEFAULT_PHONE_REGION = "RU"
+
+# ---------------------------------------------------------------- лендинг
+# Контакты и ссылки на магазины приложений. Лежат в .env, а не в шаблоне:
+# телефон и ссылки меняет не программист, и правка не должна требовать
+# ни редактирования кода, ни пересборки образа.
+COMPANY = {
+    "NAME": env("COMPANY_NAME", default="Автосервис"),
+    "TAGLINE": env("COMPANY_TAGLINE", default="Замена масла за 30 минут"),
+    "PHONE": env("COMPANY_PHONE", default="+7 (499) 123-45-67"),
+    "EMAIL": env("COMPANY_EMAIL", default="hello@example.com"),
+    "WORKING_HOURS": env("COMPANY_WORKING_HOURS", default="Ежедневно 09:00–21:00"),
+    # Пока приложения не опубликованы, ссылки пустые — кнопки в этом случае
+    # показываются неактивными с пометкой «скоро», а не ведут в никуда.
+    "APP_STORE_URL": env("COMPANY_APP_STORE_URL", default=""),
+    "GOOGLE_PLAY_URL": env("COMPANY_GOOGLE_PLAY_URL", default=""),
+    "YEARS_ON_MARKET": env.int("COMPANY_YEARS_ON_MARKET", default=8),
+    "CARS_SERVED": env.int("COMPANY_CARS_SERVED", default=14000),
+}
 
 # ---------------------------------------------------------------- logging
 LOGGING = {

@@ -2,7 +2,16 @@
 
    Обе панели ходят в один и тот же `/api/v1/master/…`: разница только в
    правах на стороне сервера (мастер видит свои точки) и в том, что у
-   администратора сверху появляется вкладка метрик. */
+   администратора сверху появляется вкладка метрик.
+
+   Список живёт в реальном времени: канал `ws/master/` присылает сигнал, что
+   у какой-то записи что-то изменилось, и панель перечитывает текущую выборку.
+   Вставлять пришедшую строку в таблицу самостоятельно нельзя — пришлось бы
+   повторить на клиенте всю логику фильтров (дата, статус, точка, поиск), а
+   значит однажды показать запись, которая под фильтр не подходит.
+
+   Опрос раз в 20 секунд остаётся, но включается только когда канал недоступен:
+   реальное время не должно зависеть от того, разрешён ли WebSocket в сети. */
 
 (function (global) {
   "use strict";
@@ -16,7 +25,10 @@
     role: "master",
     points: [],
     bookings: [],
-    autoTimer: null,
+    pollTimer: null,
+    reloadTimer: null,
+    socket: null,
+    reconnectAt: null,
     onReady: null,
   };
 
@@ -90,7 +102,8 @@
 
   function signOut(silent) {
     api.signOut();
-    stopAutoRefresh();
+    closeSocket();
+    stopPolling();
     state.me = null;
     if (!silent) toast("Вы вышли");
     renderAuthState();
@@ -114,7 +127,7 @@
     renderAuthState();
     await loadPoints();
     await reload();
-    startAutoRefresh();
+    openSocket();
     if (state.onReady) state.onReady({ api, points: state.points });
   }
 
@@ -208,7 +221,9 @@
 
       tbody.append(el("tr", {}, [
         el("td", { class: "nowrap" }, [
-          el("div", { class: "cell-main", text: fmt.time(booking.start_at) }),
+          // local_time приходит от сервера в часовом поясе точки: браузер
+          // мастера может стоять в другом регионе, и его время тут ни при чём.
+          el("div", { class: "cell-main", text: booking.local_time.split(" ")[1] }),
           el("div", { class: "cell-sub", text: booking.service_point_name }),
         ]),
         el("td", { class: "mono nowrap", text: booking.code }),
@@ -326,19 +341,98 @@
     });
   }
 
-  /* ------------------------------------------------------- автообновление */
+  /* -------------------------------------------------------- реальное время */
 
-  function startAutoRefresh() {
-    stopAutoRefresh();
-    if (!$("#auto-refresh").checked) return;
-    // Пятнадцать секунд: черновик живёт пять минут, так его видно почти сразу,
-    // но сервер не заваливается запросами с каждого открытого поста.
-    state.autoTimer = setInterval(() => { if (!document.hidden) reload(); }, 15000);
+  function openSocket() {
+    if (!api.isAuthorized || state.socket) return;
+
+    setLiveStatus("connecting");
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(
+      proto + "://" + location.host + "/ws/master/?token=" + api.store.access
+    );
+    state.socket = socket;
+
+    socket.onopen = () => {
+      setLiveStatus("live");
+      // Пока канал был закрыт, что-то могло измениться — подтягиваем актуальное.
+      stopPolling();
+      reload();
+    };
+
+    socket.onmessage = (event) => onSignal(JSON.parse(event.data));
+
+    socket.onclose = (event) => {
+      state.socket = null;
+      if (!state.me) return;
+
+      // 4403 — роль не подходит, переподключаться бессмысленно.
+      if (event.code === 4403) {
+        setLiveStatus("denied");
+        return;
+      }
+
+      setLiveStatus("offline");
+      startPolling();
+      setTimeout(openSocket, 5000);
+    };
   }
 
-  function stopAutoRefresh() {
-    if (state.autoTimer) clearInterval(state.autoTimer);
-    state.autoTimer = null;
+  function closeSocket() {
+    if (state.socket) {
+      const socket = state.socket;
+      state.socket = null;
+      socket.onclose = null;
+      socket.close();
+    }
+    clearTimeout(state.reloadTimer);
+    state.reloadTimer = null;
+  }
+
+  function onSignal(message) {
+    if (message.event === "master.ready" || message.event === "pong") return;
+
+    if (message.event === "booking.created") {
+      const payload = message.payload || {};
+      toast(
+        "Код " + payload.code + (payload.local_time ? ", на " + payload.local_time : ""),
+        "ok",
+        "Новая запись"
+      );
+    }
+
+    // События идут пачками (закрытие черновика + создание записи, шаги
+    // черновика подряд), поэтому перечитываем список один раз на всплеск.
+    clearTimeout(state.reloadTimer);
+    state.reloadTimer = setTimeout(reload, 400);
+  }
+
+  const LIVE_STATUS = {
+    live: ["badge-ok", "в реальном времени", false],
+    connecting: ["badge", "подключение…", true],
+    offline: ["badge-warn", "обновление раз в 20 сек", true],
+    denied: ["badge-danger", "нет доступа к каналу", false],
+  };
+
+  function setLiveStatus(kind) {
+    const [cls, text, pulse] = LIVE_STATUS[kind];
+    const badge = $("#live-status");
+    if (!badge) return;
+
+    badge.className = "badge " + cls;
+    $("#live-status-text").textContent = text;
+    $("#live-dot").classList.toggle("pulse", pulse);
+  }
+
+  /* Резервный опрос — только когда канал недоступен. */
+  function startPolling() {
+    if (state.pollTimer) return;
+    state.pollTimer = setInterval(() => { if (!document.hidden) reload(); }, 20000);
+  }
+
+  function stopPolling() {
+    if (state.pollTimer) clearInterval(state.pollTimer);
+    state.pollTimer = null;
   }
 
   /* --------------------------------------------------------------- старт */
@@ -372,8 +466,6 @@
       clearTimeout(searchTimer);
       searchTimer = setTimeout(reload, 350);
     };
-
-    $("#auto-refresh").onchange = startAutoRefresh;
 
     // Вкладки «Смена» / «Метрики» — только в панели администратора.
     $$(".tab[data-tab]").forEach((tab) => {

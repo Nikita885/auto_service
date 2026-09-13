@@ -12,10 +12,10 @@
     </div>
     <div class="row">
       <button class="btn btn-sm" id="btn-reload" type="button">Обновить</button>
-      <label class="row" style="gap:6px">
-        <input type="checkbox" id="auto-refresh" style="width:auto" checked>
-        <span class="hint">автообновление</span>
-      </label>
+      <span class="badge" id="live-status" title="Связь с сервером">
+        <span class="dot" id="live-dot"></span>
+        <span id="live-status-text">подключение…</span>
+      </span>
     </div>
   </div>
 
