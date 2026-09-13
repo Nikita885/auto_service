@@ -85,6 +85,15 @@
     <string name="error_network">Нет связи с сервером. Проверьте интернет.</string>
     <string name="error_unknown">Что-то пошло не так. Попробуйте ещё раз.</string>
     <string name="error_phone">Проверьте номер телефона: нужно 11 цифр.</string>
+
+    <!-- Отладочный экран смены сервера: в релизной сборке не показывается. -->
+    <string name="server_title">Адрес сервера</string>
+    <string name="server_message">Только для отладки. Смена сервера сбрасывает вход.</string>
+    <string name="server_hint">https://example.com/</string>
+    <string name="server_save">Сохранить</string>
+    <string name="server_reset">Сбросить</string>
+    <string name="server_saved">Сервер: %1$s</string>
+    <string name="server_current">Сервер: %1$s</string>
     <string name="booking_drop_title">Прервать запись?</string>
     <string name="booking_drop_message">Выбранное время и канистра сразу освободятся.</string>
 </resources>

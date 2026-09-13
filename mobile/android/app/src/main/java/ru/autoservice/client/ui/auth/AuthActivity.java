@@ -3,6 +3,8 @@ package ru.autoservice.client.ui.auth;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.inputmethod.EditorInfo;
+import android.widget.EditText;
+import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -10,8 +12,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
+
+import ru.autoservice.client.App;
 import ru.autoservice.client.BuildConfig;
 import ru.autoservice.client.R;
+import ru.autoservice.client.data.local.ServerConfig;
 import ru.autoservice.client.databinding.ActivityAuthBinding;
 import ru.autoservice.client.ui.MainActivity;
 import ru.autoservice.client.ui.common.Ui;
@@ -93,6 +100,66 @@ public class AuthActivity extends AppCompatActivity {
 
         views.resend.setOnClickListener(v -> model.resend());
         views.changePhone.setOnClickListener(v -> model.editPhone());
+
+        bindServerSettings();
+    }
+
+    /**
+     * Смена адреса сервера — только в отладочной сборке.
+     *
+     * <p>Адрес dev-сервера живёт недолго: туннель наружу выдаёт новое имя при
+     * каждом перезапуске. Без этого экрана пришлось бы пересобирать APK ради
+     * одной строки. В релизе кнопки нет вовсе — адрес там один и зашит.
+     */
+    private void bindServerSettings() {
+        if (!BuildConfig.DEBUG) {
+            return;
+        }
+
+        ServerConfig config = App.container(this).serverConfig();
+        Ui.setVisible(views.serverSettings, true);
+        showServer(config);
+
+        views.serverSettings.setOnClickListener(v -> askServer(config));
+    }
+
+    private void showServer(@NonNull ServerConfig config) {
+        // Схему в подписи не показываем: она занимает половину кнопки.
+        String shown = config.baseUrl()
+                .replace("https://", "")
+                .replace("http://", "");
+        views.serverSettings.setText(getString(R.string.server_current, shown));
+    }
+
+    private void askServer(@NonNull ServerConfig config) {
+        EditText input = new TextInputEditText(this);
+        input.setHint(R.string.server_hint);
+        input.setText(config.baseUrl());
+        input.setSingleLine(true);
+
+        int padding = getResources().getDimensionPixelSize(R.dimen.space);
+        FrameLayout wrapper = new FrameLayout(this);
+        wrapper.setPadding(padding, padding / 2, padding, 0);
+        wrapper.addView(input);
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.server_title)
+                .setMessage(R.string.server_message)
+                .setView(wrapper)
+                .setNeutralButton(R.string.server_reset, (dialog, which) -> applyServer(config, ""))
+                .setNegativeButton(R.string.action_cancel, null)
+                .setPositiveButton(R.string.server_save, (dialog, which) -> applyServer(
+                        config, input.getText() == null ? "" : input.getText().toString()))
+                .show();
+    }
+
+    private void applyServer(@NonNull ServerConfig config, @NonNull String url) {
+        config.save(url);
+        // Токены выдал прежний сервер — на новом они недействительны.
+        App.container(this).onServerChanged();
+
+        showServer(config);
+        Ui.showMessage(views.getRoot(), getString(R.string.server_saved, config.baseUrl()));
     }
 
     private void observe() {

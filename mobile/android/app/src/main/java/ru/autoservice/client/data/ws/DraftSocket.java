@@ -16,7 +16,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
-import ru.autoservice.client.BuildConfig;
+import ru.autoservice.client.data.local.ServerConfig;
 import ru.autoservice.client.data.local.TokenStorage;
 import ru.autoservice.client.data.remote.DtoMapper;
 import ru.autoservice.client.data.remote.dto.Dtos;
@@ -42,6 +42,7 @@ public final class DraftSocket {
 
     private final OkHttpClient client;
     private final TokenStorage storage;
+    private final ServerConfig config;
     private final Gson gson = new Gson();
     private final Handler main = new Handler(Looper.getMainLooper());
 
@@ -49,8 +50,9 @@ public final class DraftSocket {
     @Nullable private Listener listener;
     private boolean stopped = true;
 
-    public DraftSocket(@NonNull TokenStorage storage) {
+    public DraftSocket(@NonNull TokenStorage storage, @NonNull ServerConfig config) {
         this.storage = storage;
+        this.config = config;
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(15, TimeUnit.SECONDS)
                 // Пинг держит соединение живым через NAT и мобильных операторов.
@@ -90,7 +92,7 @@ public final class DraftSocket {
         }
 
         Request request = new Request.Builder()
-                .url(BuildConfig.WS_BASE_URL + "ws/booking/?token=" + token)
+                .url(config.webSocketUrl() + "ws/booking/?token=" + token)
                 .build();
 
         socket = client.newWebSocket(request, new WebSocketListener() {

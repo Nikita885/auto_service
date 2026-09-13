@@ -4,6 +4,7 @@ import android.content.Context;
 
 import androidx.annotation.NonNull;
 
+import ru.autoservice.client.data.local.ServerConfig;
 import ru.autoservice.client.data.local.TokenStorage;
 import ru.autoservice.client.data.remote.ApiFactory;
 import ru.autoservice.client.data.remote.ApiService;
@@ -21,13 +22,15 @@ import ru.autoservice.client.data.ws.DraftSocket;
 public final class AppContainer {
 
     private final TokenStorage tokenStorage;
+    private final ServerConfig serverConfig;
     private final ApiService api;
     private final AuthRepository authRepository;
     private final BookingRepository bookingRepository;
 
     AppContainer(@NonNull Context context) {
         this.tokenStorage = new TokenStorage(context);
-        this.api = ApiFactory.create(tokenStorage);
+        this.serverConfig = new ServerConfig(context);
+        this.api = ApiFactory.create(tokenStorage, serverConfig);
         this.authRepository = new AuthRepository(api, tokenStorage);
         this.bookingRepository = new BookingRepository(api);
     }
@@ -49,6 +52,20 @@ public final class AppContainer {
      */
     @NonNull
     public DraftSocket newDraftSocket() {
-        return new DraftSocket(tokenStorage);
+        return new DraftSocket(tokenStorage, serverConfig);
+    }
+
+    /**
+     * Адрес сервера. Меняется в отладочной сборке прямо на экране входа:
+     * туннель к dev-серверу выдаёт новое имя при каждом перезапуске.
+     */
+    @NonNull
+    public ServerConfig serverConfig() {
+        return serverConfig;
+    }
+
+    /** Смена сервера обесценивает выданные им токены — сессию сбрасываем. */
+    public void onServerChanged() {
+        tokenStorage.clearTokens();
     }
 }

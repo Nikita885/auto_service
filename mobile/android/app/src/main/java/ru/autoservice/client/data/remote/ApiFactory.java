@@ -5,6 +5,7 @@ import androidx.annotation.NonNull;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -13,6 +14,7 @@ import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 import ru.autoservice.client.BuildConfig;
+import ru.autoservice.client.data.local.ServerConfig;
 import ru.autoservice.client.data.local.TokenStorage;
 import ru.autoservice.client.data.remote.dto.Dtos;
 
@@ -30,14 +32,15 @@ public final class ApiFactory {
     }
 
     @NonNull
-    public static ApiService create(@NonNull TokenStorage storage) {
+    public static ApiService create(@NonNull TokenStorage storage, @NonNull ServerConfig config) {
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
                 .writeTimeout(20, TimeUnit.SECONDS)
                 .retryOnConnectionFailure(true)
+                .addInterceptor(new HostInterceptor(config))
                 .addInterceptor(new AuthInterceptor(storage))
-                .addInterceptor(new TokenRefreshInterceptor(storage))
+                .addInterceptor(new TokenRefreshInterceptor(storage, config))
                 .addInterceptor(logging())
                 .build();
 
@@ -59,6 +62,41 @@ public final class ApiFactory {
                 ? HttpLoggingInterceptor.Level.BODY
                 : HttpLoggingInterceptor.Level.NONE);
         return interceptor;
+    }
+
+    /**
+     * Направляет запрос на текущий адрес сервера.
+     *
+     * <p>Retrofit требует базовый адрес при создании и потом его не меняет.
+     * Пересоздавать весь стек ради смены хоста — значит терять пул соединений
+     * и путаться в том, какой экран держит какой клиент. Проще подменить
+     * схему, хост и порт у каждого запроса: путь и параметры остаются свои.
+     */
+    private static final class HostInterceptor implements Interceptor {
+
+        private final ServerConfig config;
+
+        HostInterceptor(ServerConfig config) {
+            this.config = config;
+        }
+
+        @NonNull
+        @Override
+        public Response intercept(@NonNull Chain chain) throws IOException {
+            Request request = chain.request();
+            HttpUrl target = HttpUrl.parse(config.baseUrl());
+            if (target == null) {
+                return chain.proceed(request);
+            }
+
+            HttpUrl url = request.url().newBuilder()
+                    .scheme(target.scheme())
+                    .host(target.host())
+                    .port(target.port())
+                    .build();
+
+            return chain.proceed(request.newBuilder().url(url).build());
+        }
     }
 
     /** Подставляет access-токен во все запросы, кроме публичных. */
@@ -101,9 +139,23 @@ public final class ApiFactory {
         private static final Object REFRESH_LOCK = new Object();
 
         private final TokenStorage storage;
+        private final ServerConfig config;
 
-        TokenRefreshInterceptor(TokenStorage storage) {
+        TokenRefreshInterceptor(TokenStorage storage, ServerConfig config) {
             this.storage = storage;
+            this.config = config;
+        }
+
+        /** Клиент без перехватчиков — только для обмена refresh на новую пару. */
+        private static Retrofit plainRetrofit(@NonNull HttpUrl baseUrl) {
+            return new Retrofit.Builder()
+                    .baseUrl(baseUrl)
+                    .client(new OkHttpClient.Builder()
+                            .connectTimeout(15, TimeUnit.SECONDS)
+                            .readTimeout(20, TimeUnit.SECONDS)
+                            .build())
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build();
         }
 
         @NonNull
@@ -148,18 +200,20 @@ public final class ApiFactory {
                     .build());
         }
 
-        /** Обмен refresh на новую пару. Отдельный «голый» клиент — без перехватчиков. */
+        /**
+         * Обмен refresh на новую пару.
+         *
+         * <p>Отдельный клиент без перехватчиков: иначе обновление токена
+         * попало бы в собственную обработку 401 и зациклилось. Адрес берётся
+         * из настройки — тот же, куда ушёл исходный запрос.
+         */
         private String exchange(@NonNull String refresh) {
             try {
-                ApiService plain = new Retrofit.Builder()
-                        .baseUrl(BuildConfig.API_BASE_URL)
-                        .client(new OkHttpClient.Builder()
-                                .connectTimeout(15, TimeUnit.SECONDS)
-                                .readTimeout(20, TimeUnit.SECONDS)
-                                .build())
-                        .addConverterFactory(GsonConverterFactory.create())
-                        .build()
-                        .create(ApiService.class);
+                HttpUrl baseUrl = HttpUrl.parse(config.baseUrl());
+                if (baseUrl == null) {
+                    return null;
+                }
+                ApiService plain = plainRetrofit(baseUrl).create(ApiService.class);
 
                 retrofit2.Response<Dtos.RefreshResponse> result =
                         plain.refreshToken(new Dtos.RefreshBody(refresh)).execute();

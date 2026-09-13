@@ -175,5 +175,18 @@
             android:layout_marginTop="@dimen/space_xl"
             android:text="@string/auth_legal"
             android:textColor="#7B838F" />
+
+        <!-- Смена адреса сервера: показывается только в отладочной сборке. -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/server_settings"
+            style="@style/Widget.AutoService.Button.Text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_sm"
+            android:textColor="#7B838F"
+            android:textSize="@dimen/text_small"
+            android:visibility="gone"
+            tools:text="Сервер: 10.0.2.2:8000"
+            tools:visibility="visible" />
     </LinearLayout>
 </ScrollView>
