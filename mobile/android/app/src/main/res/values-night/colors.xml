@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Тёмная тема — те же роли, что в CSS-переменных лендинга. -->
+<resources>
+    <color name="accent">#FF7A2F</color>
+    <color name="accent_pressed">#FF8C4A</color>
+    <color name="accent_soft">#2A1A10</color>
+    <color name="on_accent">#1A1005</color>
+
+    <color name="bg">#14161A</color>
+    <color name="surface">#1E2126</color>
+    <color name="surface_2">#24282E</color>
+    <color name="border">#31363E</color>
+    <color name="border_strong">#454B55</color>
+
+    <color name="text">#EEF0F3</color>
+    <color name="text_soft">#A8AFBA</color>
+    <color name="text_faint">#7B838F</color>
+
+    <color name="ok">#4ADE80</color>
+    <color name="ok_soft">#14321F</color>
+    <color name="warn">#FBBF24</color>
+    <color name="warn_soft">#332714</color>
+    <color name="danger">#F87171</color>
+    <color name="danger_soft">#351B1B</color>
+    <color name="info">#60A5FA</color>
+    <color name="info_soft">#16263D</color>
+</resources>

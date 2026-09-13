@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Одна ступень индикатора: номер (или галочка) и подпись. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:gravity="center_horizontal"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/step_badge"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:background="@drawable/bg_pill_muted">
+
+        <TextView
+            android:id="@+id/step_number"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="@color/text_faint"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            tools:text="2" />
+
+        <ImageView
+            android:id="@+id/step_done"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:padding="5dp"
+            android:src="@drawable/ic_check"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/step_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:textColor="@color/text_faint"
+        android:textSize="11sp"
+        tools:text="Масло" />
+</LinearLayout>

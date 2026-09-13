@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Тёмный экран входа: тот же графит, что на первом экране лендинга. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/ink" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="640"
+                android:centerX="0.85" android:centerY="0.08"
+                android:startColor="#59E8590C"
+                android:endColor="@color/transparent" />
+        </shape>
+    </item>
+</layer-list>

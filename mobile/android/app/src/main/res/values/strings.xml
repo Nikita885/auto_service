@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Все тексты здесь: формулировки читает клиент, и правит их не программист. -->
+<resources>
+    <string name="app_name">Автосервис</string>
+
+    <!-- вход -->
+    <string name="auth_title">Замена масла\nбез очереди</string>
+    <string name="auth_sub">Вход по номеру телефона. Пароль придумывать не нужно — пришлём код в SMS.</string>
+    <string name="auth_phone_hint">Телефон</string>
+    <string name="auth_get_code">Получить код</string>
+    <string name="auth_code_title">Введите код</string>
+    <string name="auth_code_sub">Отправили SMS на %1$s</string>
+    <string name="auth_code_hint">Код из SMS</string>
+    <string name="auth_sign_in">Войти</string>
+    <string name="auth_change_phone">Изменить номер</string>
+    <string name="auth_resend">Отправить код ещё раз</string>
+    <string name="auth_resend_in">Отправить повторно через %1$d с</string>
+    <string name="auth_legal">Продолжая, вы соглашаетесь с обработкой персональных данных.</string>
+    <string name="auth_debug_code">Код разработки: %1$s</string>
+
+    <!-- навигация -->
+    <string name="nav_booking">Запись</string>
+    <string name="nav_bookings">Мои записи</string>
+    <string name="nav_profile">Профиль</string>
+
+    <!-- запись -->
+    <string name="booking_title">Запись на замену масла</string>
+    <string name="booking_start">Начать запись</string>
+    <string name="booking_restart">Начать заново</string>
+    <string name="booking_drop">Прервать</string>
+    <string name="booking_idle">Нажмите «Начать запись»: выберете адрес, масло и время. На всю запись — пять минут.</string>
+    <string name="booking_expired">Пять минут вышли, запись не сохранилась. Начните заново — это быстро.</string>
+    <string name="booking_timer_hint">до конца записи</string>
+
+    <string name="step_point">Адрес</string>
+    <string name="step_oil">Масло</string>
+    <string name="step_slot">Время</string>
+    <string name="step_confirm">Подтверждение</string>
+
+    <string name="step_point_title">Шаг 1. Выберите адрес</string>
+    <string name="step_oil_title">Шаг 2. Выберите масло</string>
+    <string name="step_slot_title">Шаг 3. Выберите время</string>
+    <string name="step_confirm_title">Шаг 4. Проверьте детали</string>
+
+    <string name="step_not_selected">не выбран</string>
+    <string name="oil_available">В наличии: %1$d</string>
+    <string name="oil_out_of_stock">Закончилось</string>
+    <string name="slot_free_posts">свободно: %1$d</string>
+    <string name="comment_hint">Комментарий (необязательно)</string>
+    <string name="confirm_action">Подтвердить запись</string>
+    <string name="confirm_total">Итого</string>
+    <string name="confirm_oil_price">Масло</string>
+    <string name="confirm_work_price">Работа</string>
+    <string name="booking_created">Вы записаны. Код записи — %1$s</string>
+
+    <!-- мои записи -->
+    <string name="bookings_upcoming">Предстоящие</string>
+    <string name="bookings_history">История</string>
+    <string name="bookings_empty_upcoming">Предстоящих записей нет.</string>
+    <string name="bookings_empty_history">Здесь появятся завершённые записи.</string>
+    <string name="booking_code">Код %1$s</string>
+    <string name="booking_cancel">Отменить запись</string>
+    <string name="booking_cancel_title">Отменить запись %1$s?</string>
+    <string name="booking_cancel_message">Пост и канистра сразу освободятся.</string>
+    <string name="booking_cancel_reason_hint">Причина (необязательно)</string>
+    <string name="booking_cancelled">Запись отменена</string>
+
+    <!-- профиль -->
+    <string name="profile_title">Профиль</string>
+    <string name="profile_sub">Имя и автомобиль видит мастер — так он понимает, что заезжает на пост.</string>
+    <string name="profile_name">Имя</string>
+    <string name="profile_car">Автомобиль</string>
+    <string name="profile_plate">Госномер</string>
+    <string name="profile_save">Сохранить</string>
+    <string name="profile_saved">Профиль сохранён</string>
+    <string name="profile_sign_out">Выйти</string>
+    <string name="profile_sign_out_title">Выйти из аккаунта?</string>
+    <string name="profile_sign_out_message">Войти обратно можно по коду из SMS.</string>
+    <string name="profile_version">Версия %1$s</string>
+
+    <!-- общее -->
+    <string name="action_retry">Повторить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_ok">Хорошо</string>
+    <string name="error_network">Нет связи с сервером. Проверьте интернет.</string>
+    <string name="error_unknown">Что-то пошло не так. Попробуйте ещё раз.</string>
+    <string name="error_phone">Проверьте номер телефона: нужно 11 цифр.</string>
+    <string name="booking_drop_title">Прервать запись?</string>
+    <string name="booking_drop_message">Выбранное время и канистра сразу освободятся.</string>
+</resources>

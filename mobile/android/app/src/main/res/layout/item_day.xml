@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/day_card"
+    style="@style/Widget.AutoService.Card"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="@dimen/space_sm"
+    android:clickable="true"
+    android:focusable="true"
+    app:cardCornerRadius="100dp"
+    app:rippleColor="@color/accent_soft">
+
+    <TextView
+        android:id="@+id/day_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:minHeight="40dp"
+        android:paddingStart="@dimen/space"
+        android:paddingEnd="@dimen/space"
+        android:textColor="@color/text"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        tools:text="пн, 11 сен" />
+</com.google.android.material.card.MaterialCardView>

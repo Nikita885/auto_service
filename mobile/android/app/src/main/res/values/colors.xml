@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Палитра повторяет лендинг: тот же графит и тот же оранжевый.
+  Клиент не должен чувствовать, что сайт и приложение сделаны разными людьми.
+-->
+<resources>
+    <color name="ink">#101215</color>
+    <color name="ink_2">#181B20</color>
+
+    <color name="accent">#E8590C</color>
+    <color name="accent_pressed">#D24F08</color>
+    <color name="accent_soft">#FDF1E9</color>
+    <color name="on_accent">#FFFFFF</color>
+
+    <color name="bg">#F4F5F7</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_2">#F8F9FB</color>
+    <color name="border">#E0E3E8</color>
+    <color name="border_strong">#C9CDD4</color>
+
+    <color name="text">#171A1F</color>
+    <color name="text_soft">#5B6270</color>
+    <color name="text_faint">#878E9B</color>
+
+    <color name="ok">#1A7F4B</color>
+    <color name="ok_soft">#E6F4EC</color>
+    <color name="warn">#A5720B</color>
+    <color name="warn_soft">#FDF4E1</color>
+    <color name="danger">#C0392B</color>
+    <color name="danger_soft">#FBECEA</color>
+    <color name="info">#1F6FEB</color>
+    <color name="info_soft">#E8F1FE</color>
+
+    <color name="transparent">#00000000</color>
+</resources>

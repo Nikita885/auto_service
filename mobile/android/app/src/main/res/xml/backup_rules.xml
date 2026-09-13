@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Резервных копий нет вовсе (allowBackup="false"), но правила оставлены явными:
+  токены и профиль не должны уезжать в облако и переноситься на чужое устройство.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="database" path="." />
+</full-backup-content>

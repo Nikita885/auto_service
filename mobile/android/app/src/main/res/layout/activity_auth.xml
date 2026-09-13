@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Вход повторяет первый экран лендинга: тёмный графит, оранжевый акцент,
+  одно обещание крупно. Человек, пришедший с сайта, должен узнать приложение.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_hero"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/space_lg"
+        android:paddingTop="64dp">
+
+        <ImageView
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/ic_logo"
+            android:contentDescription="@string/app_name" />
+
+        <TextView
+            android:id="@+id/title"
+            style="@style/Text.H1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_lg"
+            android:text="@string/auth_title"
+            android:textColor="#F2F3F5"
+            android:textSize="32sp" />
+
+        <TextView
+            android:id="@+id/subtitle"
+            style="@style/Text.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_sm"
+            android:text="@string/auth_sub"
+            android:textColor="#A7ADB7" />
+
+        <!-- ---------------------------------------------------- шаг: телефон -->
+        <LinearLayout
+            android:id="@+id/step_phone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_xl"
+            android:orientation="vertical">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/phone_layout"
+                style="@style/Widget.AutoService.TextInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/auth_phone_hint"
+                app:boxBackgroundColor="#1E2126"
+                app:boxStrokeColor="@color/accent"
+                app:hintTextColor="#A7ADB7">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/phone_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:autofillHints="phone"
+                    android:imeOptions="actionDone"
+                    android:inputType="phone"
+                    android:textColor="#F2F3F5"
+                    android:textSize="17sp"
+                    tools:text="+7 900 111-22-33" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/request_code"
+                style="@style/Widget.AutoService.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space"
+                android:text="@string/auth_get_code" />
+        </LinearLayout>
+
+        <!-- -------------------------------------------------------- шаг: код -->
+        <LinearLayout
+            android:id="@+id/step_code"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_xl"
+            android:orientation="vertical"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/code_layout"
+                style="@style/Widget.AutoService.TextInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/auth_code_hint"
+                app:boxBackgroundColor="#1E2126"
+                app:boxStrokeColor="@color/accent"
+                app:hintTextColor="#A7ADB7">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/code_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:autofillHints="smsOTPCode"
+                    android:imeOptions="actionDone"
+                    android:inputType="number"
+                    android:letterSpacing="0.4"
+                    android:maxLength="6"
+                    android:textColor="#F2F3F5"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    tools:text="4821" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/debug_code"
+                style="@style/Text.Small"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_xs"
+                android:textColor="@color/accent"
+                android:visibility="gone"
+                tools:text="Код разработки: 4821"
+                tools:visibility="visible" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/sign_in"
+                style="@style/Widget.AutoService.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space"
+                android:text="@string/auth_sign_in" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/resend"
+                style="@style/Widget.AutoService.Button.Text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_xs"
+                android:text="@string/auth_resend" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/change_phone"
+                style="@style/Widget.AutoService.Button.Text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/auth_change_phone"
+                android:textColor="#A7ADB7" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="@dimen/space"
+            android:indeterminateTint="@color/accent"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <TextView
+            style="@style/Text.Small"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_xl"
+            android:text="@string/auth_legal"
+            android:textColor="#7B838F" />
+    </LinearLayout>
+</ScrollView>

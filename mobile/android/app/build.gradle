@@ -1,0 +1,97 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'ru.autoservice.client'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "ru.autoservice.client"
+        minSdk 24
+        targetSdk 35
+
+        // versionCode обязан расти при каждой загрузке в Play Console.
+        versionCode 1
+        versionName "1.0.0"
+
+        resConfigs "ru"
+    }
+
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            // Подпись берётся из ~/.gradle/gradle.properties или из секретов CI.
+            // Ключ в репозитории не лежит: утечка upload-ключа означает, что
+            // кто угодно сможет выложить обновление вашего приложения.
+            def storePath = project.findProperty('RELEASE_STORE_FILE')
+            if (storePath) {
+                storeFile file(storePath)
+                storePassword project.findProperty('RELEASE_STORE_PASSWORD')
+                keyAlias project.findProperty('RELEASE_KEY_ALIAS')
+                keyPassword project.findProperty('RELEASE_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+            // Эмулятор видит хост-машину как 10.0.2.2. Открытый http разрешён
+            // только в debug и только для этого адреса (network_security_config).
+            buildConfigField "String", "API_BASE_URL", '"http://10.0.2.2:8000/"'
+            buildConfigField "String", "WS_BASE_URL", '"ws://10.0.2.2:8000/"'
+        }
+
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+
+            // ЗАМЕНИТЬ на боевой домен перед сборкой релиза.
+            // Только https и wss: по открытому каналу уходит JWT.
+            buildConfigField "String", "API_BASE_URL", '"https://api.example.com/"'
+            buildConfigField "String", "WS_BASE_URL", '"wss://api.example.com/"'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packagingOptions {
+        resources.excludes += ['META-INF/*.kotlin_module', 'DEBUG', 'LICENSE.txt']
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.core:core-splashscreen:1.0.1'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    implementation 'com.google.android.material:material:1.12.0'
+
+    // MVVM: состояние экрана переживает поворот и не течёт в Activity.
+    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-livedata:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-runtime:2.8.7'
+
+    // Сеть. Logging-интерфейс подключён, но включается только в debug.
+    implementation 'com.squareup.retrofit2:retrofit:2.11.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.11.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+
+    // Токены лежат в EncryptedSharedPreferences, а не в обычных настройках.
+    implementation 'androidx.security:security-crypto:1.0.0'
+
+    testImplementation 'junit:junit:4.13.2'
+}
