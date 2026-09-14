@@ -17,7 +17,11 @@ case "${1:-api}" in
   api)
     python manage.py migrate --noinput
     python manage.py collectstatic --noinput || true
-    python manage.py bootstrap_demo || true
+    # Демо-данные создают учётки с паролями из README. На проде это открытая
+    # дверь в админку, поэтому заливка только по явному разрешению.
+    if [ "${BOOTSTRAP_DEMO:-true}" = "true" ]; then
+      python manage.py bootstrap_demo || true
+    fi
     exec daphne -b 0.0.0.0 -p 8000 config.asgi:application
     ;;
   worker)

@@ -202,6 +202,11 @@ SPECTACULAR_SETTINGS = {
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 CORS_ALLOW_CREDENTIALS = True
 
+# Django 4+ сверяет Origin форм с этим списком, а не с ALLOWED_HOSTS. За HTTPS
+# без него вход в админку и панели сотрудников отдаёт 403: браузер шлёт Origin,
+# схему которого Django считает чужой.
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
 # ---------------------------------------------------------------- i18n
 LANGUAGE_CODE = "ru-ru"
 TIME_ZONE = "UTC"  # в БД всё в UTC, локальное время берём из часового пояса точки

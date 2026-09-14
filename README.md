@@ -33,9 +33,10 @@ JWT (simplejwt) · Django Channels (WebSocket) · Docker Compose
 12. [Тесты и качество кода](#тесты-и-качество-кода)
 13. [Веб-интерфейс](#веб-интерфейс)
 14. [Известные ограничения и подводные камни](#известные-ограничения-и-подводные-камни)
-15. [Чек-лист перед продом](#чек-лист-перед-продом)
-16. [Мобильное приложение](#мобильное-приложение)
-17. [Что дальше](#что-дальше)
+15. [Деплой на сервер](#деплой-на-сервер)
+16. [Чек-лист перед продом](#чек-лист-перед-продом)
+17. [Мобильное приложение](#мобильное-приложение)
+18. [Что дальше](#что-дальше)
 
 ---
 
@@ -1041,14 +1042,88 @@ Java, Android Studio, без Kotlin. Открывать в студии нужн
 
 ---
 
+## Деплой на сервер
+
+Базовый `docker-compose.yml` рассчитан на разработку: он пробрасывает наружу
+порты PostgreSQL, Redis и daphne. На машине с публичным адресом так нельзя —
+Redis без пароля находят автоматические сканеры за минуты. Поэтому на проде
+compose запускается с надстройкой `docker-compose.prod.yml`, которая эти порты
+убирает, собирает образ без dev-зависимостей и монтирует статику в каталог
+хоста для nginx.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+### Порядок развёртывания
+
+1. **Docker и nginx на сервере.** Docker — из официального репозитория, а не
+   `docker.io` из Ubuntu: надстройке нужен Compose не ниже 2.24 (теги `!reset`),
+   а в системных репозиториях он бывает старее.
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   apt update && apt install -y git nginx certbot python3-certbot-nginx
+   docker compose version   # должно быть 2.24 или выше
+   ```
+2. **Клонировать в `/opt/auto_service`** (этот путь прописан в примере конфига
+   nginx) и создать каталоги статики:
+   ```bash
+   git clone https://github.com/Nikita885/auto_service.git /opt/auto_service
+   cd /opt/auto_service && mkdir -p static media && chown -R 1000:1000 static media
+   ```
+   `1000` — uid пользователя `appuser` внутри контейнера. Без этого
+   `collectstatic` упрётся в права хоста.
+3. **Заполнить `.env`** по чек-листу ниже. Ключ генерируется так:
+   ```bash
+   python3 -c "import secrets; print(secrets.token_urlsafe(50))"
+   ```
+4. **Поднять контейнеры** командой выше.
+5. **Настроить nginx**: скопировать [`deploy/nginx.conf.example`](deploy/nginx.conf.example)
+   в `/etc/nginx/sites-available/autoservice`, слинковать в `sites-enabled`,
+   проверить `nginx -t` и перезагрузить.
+6. **Выпустить сертификат** — бесплатный Let's Encrypt, продлевается сам:
+   ```bash
+   certbot --nginx -d <домен>
+   ```
+7. **Создать администратора**, раз демо-данных на проде нет:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api \
+       python manage.py createsuperuser
+   ```
+
+### Кириллический домен
+
+Домен вида `экспрес-замена.рф` в заголовке `Host` приходит в **punycode**
+(`xn----8sbarcksuknlkd6n.xn--p1ai`), и certbot работает только с этой формой.
+В `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS` и
+`server_name` нужен именно punycode — с кириллицей в `ALLOWED_HOSTS` Django
+ответит `400 Bad Request` на каждый запрос. Перевести домен можно так:
+
+```bash
+python3 -c "print('экспрес-замена.рф'.encode('idna').decode())"
+```
+
+### Почему в nginx нужен `X-Forwarded-Proto`
+
+В прод-настройках включён `SECURE_SSL_REDIRECT`, а схему запроса Django берёт
+из `SECURE_PROXY_SSL_HEADER`. Если nginx не передаст этот заголовок, Django
+сочтёт запрос пришедшим по HTTP и отправит редирект на HTTPS — который nginx
+снова проксирует на тот же обработчик. Получится бесконечная петля редиректов.
+В примере конфига заголовок проставлен во всех секциях.
+
+---
+
 ## Чек-лист перед продом
 
 - [ ] `DJANGO_SETTINGS_MODULE=config.settings.prod`
 - [ ] новый `SECRET_KEY` (50+ случайных символов), `DEBUG=False`
 - [ ] **`OTP_DEBUG_EXPOSE_CODE=False`** — иначе код входа отдаётся в API
 - [ ] реальный SMS-провайдер: `SMS_PROVIDER=http`, `SMS_API_KEY`
-- [ ] `ALLOWED_HOSTS` и `CORS_ALLOWED_ORIGINS` — конкретные домены, не `*`
-- [ ] сильный `POSTGRES_PASSWORD`, Redis не наружу
+- [ ] `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS` и `CSRF_TRUSTED_ORIGINS` —
+      конкретные домены (в punycode, если домен кириллический), не `*`
+- [ ] **`BOOTSTRAP_DEMO=false`** — иначе на проде появятся демо-учётки
+- [ ] сильный `POSTGRES_PASSWORD`, Redis не наружу — запуск с
+      `-f docker-compose.prod.yml`, который закрывает порты
 - [ ] HTTPS-терминация перед daphne (nginx / traefik)
 - [ ] `SENTRY_DSN` для сбора ошибок
 - [ ] бэкапы PostgreSQL

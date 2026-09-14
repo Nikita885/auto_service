@@ -1,0 +1,61 @@
+# Конфиг nginx перед daphne. На сервере кладётся в
+# /etc/nginx/sites-available/autoservice и линкуется в sites-enabled.
+#
+# Здесь только HTTP-версия: сертификат и редирект на HTTPS дописывает certbot
+# командой `certbot --nginx -d <домен>`. Писать ssl-секцию руками не нужно —
+# certbot ищет server_name и правит файл сам.
+#
+# Домен подставлен в punycode: кириллический домен приходит в заголовке Host
+# именно в таком виде, и certbot тоже работает только с ним.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name xn----8sbarcksuknlkd6n.xn--p1ai www.xn----8sbarcksuknlkd6n.xn--p1ai;
+
+    # Загрузки пользователей: аватары и вложения крупнее дефолтного 1 МБ.
+    client_max_body_size 10m;
+
+    # При DEBUG=False Django статику не отдаёт вовсе. Каталоги те же, что
+    # смонтированы в контейнер в docker-compose.prod.yml.
+    location /static/ {
+        alias /opt/auto_service/static/;
+        access_log off;
+        expires 30d;
+    }
+
+    location /media/ {
+        alias /opt/auto_service/media/;
+        access_log off;
+        expires 7d;
+    }
+
+    # Живой статус записи и канал сотрудника. Отдельная секция нужна из-за
+    # заголовков Upgrade: без них nginx закрывает соединение как обычный HTTP,
+    # и WebSocket не поднимается.
+    location /ws/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Канал молчит, пока ничего не происходит; дефолтные 60 секунд рвали бы
+        # его на каждой паузе.
+        proxy_read_timeout 3600s;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # Без этого заголовка prod-настройки Django считают запрос пришедшим по
+        # HTTP и редиректят на HTTPS — а nginx снова проксирует его сюда же.
+        # Получается петля редиректов.
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
