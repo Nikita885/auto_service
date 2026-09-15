@@ -1,148 +1,393 @@
 /* Стили лендинга. Подключаются только на главной — в панелях сотрудников
    этот код не нужен и не грузится.
 
-   Основа — переменные и кнопки из app.css, чтобы сайт и панели выглядели одной
-   системой. Здесь добавляется то, что нужно витрине: плотная «промышленная»
-   типографика, тёмный первый экран во всю ширину, разноразмерные плитки и
-   прайс таблицей вместо ряда одинаковых карточек. */
+   Витрина одета по логотипу компании: почти чёрный фон с синим подтоном,
+   контуры неоновой трубкой и «хромированные» надписи. Поэтому здесь не
+   светлая тема с акцентом, а собственный набор токенов дизайн-системы из
+   app.css, переопределённый на `body.landing`. Кнопки, чипы и значки
+   подхватывают его сами — править их отдельно не пришлось.
 
-/* --------------------------------------------------------------- основа */
-:root {
-  /* Тёмный тон первого экрана и панелей: один на обе темы, чтобы витрина
-     всегда читалась как фирменная, а не выцветала в светлой. */
-  --ink: #101215;
-  --ink-2: #181b20;
-  --on-ink: #f2f3f5;
-  --on-ink-soft: #a7adb7;
+   Движение на странице делится на три вида и больше ничего не делает:
+   1) запуск неона и бегущий по кузову блик — это сам бренд;
+   2) появление блоков при первом показе — один раз, на 14 px, без возврата;
+   3) реакция на курсор — блик на стекле карточки и подсветка строки прайса.
+   Всё остальное (мокап приложения) показывает продукт, а не украшает фон. */
+
+/* --------------------------------------------------------------- токены */
+.landing {
+  color-scheme: dark;
+
+  /* Фон: не чистый чёрный — синий подтон даёт неону во что светить. */
+  --void: #04070e;
+  --void-2: #070c16;
+
+  --neon: #2ea6ff;          /* основной синий логотипа */
+  --neon-hot: #b9e6ff;      /* раскалённая сердцевина трубки */
+  --neon-deep: #0a5cff;     /* дальний ореол */
+  --neon-dim: rgba(46, 166, 255, .16);
+
+  /* Переопределение дизайн-системы app.css в границах лендинга. */
+  --bg: var(--void);
+  --bg-soft: #0a101c;
+  --surface: rgba(11, 18, 32, .68);
+  --surface-2: rgba(16, 26, 44, .78);
+  --border: rgba(122, 186, 255, .14);
+  --border-strong: rgba(122, 186, 255, .32);
+
+  --text: #e6f1ff;
+  --text-soft: #97accb;
+  --text-faint: #6a7f9f;
+
+  --accent: var(--neon);
+  --accent-hover: #63c0ff;
+  --accent-soft: rgba(46, 166, 255, .13);
+  --accent-text: #03121f;
+
+  --ok: #3ddc97;
+  --ok-soft: rgba(61, 220, 151, .12);
+
+  --ring: 0 0 0 3px rgba(46, 166, 255, .32);
+
+  /* Общая кривая движения: быстрый старт, мягкая остановка. Одна на весь
+     лендинг — разнобой в ускорениях и делает анимацию «самодельной». */
+  --ease: cubic-bezier(.22, 1, .36, 1);
+
+  /* Шапка выше, чем в панелях: в неё встаёт фирменный знак целиком,
+     а не текстовое название. */
+  --header-h: 78px;
+
+  background: var(--void);
+  color: var(--text);
 }
 
-.page { padding: 0 0 0; }
+/* Общий фон страницы: два далёких синих пятна, неподвижных при прокрутке. */
+.landing::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 55% at 78% -8%, rgba(10, 92, 255, .20), transparent 62%),
+    radial-gradient(60% 50% at 6% 26%, rgba(46, 166, 255, .10), transparent 66%),
+    var(--void);
+}
 
-.block { margin-top: 96px; }
-.block:first-child { margin-top: 0; }
+/* Контейнер задаёт каждая секция сама — так первый экран и полосы
+   растягиваются на всю ширину без трюков с отрицательными полями. */
+.landing .page { padding: 0; }
+.landing .page > .wrap { width: 100%; margin: 0; }
 
-.block-head { max-width: 64ch; margin-bottom: 34px; }
+.block {
+  width: min(1180px, 100% - 44px);
+  margin: 118px auto 0;
+}
+
+.block-head { max-width: 62ch; margin-bottom: 38px; }
 
 .block-head h2 {
-  font-size: clamp(26px, 3.2vw, 38px);
+  font-size: clamp(28px, 3.4vw, 42px);
   font-weight: 800;
-  letter-spacing: -.03em;
-  line-height: 1.1;
-  margin-bottom: 12px;
+  letter-spacing: -.035em;
+  line-height: 1.08;
+  margin-bottom: 14px;
 }
 
 .block-head p { color: var(--text-soft); font-size: 16.5px; }
 
 .kicker {
-  display: inline-block;
-  margin-bottom: 14px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 16px;
+  font-size: 11.5px;
   font-weight: 800;
-  letter-spacing: .14em;
+  letter-spacing: .18em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--neon);
 }
 
-.kicker-dark { color: var(--accent); }
+/* Короткая светящаяся черта перед надрубрикой — тот же приём, что у
+   неоновой вывески: маленький источник света, а не иконка. */
+.kicker::before {
+  content: "";
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--neon));
+  box-shadow: 0 0 8px var(--neon);
+}
 
 .muted { color: var(--text-soft); font-size: 15px; }
 
+/* ------------------------------------------------------------- логотип */
+.logo {
+  --logo-w: 220px;
+  position: relative;
+  display: block;
+  width: var(--logo-w);
+  flex: none;
+  line-height: 0;
+}
+
+.logo-car { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* Свечение даёт фильтр, а не обводка: три тени разного радиуса повторяют
+   то, как светится настоящая трубка — белая сердцевина, синий ореол. */
+.logo-lines {
+  stroke: var(--neon-hot);
+  filter:
+    drop-shadow(0 0 2px rgba(185, 230, 255, .95))
+    drop-shadow(0 0 9px var(--neon))
+    drop-shadow(0 0 26px var(--neon-deep))
+    drop-shadow(0 0 54px rgba(10, 92, 255, .5));
+}
+
+.logo-line-roof { stroke-width: 9; }
+.logo-line-belt { stroke-width: 7; }
+.logo-line-sill { stroke-width: 6.5; }
+.logo-line-crease { stroke-width: 5; opacity: .78; }
+
+.logo-spark {
+  stroke: #ffffff;
+  stroke-width: 9;
+  opacity: 0;
+  filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 22px var(--neon-hot));
+}
+
+.logo-word {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Надпись лежит на нижней половине кузова и свешивается ниже него —
+     как на фирменном знаке. Все размеры считаются от --logo-w, поэтому
+     пропорции лока не зависят от того, где он стоит. */
+  top: 36%;
+  text-align: center;
+  font-size: calc(var(--logo-w) * .118);
+  line-height: .96;
+  font-weight: 900;
+  font-family: "Arial Black", "Segoe UI", var(--font);
+  letter-spacing: -.01em;
+  text-transform: uppercase;
+  /* Наклон вместо курсива: у Arial Black нет настоящего курсива, а
+     синтетический браузеры рисуют по-разному. */
+  transform: skewX(-9deg);
+}
+
+.logo-word span {
+  display: block;
+  white-space: nowrap;
+  /* «Хром»: светлый верх, тёмная полоса-горизонт по центру, отблеск снизу.
+     Градиент тянется по вертикали через текст, как на металле. */
+  background: linear-gradient(
+    177deg,
+    #ffffff 2%,
+    #eaf6ff 20%,
+    #a6d4f7 40%,
+    #4c88bd 50%,
+    #d7edff 60%,
+    #ffffff 78%,
+    #a9cfec 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 6px rgba(46, 166, 255, .75)) drop-shadow(0 0 20px rgba(10, 92, 255, .6));
+}
+
+.logo-word-sub { font-size: .615em; letter-spacing: .06em; margin-top: .06em; }
+
+.logo-sm { --logo-w: 160px; }
+.logo-hero { --logo-w: min(560px, 82vw); }
+
 /* ------------------------------------------------------- верхняя полоса */
 .topbar {
-  background: var(--ink);
-  color: var(--on-ink-soft);
+  position: relative;
+  z-index: 60;
+  background: rgba(3, 6, 12, .9);
+  border-bottom: 1px solid rgba(122, 186, 255, .1);
+  color: var(--text-soft);
   font-size: 13px;
 }
 
-.topbar-inner {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  height: 38px;
-}
-
-.topbar-sep { width: 1px; height: 14px; background: rgba(255, 255, 255, .16); }
+.topbar-inner { display: flex; align-items: center; gap: 14px; height: 40px; }
+.topbar-sep { width: 1px; height: 14px; background: rgba(122, 186, 255, .2); }
 
 .topbar-phone {
-  color: var(--on-ink);
+  color: var(--text);
   font-weight: 700;
   font-size: 14.5px;
   letter-spacing: -.01em;
+  transition: color .2s, text-shadow .2s;
 }
-.topbar-phone:hover { color: var(--accent); text-decoration: none; }
+.topbar-phone:hover { color: var(--neon); text-shadow: 0 0 14px var(--neon-dim); text-decoration: none; }
+
+/* --------------------------------------------------------------- шапка */
+.landing .header {
+  background: rgba(4, 7, 14, .62);
+  border-bottom: 1px solid transparent;
+  transition: background .3s, border-color .3s, box-shadow .3s;
+}
+
+/* Шапка проявляется только когда под ней уже есть контент: на первом
+   экране она мешала бы вывеске, а дальше без неё теряется навигация. */
+.landing .header.is-scrolled {
+  background: rgba(4, 7, 14, .82);
+  border-bottom-color: rgba(122, 186, 255, .16);
+  box-shadow: 0 1px 0 rgba(46, 166, 255, .1), 0 18px 40px -28px rgba(0, 0, 0, .9);
+}
+
+.landing .header .wrap { gap: 22px; }
+
+.landing .nav a {
+  position: relative;
+  color: var(--text-soft);
+  font-weight: 560;
+  background: none;
+}
+.landing .nav a:hover { color: var(--text); background: none; }
+
+/* Подчёркивание разъезжается из центра — за это отвечает transform, а не
+   ширина: ширину браузер пересчитывает раскладкой, transform — нет. */
+.landing .nav a::after {
+  content: "";
+  position: absolute;
+  left: 11px;
+  right: 11px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--neon);
+  box-shadow: 0 0 10px var(--neon);
+  transform: scaleX(0);
+  transition: transform .34s var(--ease);
+}
+.landing .nav a:hover::after,
+.landing .nav a.is-current::after { transform: scaleX(1); }
+.landing .nav a.is-current { color: var(--text); }
+
+/* Главная кнопка: неон и блик, который проходит по ней при наведении. */
+.landing .btn-primary {
+  position: relative;
+  overflow: hidden;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(185, 230, 255, .5), 0 6px 26px -8px var(--neon);
+}
+
+.landing .btn-primary::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .55), transparent);
+  transform: skewX(-18deg);
+  transition: left .55s var(--ease);
+}
+.landing .btn-primary:hover::after { left: 115%; }
+.landing .btn-primary:hover { box-shadow: inset 0 0 0 1px rgba(185, 230, 255, .7), 0 10px 34px -6px var(--neon); }
+
+.landing .btn { backdrop-filter: blur(6px); }
 
 /* --------------------------------------------------------- первый экран */
-/* Экран выходит за контейнер на всю ширину окна: так тёмный блок читается
-   как «шапка бренда», а не как очередная карточка на светлом фоне. */
 .hero-full {
-  margin-inline: calc(50% - 50vw);
-  padding: 68px max(24px, calc(50vw - 590px)) 0;
-  background:
-    radial-gradient(80% 120% at 82% 0%, rgba(232, 89, 12, .28), transparent 58%),
-    var(--ink);
-  color: var(--on-ink);
+  position: relative;
+  padding: clamp(46px, 7vw, 86px) 22px 0;
   overflow: hidden;
 }
 
-.hero-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
-  gap: 40px;
-  align-items: center;
-  max-width: 1180px;
+/* Перспективный «пол»: сетка уходит к горизонту и медленно едет на
+   зрителя. Это единственная бесконечная анимация фона на странице, и она
+   осмысленная — машина в движении. */
+.hero-road {
+  position: absolute;
+  left: 50%;
+  bottom: -6%;
+  width: 260%;
+  height: 62%;
+  margin-left: -130%;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(46, 166, 255, .32) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(46, 166, 255, .22) 1px, transparent 1px);
+  background-size: 100% 46px, 78px 100%;
+  transform: perspective(300px) rotateX(74deg);
+  transform-origin: 50% 100%;
+  mask-image: radial-gradient(58% 72% at 50% 100%, #000 10%, transparent 72%);
+  -webkit-mask-image: radial-gradient(58% 72% at 50% 100%, #000 10%, transparent 72%);
+  opacity: .5;
+  animation: road-run 3.4s linear infinite;
+}
+
+@keyframes road-run { to { background-position: 0 46px, 0 0; } }
+
+/* Ореол под вывеской. Смещается при прокрутке — переменную ставит JS. */
+.hero-halo {
+  position: absolute;
+  left: 50%;
+  top: calc(12% + var(--hero-shift, 0px));
+  width: min(1100px, 120%);
+  aspect-ratio: 2 / 1;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(46, 166, 255, .26), transparent 70%);
+  filter: blur(14px);
+}
+
+.hero-inner {
+  position: relative;
+  width: min(1180px, 100%);
   margin-inline: auto;
 }
 
+.hero-sign { display: flex; justify-content: center; margin-bottom: clamp(26px, 4vw, 48px); }
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+  gap: 48px;
+  align-items: center;
+}
+
 .hero-text h1 {
-  font-size: clamp(34px, 5vw, 60px);
+  font-size: clamp(32px, 4.6vw, 56px);
   font-weight: 800;
-  line-height: 1.04;
-  letter-spacing: -.035em;
+  line-height: 1.05;
+  letter-spacing: -.04em;
   margin-bottom: 20px;
 }
 
+/* Главное обещание — светящейся строкой, как надпись на вывеске. */
 .hero-text h1 .hl {
-  /* Подчёркивание акцентом вместо цветного текста: цифра остаётся читаемой,
-     а взгляд всё равно цепляется за главное обещание.
-     box-decoration-break нужен, чтобы на переносе подсветка продолжалась
-     ровно, а не обрывалась ступенькой. */
-  background: linear-gradient(transparent 62%, rgba(232, 89, 12, .55) 62%);
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  padding-inline: 2px;
-  /* «30 минут» переносить нельзя: разорванная надпись выглядит опечаткой. */
+  color: var(--neon-hot);
+  text-shadow: 0 0 12px var(--neon), 0 0 38px rgba(10, 92, 255, .8);
   white-space: nowrap;
 }
 
-.hero-sub {
-  font-size: 17.5px;
-  line-height: 1.55;
-  color: var(--on-ink-soft);
-  max-width: 46ch;
-}
+.hero-sub { font-size: 17.5px; line-height: 1.58; color: var(--text-soft); max-width: 46ch; }
 
-.hero-cta { display: flex; gap: 12px; flex-wrap: wrap; margin: 30px 0 26px; }
-
+.hero-cta { display: flex; gap: 12px; flex-wrap: wrap; margin: 32px 0 28px; }
 .hero-cta .btn svg { width: 18px; height: 18px; }
 
-/* Кнопка на тёмном фоне: у app.css светлая база, тут нужна своя. */
 .btn-on-dark {
-  background: rgba(255, 255, 255, .06);
-  border-color: rgba(255, 255, 255, .22);
-  color: var(--on-ink);
+  background: rgba(122, 186, 255, .07);
+  border-color: rgba(122, 186, 255, .3);
+  color: var(--text);
 }
-.btn-on-dark:hover { background: rgba(255, 255, 255, .12); }
+.btn-on-dark:hover { background: rgba(122, 186, 255, .14); border-color: var(--neon); color: #fff; }
 
-.hero-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.hero-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
 
 .hero-list li {
   position: relative;
-  padding-left: 26px;
+  padding-left: 28px;
   font-size: 15px;
-  color: var(--on-ink-soft);
+  color: var(--text-soft);
 }
 
-.hero-list b { color: var(--on-ink); font-weight: 650; }
+.hero-list b { color: var(--text); font-weight: 650; }
 
 .hero-list li::before {
   content: "";
@@ -151,162 +396,254 @@
   top: 6px;
   width: 14px;
   height: 8px;
-  border-left: 2px solid var(--accent);
-  border-bottom: 2px solid var(--accent);
+  border-left: 2px solid var(--neon);
+  border-bottom: 2px solid var(--neon);
+  border-radius: 1px;
   transform: rotate(-45deg);
+  box-shadow: -2px 2px 10px var(--neon-dim);
 }
 
-.hero-visual { display: flex; justify-content: center; align-items: flex-end; }
+.hero-visual { display: flex; justify-content: center; }
 
-/* Цифры прижаты к низу тёмного экрана — это граница блока, а не отдельная секция. */
 .hero-stats {
-  max-width: 1180px;
-  margin: 58px auto 0;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid rgba(255, 255, 255, .12);
+  margin-top: clamp(44px, 6vw, 72px);
+  border-top: 1px solid rgba(122, 186, 255, .14);
 }
 
-.hstat { padding: 22px 8px 26px; }
-.hstat + .hstat { border-left: 1px solid rgba(255, 255, 255, .12); padding-left: 22px; }
+.hstat { padding: 24px 8px 30px; }
+.hstat + .hstat { border-left: 1px solid rgba(122, 186, 255, .14); padding-left: 24px; }
 
 .hstat b {
   display: block;
-  font-size: clamp(26px, 3.4vw, 38px);
+  font-size: clamp(28px, 3.6vw, 42px);
   font-weight: 800;
-  letter-spacing: -.03em;
-  color: var(--accent);
+  letter-spacing: -.035em;
+  color: var(--neon-hot);
+  text-shadow: 0 0 20px rgba(46, 166, 255, .55);
   font-variant-numeric: tabular-nums;
 }
 
-.hstat span { display: block; margin-top: 4px; font-size: 13px; color: var(--on-ink-soft); }
-
-/* Первый блок после тёмного экрана не должен прилипать к нему. */
-.hero-full + .block { margin-top: 86px; }
+.hstat span { display: block; margin-top: 5px; font-size: 13px; color: var(--text-soft); }
 
 /* ---------------------------------------------------------- мокап экрана */
+/* Мокап не картинка, а короткий показ сценария: шаги заполняются, время
+   выбирается, таймер идёт, кнопка нажимается. Цикл 12 секунд, всё на CSS —
+   JS только ставит его на паузу, когда мокап уехал с экрана. */
 .mockup {
-  width: min(286px, 100%);
+  width: min(292px, 100%);
   height: auto;
-  filter: drop-shadow(0 26px 60px rgba(0, 0, 0, .55));
+  filter: drop-shadow(0 34px 70px rgba(0, 0, 0, .8)) drop-shadow(0 0 42px rgba(10, 92, 255, .35));
 }
 
-.mk-body { fill: #24272d; stroke: rgba(255, 255, 255, .16); stroke-width: 1.5; }
-.mk-screen { fill: #ffffff; }
-.mk-notch { fill: #e7e9ee; }
-.mk-card, .mk-slot { fill: #f2f4f7; }
-.mk-slot-active { fill: var(--accent); }
-.mk-cta { fill: var(--accent); }
-.mk-cta-label { fill: #ffffff; }
-.mk-line { fill: #5b6270; }
-.mk-line-soft { fill: #d3d7de; }
-.mk-accent { fill: var(--accent); }
-.mk-dot-accent { fill: #fdf1e9; stroke: var(--accent); stroke-width: 1.5; }
-.mk-title { fill: #171a1f; font: 800 19px var(--font); letter-spacing: -.02em; }
-.mk-timer { fill: var(--accent); font: 700 17px var(--mono); }
+.mk-body { fill: #0c1220; stroke: rgba(122, 186, 255, .38); stroke-width: 1.5; }
+.mk-screen { fill: #070b14; }
+.mk-notch { fill: #050810; }
+.mk-card, .mk-slot { fill: rgba(122, 186, 255, .07); }
+.mk-line { fill: rgba(220, 238, 255, .55); }
+.mk-line-soft { fill: rgba(122, 186, 255, .2); }
+.mk-title { fill: #e6f1ff; font: 800 19px var(--font); letter-spacing: -.02em; }
+.mk-timer { fill: var(--neon-hot); font: 700 17px var(--mono); }
+.mk-accent { fill: var(--neon); }
+.mk-dot-accent { fill: rgba(46, 166, 255, .16); stroke: var(--neon); stroke-width: 1.5; }
+.mk-cta-label { fill: #03121f; }
+
+/* Шаги загораются по очереди — ровно так, как их проходит клиент. */
+.mk-step { fill: rgba(122, 186, 255, .2); }
+.mk-step-1, .mk-step-2, .mk-step-3 { animation: mk-step 12s linear infinite; }
+.mk-step-1 { animation-delay: .4s; }
+.mk-step-2 { animation-delay: 2.2s; }
+.mk-step-3 { animation-delay: 4.2s; }
+
+@keyframes mk-step {
+  0%, 2% { fill: rgba(122, 186, 255, .2); }
+  6%, 92% { fill: #2ea6ff; }
+  100% { fill: rgba(122, 186, 255, .2); }
+}
+
+/* Выбранный слот времени. */
+.mk-slot-active {
+  fill: rgba(122, 186, 255, .07);
+  animation: mk-slot 12s linear infinite;
+  animation-delay: 4.2s;
+}
+
+@keyframes mk-slot {
+  0%, 2% { fill: rgba(122, 186, 255, .07); }
+  8%, 92% { fill: #2ea6ff; }
+  100% { fill: rgba(122, 186, 255, .07); }
+}
+
+/* Полоса таймера: пять минут брони утекают на глазах. */
+.mk-timer-fill {
+  fill: var(--neon);
+  transform-origin: 122px 0;
+  animation: mk-timer 12s linear infinite;
+}
+@keyframes mk-timer { 0% { transform: scaleX(1); } 88%, 100% { transform: scaleX(.12); } }
+
+/* Нажатие кнопки подтверждения в конце цикла. */
+.mk-cta {
+  fill: var(--neon);
+  transform-origin: 150px 492px;
+  animation: mk-press 12s linear infinite;
+}
+@keyframes mk-press {
+  0%, 74% { transform: scale(1); opacity: .45; }
+  76% { opacity: 1; }
+  79% { transform: scale(.96); }
+  82%, 100% { transform: scale(1); opacity: 1; }
+}
+
+.mk-glow { animation: mk-glow 12s linear infinite; }
+@keyframes mk-glow { 0%, 76% { opacity: 0; } 84%, 96% { opacity: .75; } 100% { opacity: 0; } }
+
+.mockup.is-paused * { animation-play-state: paused; }
 
 /* --------------------------------------------------------------- плитки */
-.bento {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+.bento { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+/* Стеклянная карточка — общий вид для плиток, адресов и способов записи.
+   Волосяная рамка сделана градиентом в псевдоэлементе: обычный border
+   одного цвета на тёмном фоне выглядит нарисованным. */
+.glass {
+  position: relative;
+  border-radius: 20px;
+  background: linear-gradient(168deg, rgba(18, 30, 52, .82), rgba(8, 13, 24, .82));
+  isolation: isolate;
 }
 
-.tile {
-  padding: 26px;
-  border-radius: 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(160deg, rgba(122, 186, 255, .42), rgba(122, 186, 255, .06) 42%, rgba(122, 186, 255, .22));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
-.tile h3 { font-size: 19px; font-weight: 750; letter-spacing: -.02em; margin-bottom: 10px; }
+/* Блик под курсором: точку ставит JS в --mx/--my. Это отражение на
+   стекле, поэтому оно следует за указателем, а не просто «подсвечивает». */
+.glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(230px circle at var(--mx, 50%) var(--my, 0%), rgba(46, 166, 255, .16), transparent 62%);
+  opacity: 0;
+  transition: opacity .35s var(--ease);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.glass:hover::after { opacity: 1; }
+
+.tile { padding: 28px; }
+.tile h3 { font-size: 19.5px; font-weight: 750; letter-spacing: -.02em; margin-bottom: 10px; }
 .tile p { color: var(--text-soft); font-size: 15px; }
-
 .tile-wide { grid-column: span 2; }
-
-.tile-dark {
-  background: var(--ink-2);
-  border-color: transparent;
-  color: var(--on-ink);
-}
-.tile-dark p { color: var(--on-ink-soft); }
 
 .tile-steps {
   margin: 0;
   padding-left: 20px;
   display: grid;
-  gap: 9px;
-  color: var(--on-ink-soft);
+  gap: 10px;
+  color: var(--text-soft);
   font-size: 15px;
 }
-.tile-steps li::marker { color: var(--accent); font-weight: 700; }
+.tile-steps li::marker { color: var(--neon); font-weight: 700; }
 
+/* Одна плитка светится сильнее остальных — это якорь секции. */
 .tile-accent {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(46, 166, 255, .3), transparent 62%),
+    linear-gradient(168deg, rgba(20, 40, 72, .9), rgba(8, 14, 26, .9));
 }
-.tile-accent p { color: rgba(255, 255, 255, .82); }
-:root[data-theme="dark"] .tile-accent p { color: rgba(26, 16, 5, .78); }
+.tile-accent::before { background: linear-gradient(160deg, rgba(122, 186, 255, .7), rgba(122, 186, 255, .12)); }
 
 .tile-num {
   display: block;
-  font-size: 54px;
+  font-size: 60px;
   font-weight: 800;
   line-height: 1;
-  letter-spacing: -.04em;
-  margin-bottom: 6px;
+  letter-spacing: -.05em;
+  margin-bottom: 8px;
+  color: var(--neon-hot);
+  text-shadow: 0 0 22px var(--neon), 0 0 60px rgba(10, 92, 255, .7);
 }
 
 /* ----------------------------------------------------------------- цены */
-.price-table-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: var(--surface);
-}
-
+.price-table-wrap { overflow-x: auto; border-radius: 20px; padding: 4px; }
 .price-table { width: 100%; border-collapse: collapse; min-width: 640px; }
 
 .price-table th {
   text-align: left;
-  padding: 15px 20px;
-  font-size: 12px;
+  padding: 16px 20px;
+  font-size: 11.5px;
   font-weight: 750;
-  letter-spacing: .08em;
+  letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--text-faint);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
+  background: none;
+  position: static;
 }
 
 .price-table td {
+  position: relative;
   padding: 18px 20px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(122, 186, 255, .09);
   vertical-align: middle;
   font-size: 15px;
   color: var(--text-soft);
+  transition: color .2s, background .2s;
 }
 
 .price-table tbody tr:last-child td { border-bottom: none; }
-.price-table tbody tr:hover { background: var(--surface-2); }
+
+/* Наведение на строку зажигает её слева — тот же жест, что у бегущего
+   блика на логотипе, только по вертикали. */
+.price-table tbody tr td:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--neon);
+  box-shadow: 0 0 12px var(--neon);
+  transform: scaleY(0);
+  transition: transform .3s var(--ease);
+}
+
+.price-table tbody tr:hover td { background: rgba(46, 166, 255, .05); color: var(--text); }
+.price-table tbody tr:hover td:first-child::before { transform: scaleY(1); }
 
 .price-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .price-table .total {
-  font-size: 19px;
+  font-size: 19.5px;
   font-weight: 800;
-  letter-spacing: -.02em;
+  letter-spacing: -.025em;
   color: var(--text);
+  transition: color .2s, text-shadow .2s;
 }
+.price-table tbody tr:hover .total { color: var(--neon-hot); text-shadow: 0 0 18px rgba(46, 166, 255, .6); }
 
 .oil-brand {
   display: block;
   font-size: 11.5px;
   font-weight: 800;
-  letter-spacing: .1em;
+  letter-spacing: .12em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--neon);
 }
 
 .oil-name { display: block; font-size: 16px; font-weight: 700; color: var(--text); margin-top: 2px; }
@@ -314,137 +651,112 @@
 
 .chip {
   display: inline-block;
-  padding: 3px 10px;
+  padding: 3px 11px;
   border-radius: 100px;
-  background: var(--bg-soft);
+  background: rgba(122, 186, 255, .1);
+  border: 1px solid rgba(122, 186, 255, .18);
   color: var(--text);
   font-size: 13px;
   font-weight: 650;
   white-space: nowrap;
 }
 
-.chip-ok { background: var(--ok-soft); color: var(--ok); font-size: 12px; }
+.chip-ok { background: var(--ok-soft); border-color: rgba(61, 220, 151, .28); color: var(--ok); font-size: 12px; }
 
-.price-foot-note { margin-top: 16px; color: var(--text-soft); font-size: 15px; }
+.price-foot-note { margin-top: 18px; color: var(--text-soft); font-size: 15px; }
 
 /* --------------------------------------------------------- как записаться */
-.ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
 
-.way {
-  display: flex;
-  flex-direction: column;
-  padding: 30px;
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-}
+.way { display: flex; flex-direction: column; padding: 32px; }
 
 .way-primary {
-  background: var(--ink-2);
-  border-color: transparent;
-  color: var(--on-ink);
+  background:
+    radial-gradient(110% 90% at 100% 0%, rgba(46, 166, 255, .22), transparent 60%),
+    linear-gradient(168deg, rgba(20, 38, 68, .9), rgba(8, 13, 24, .9));
 }
+.way-primary::before { background: linear-gradient(160deg, rgba(122, 186, 255, .65), rgba(122, 186, 255, .1)); }
 
 .way-label {
   align-self: flex-start;
-  padding: 4px 11px;
+  padding: 5px 12px;
   border-radius: 100px;
-  background: var(--accent);
+  background: var(--neon);
   color: var(--accent-text);
   font-size: 11.5px;
   font-weight: 800;
   letter-spacing: .1em;
   text-transform: uppercase;
+  box-shadow: 0 0 22px -4px var(--neon);
 }
 
-.way-label-muted { background: var(--bg-soft); color: var(--text-soft); }
+.way-label-muted { background: rgba(122, 186, 255, .12); color: var(--text-soft); box-shadow: none; }
 
-.way h3 {
-  font-size: 25px;
-  font-weight: 800;
-  letter-spacing: -.025em;
-  margin: 16px 0 18px;
-}
+.way h3 { font-size: 26px; font-weight: 800; letter-spacing: -.03em; margin: 18px 0 20px; }
 
 .way-steps {
-  margin: 0 0 26px;
+  margin: 0 0 28px;
   padding-left: 20px;
   display: grid;
-  gap: 12px;
+  gap: 13px;
   font-size: 15px;
   color: var(--text-soft);
   flex: 1;
 }
-
-.way-primary .way-steps { color: var(--on-ink-soft); }
 .way-steps b { color: var(--text); font-weight: 650; }
-.way-primary .way-steps b { color: var(--on-ink); }
-.way-steps li::marker { color: var(--accent); font-weight: 800; }
+.way-steps li::marker { color: var(--neon); font-weight: 800; }
 
-.btn-outline { border-color: var(--text); color: var(--text); font-weight: 700; }
-.btn-outline:hover { background: var(--text); color: var(--bg); }
+.btn-outline { border-color: var(--border-strong); color: var(--text); font-weight: 700; background: transparent; }
+.btn-outline:hover { border-color: var(--neon); color: var(--neon-hot); background: rgba(46, 166, 255, .08); }
 
 /* --------------------------------------------------------------- адреса */
-.address-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.address-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
 
-.address-card {
-  padding: 26px;
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-}
-
+.address-card { padding: 28px; }
 .address-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .address-top h3 { font-size: 21px; font-weight: 780; letter-spacing: -.02em; }
-.address-line { margin-top: 8px; color: var(--text-soft); font-size: 15.5px; }
+.address-line { margin-top: 9px; color: var(--text-soft); font-size: 15.5px; }
 
 .address-facts {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  margin: 20px 0;
-  padding: 16px 0;
+  margin: 22px 0;
+  padding: 18px 0;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
 
 .address-facts b {
   display: block;
-  font-size: 22px;
+  font-size: 23px;
   font-weight: 800;
-  letter-spacing: -.02em;
+  letter-spacing: -.025em;
+  color: var(--neon-hot);
   font-variant-numeric: tabular-nums;
 }
 
-.address-facts span { display: block; font-size: 12.5px; color: var(--text-faint); margin-top: 2px; }
-
+.address-facts span { display: block; font-size: 12.5px; color: var(--text-faint); margin-top: 3px; }
 .address-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ----------------------------------------------------------- приложение */
 .app-panel {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
-  gap: 40px;
+  gap: 44px;
   align-items: center;
-  padding: 46px;
-  border-radius: 22px;
+  padding: 52px;
+  border-radius: 24px;
   background:
-    radial-gradient(90% 130% at 8% 0%, rgba(232, 89, 12, .26), transparent 56%),
-    var(--ink);
-  color: var(--on-ink);
+    radial-gradient(90% 130% at 6% 0%, rgba(46, 166, 255, .22), transparent 58%),
+    linear-gradient(168deg, rgba(14, 24, 44, .92), rgba(6, 10, 20, .92));
 }
 
-.app-copy h2 {
-  font-size: clamp(26px, 3.2vw, 36px);
-  font-weight: 800;
-  letter-spacing: -.03em;
-  margin-bottom: 12px;
-}
+.app-copy h2 { font-size: clamp(27px, 3.3vw, 38px); font-weight: 800; letter-spacing: -.035em; margin-bottom: 14px; }
+.app-copy p { color: var(--text-soft); font-size: 16.5px; max-width: 46ch; }
+.app-note { margin-top: 16px; font-size: 14px; color: var(--text-soft); }
 
-.app-copy p { color: var(--on-ink-soft); font-size: 16.5px; max-width: 46ch; }
-.app-note { margin-top: 14px; font-size: 14px; color: var(--on-ink-soft); }
-
-.store-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
+.store-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
 
 .store-btn {
   display: inline-flex;
@@ -452,149 +764,247 @@
   gap: 12px;
   padding: 12px 20px;
   border-radius: 14px;
-  border: 1px solid var(--on-ink);
-  background: var(--on-ink);
-  color: var(--ink);
+  border: 1px solid rgba(122, 186, 255, .3);
+  background: rgba(122, 186, 255, .08);
+  color: var(--text);
   text-decoration: none;
-  transition: opacity .16s;
+  transition: border-color .22s, background .22s, box-shadow .22s, transform .22s var(--ease);
 }
 
-.store-btn:hover { opacity: .88; text-decoration: none; }
-.store-btn svg { width: 22px; height: 22px; flex: none; }
+.store-btn:hover {
+  text-decoration: none;
+  border-color: var(--neon);
+  background: rgba(46, 166, 255, .14);
+  box-shadow: 0 0 30px -10px var(--neon);
+  transform: translateY(-2px);
+}
+
+.store-btn svg { width: 22px; height: 22px; flex: none; color: var(--neon); }
 .store-btn span { display: flex; flex-direction: column; line-height: 1.2; font-weight: 700; font-size: 16px; }
-.store-btn small { font-size: 11.5px; font-weight: 500; opacity: .72; }
+.store-btn small { font-size: 11.5px; font-weight: 500; color: var(--text-faint); }
 
 /* Ссылки пока нет — кнопка честно неактивна, а не ведёт в никуда. */
 .store-btn.is-soon {
   background: transparent;
-  color: var(--on-ink-soft);
-  border-color: rgba(255, 255, 255, .26);
+  color: var(--text-faint);
+  border-color: rgba(122, 186, 255, .16);
   border-style: dashed;
   cursor: default;
 }
+.store-btn.is-soon:hover { transform: none; box-shadow: none; border-color: rgba(122, 186, 255, .16); background: transparent; }
+.store-btn.is-soon svg { color: var(--text-faint); }
 
-.app-features { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: rgba(255, 255, 255, .12); border-radius: 16px; overflow: hidden; }
+.app-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+  background: rgba(122, 186, 255, .14);
+  border-radius: 18px;
+  overflow: hidden;
+}
 
-.app-features li { background: var(--ink-2); padding: 16px 20px; }
+.app-features li {
+  background: rgba(8, 13, 24, .92);
+  padding: 18px 22px;
+  transition: background .25s;
+}
+.app-features li:hover { background: rgba(20, 36, 62, .95); }
 .app-features b { display: block; font-size: 15.5px; font-weight: 700; }
-.app-features span { display: block; margin-top: 2px; font-size: 13.5px; color: var(--on-ink-soft); }
+.app-features span { display: block; margin-top: 3px; font-size: 13.5px; color: var(--text-soft); }
 
 /* ------------------------------------------------------------------ FAQ */
 .faq { border-top: 1px solid var(--border); }
-
 .faq details { border-bottom: 1px solid var(--border); }
 
 .faq summary {
-  padding: 20px 40px 20px 0;
+  padding: 22px 44px 22px 0;
   font-size: 17px;
   font-weight: 650;
   cursor: pointer;
   position: relative;
   list-style: none;
+  transition: color .22s;
 }
 
 .faq summary::-webkit-details-marker { display: none; }
+.faq summary:hover { color: var(--neon-hot); }
 
-/* Плюс/минус рисуем сами: штатный треугольник выглядит по-разному в браузерах. */
-.faq summary::after {
-  content: "";
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  width: 13px;
-  height: 2px;
-  background: var(--accent);
-  transform: translateY(-50%);
-}
-
+/* Плюс/минус рисуем сами: штатный треугольник выглядит по-разному в
+   браузерах. Вертикальная палочка уезжает поворотом — ровно тот же жест,
+   что и раскрытие ответа. */
+.faq summary::after,
 .faq summary::before {
   content: "";
   position: absolute;
-  right: 11.5px;
+  right: 8px;
   top: 50%;
-  width: 2px;
-  height: 13px;
-  background: var(--accent);
-  transform: translateY(-50%);
-  transition: opacity .16s;
+  background: var(--neon);
+  box-shadow: 0 0 10px var(--neon-dim);
+  border-radius: 2px;
 }
 
-.faq details[open] summary::before { opacity: 0; }
+.faq summary::after { width: 14px; height: 2px; transform: translate(0, -50%); }
+.faq summary::before {
+  width: 2px;
+  height: 14px;
+  transform: translate(-6px, -50%) rotate(0deg);
+  transition: transform .34s var(--ease), opacity .34s var(--ease);
+}
 
-.faq p { padding: 0 40px 22px 0; color: var(--text-soft); font-size: 15.5px; max-width: 76ch; }
+.faq details[open] summary::before { transform: translate(-6px, -50%) rotate(90deg); opacity: 0; }
+
+/* Ответ разворачивается по высоте через grid: `height: auto` браузер не
+   анимирует, а дробную строку grid — анимирует. */
+.faq-answer { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .36s var(--ease); }
+.faq-answer > div { overflow: hidden; }
+.faq details[open] .faq-answer { grid-template-rows: 1fr; }
+.faq p { padding: 0 44px 24px 0; color: var(--text-soft); font-size: 15.5px; max-width: 76ch; }
 
 /* -------------------------------------------------------------- контакты */
 .cta-band {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 32px;
+  gap: 34px;
   flex-wrap: wrap;
-  padding: 44px;
-  border-radius: 22px;
-  background: var(--accent);
-  color: #fff;
+  padding: 50px;
+  border-radius: 24px;
+  background:
+    radial-gradient(80% 160% at 80% 50%, rgba(46, 166, 255, .3), transparent 62%),
+    linear-gradient(120deg, rgba(10, 92, 255, .22), rgba(6, 10, 20, .95));
 }
 
-.cta-band h2 { font-size: clamp(24px, 3vw, 34px); font-weight: 800; letter-spacing: -.03em; margin-bottom: 10px; }
-.cta-band p { font-size: 16.5px; opacity: .92; max-width: 52ch; }
+.cta-band::before { background: linear-gradient(120deg, rgba(122, 186, 255, .6), rgba(122, 186, 255, .12)); }
+.cta-band h2 { font-size: clamp(25px, 3vw, 36px); font-weight: 800; letter-spacing: -.035em; margin-bottom: 12px; }
+.cta-band p { font-size: 16.5px; color: var(--text-soft); max-width: 52ch; }
 
-.cta-side { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.cta-side { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 
 .phone-big {
-  font-size: clamp(28px, 3.6vw, 40px);
+  font-size: clamp(28px, 3.6vw, 42px);
   font-weight: 800;
-  letter-spacing: -.03em;
+  letter-spacing: -.035em;
   white-space: nowrap;
-  color: #fff !important;
+  color: var(--neon-hot);
+  text-shadow: 0 0 18px var(--neon), 0 0 50px rgba(10, 92, 255, .7);
   text-decoration: none !important;
+  transition: text-shadow .25s;
 }
+.phone-big:hover { text-shadow: 0 0 26px var(--neon-hot), 0 0 70px var(--neon); }
 
-.cta-mail { color: #fff; opacity: .9; font-size: 15px; text-decoration: underline; text-underline-offset: 3px; }
-.cta-mail:hover { color: #fff; }
+.cta-mail { color: var(--text-soft); font-size: 15px; text-decoration: underline; text-underline-offset: 3px; }
+.cta-mail:hover { color: var(--text); }
 
 /* --------------------------------------------------------------- подвал */
 .footer {
-  margin-top: 96px;
-  padding: 52px 0 26px;
-  background: var(--ink);
-  color: var(--on-ink-soft);
+  margin-top: 118px;
+  padding: 58px 0 28px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, transparent, rgba(6, 12, 24, .9));
+  color: var(--text-soft);
 }
 
 .footer-grid {
   display: grid;
   grid-template-columns: 1.4fr repeat(3, 1fr);
-  gap: 34px;
-  padding-bottom: 34px;
-  border-bottom: 1px solid rgba(255, 255, 255, .12);
+  gap: 36px;
+  padding-bottom: 36px;
+  border-bottom: 1px solid var(--border);
 }
 
 .footer-col { display: flex; flex-direction: column; gap: 10px; }
 
 .footer-col h4 {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
-  letter-spacing: .12em;
+  letter-spacing: .14em;
   text-transform: uppercase;
-  color: var(--on-ink);
+  color: var(--text);
   margin-bottom: 4px;
 }
 
-.footer-col a { color: var(--on-ink-soft); font-size: 14.5px; }
-.footer-col a:hover { color: var(--accent); text-decoration: none; }
+.footer-col a { color: var(--text-soft); font-size: 14.5px; transition: color .2s; }
+.footer-col a:hover { color: var(--neon); text-decoration: none; }
 
-.footer-brand { font-size: 20px; font-weight: 800; letter-spacing: -.02em; color: var(--on-ink); }
-.footer-brand-col p { font-size: 14.5px; max-width: 34ch; }
+.footer-brand-col p { font-size: 14.5px; max-width: 34ch; margin-top: 18px; }
 
 .footer-bottom {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  padding-top: 20px;
+  padding-top: 22px;
   font-size: 13px;
-  color: rgba(255, 255, 255, .45);
+  color: var(--text-faint);
 }
+
+/* ------------------------------------------------------------- анимации */
+/* Запуск неона: линии сначала прочерчиваются, потом трубка «схватывается»
+   с неровным миганием — ровный fade выдал бы обычное появление картинки.
+   Проценты подобраны неравномерно намеренно. */
+.logo-line {
+  stroke-dasharray: 2400;
+  stroke-dashoffset: 2400;
+  animation: neon-draw 1.15s var(--ease) forwards;
+}
+
+.logo-line-roof { animation-delay: .05s; }
+.logo-line-belt { animation-delay: .18s; }
+.logo-line-sill { animation-delay: .3s; }
+.logo-line-crease { animation-delay: .42s; }
+
+@keyframes neon-draw { to { stroke-dashoffset: 0; } }
+
+.logo-lines { animation: neon-ignite 1.9s steps(1, end) forwards; }
+
+@keyframes neon-ignite {
+  0%, 26% { opacity: .18; }
+  28% { opacity: .9; }
+  31% { opacity: .25; }
+  36% { opacity: 1; }
+  39% { opacity: .4; }
+  44% { opacity: .95; }
+  46% { opacity: .55; }
+  52%, 100% { opacity: 1; }
+}
+
+/* Блик по кузову: короткий отрезок пробегает по крыше раз в семь секунд.
+   Большую часть цикла он стоит за краем — витрина не должна мигать. */
+.logo-spark {
+  stroke-dasharray: 90 2400;
+  stroke-dashoffset: 90;
+  animation: spark-run 7s var(--ease) 2.1s infinite;
+}
+
+@keyframes spark-run {
+  0% { stroke-dashoffset: 90; opacity: 0; }
+  4% { opacity: .95; }
+  26% { stroke-dashoffset: -1500; opacity: 0; }
+  100% { stroke-dashoffset: -1500; opacity: 0; }
+}
+
+/* Появление блока при первом показе. Класс `has-js` ставится инлайновым
+   скриптом до отрисовки: без JS страница обязана остаться читаемой, а не
+   прозрачной навсегда. */
+.has-js [data-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+  will-change: opacity, transform;
+}
+
+.has-js [data-reveal].is-in {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity .62s var(--ease) calc(var(--i, 0) * 70ms),
+    transform .62s var(--ease) calc(var(--i, 0) * 70ms);
+}
+
+/* Показали — снимаем подсказку композитору, иначе слои висят до конца
+   жизни страницы. */
+.has-js [data-reveal].is-done { will-change: auto; }
 
 /* -------------------------------------------------------------- адаптив */
 @media (max-width: 1000px) {
@@ -604,29 +1014,52 @@
 }
 
 @media (max-width: 900px) {
-  .hero-grid { grid-template-columns: 1fr; gap: 30px; }
-  /* Картинка уходит под текст: на телефоне первым экраном должно быть
-     предложение, а не мокап на пол-экрана. */
-  .mockup { width: min(210px, 54vw); }
-  .hero-full { padding-top: 40px; }
-  .hero-stats { grid-template-columns: repeat(2, 1fr); margin-top: 40px; }
+  .hero-grid { grid-template-columns: 1fr; gap: 34px; }
+  /* На телефоне первым экраном должно быть предложение, а не мокап. */
+  .mockup { width: min(220px, 56vw); }
+  .hero-stats { grid-template-columns: repeat(2, 1fr); }
   .hstat + .hstat { border-left: none; padding-left: 8px; }
-  .hstat:nth-child(n + 3) { border-top: 1px solid rgba(255, 255, 255, .12); }
-  .app-panel { grid-template-columns: 1fr; padding: 32px 26px; }
-  .block { margin-top: 72px; }
+  .hstat:nth-child(n + 3) { border-top: 1px solid rgba(122, 186, 255, .14); }
+  .app-panel { grid-template-columns: 1fr; padding: 34px 26px; }
+  .block { margin-top: 84px; }
+  .footer { margin-top: 84px; }
+}
+
+@media (max-width: 760px) {
+  /* Меню на телефоне не помещается и прокручивается вбок. Затухание у
+     правого края честно показывает, что за ним есть ещё пункты, — иначе
+     обрезанное слово читается как вёрстка поехала. */
+  .landing .nav {
+    mask-image: linear-gradient(90deg, #000 76%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, #000 76%, transparent);
+  }
 }
 
 @media (max-width: 620px) {
-  /* На узком экране в шапке остаётся только бренд, меню и тема: телефон
-     и кнопка скачивания уже есть в верхней полосе и на первом экране. */
-  .header .btn-primary { display: none; }
+  /* В шапке остаётся только знак и меню: кнопка скачивания уже есть
+     на первом экране, а телефон — в верхней полосе. */
+  .landing .header .btn-primary { display: none; }
+  .landing { --header-h: 66px; }
+  .logo-sm { --logo-w: 132px; }
+  .block { width: calc(100% - 28px); }
   .bento { grid-template-columns: 1fr; }
   .tile-wide { grid-column: span 1; }
   .hero-cta .btn { width: 100%; }
-  .hide-sm { display: none; }
+  .hide-sm, .topbar-hide-sm { display: none; }
   .price-table { min-width: 0; }
   .price-table th, .price-table td { padding: 14px; }
-  .cta-band, .way { padding: 26px 20px; }
+  .cta-band, .way, .tile, .address-card, .app-panel { padding: 26px 22px; }
   .footer-grid { grid-template-columns: 1fr; gap: 26px; }
-  .topbar-hide-sm { display: none; }
+}
+
+/* Движение выключено системно — оставляем только статичный результат.
+   Неон при этом должен гореть, а не остаться недорисованным. */
+@media (prefers-reduced-motion: reduce) {
+  .logo-line { stroke-dashoffset: 0; animation: none; }
+  .logo-lines { opacity: 1; animation: none; }
+  .logo-spark, .hero-road, .mockup * { animation: none; }
+  .logo-spark { opacity: 0; }
+  .mk-step-1, .mk-step-2, .mk-step-3, .mk-slot-active { fill: #2ea6ff; }
+  .mk-timer-fill { transform: scaleX(.6); }
+  .has-js [data-reveal] { opacity: 1; transform: none; }
 }

@@ -1,0 +1,37 @@
+{% comment %}
+Фирменный знак: силуэт машины неоновой трубкой плюс «хромированная»
+надпись поверх него — как на логотипе компании.
+
+Нарисован вектором, а не картинкой: знак стоит в шапке (190 px), на первом
+экране (до 560 px) и в подвале, и растровый файл пришлось бы возить в трёх
+размерах. Свечение даётся CSS-фильтром, а не SVG-фильтром: тот пришлось бы
+объявлять в `defs`, а знак на странице встречается трижды — получились бы
+дубли `id`.
+
+Размер задаётся одной переменной `--logo-w`: от неё считается и надпись.
+{% endcomment %}
+
+<span class="logo{% if logo_class %} {{ logo_class }}{% endif %}">
+  <svg class="logo-car" viewBox="0 0 1200 430" role="img" aria-label="{{ company.NAME }}" focusable="false">
+    <g class="logo-lines" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      {# Крыша и порог выходят из одной точки слева — этот клин и читается
+         как нос машины; без схождения остаётся просто пара дуг. #}
+      <path class="logo-line logo-line-roof"
+            d="M112 300C210 196 364 110 566 82c200-28 380 10 506 78 60 32 98 82 100 122 1 18-14 26-32 18"/>
+      <path class="logo-line logo-line-sill"
+            d="M112 300c182-30 402-44 602-42 142 2 278 16 390 40"/>
+      <path class="logo-line logo-line-belt"
+            d="M268 244C374 162 548 110 728 120c132 8 250 46 332 102"/>
+      <path class="logo-line logo-line-crease"
+            d="M196 282C292 250 418 230 556 226"/>
+    </g>
+    {# Блик: короткий яркий отрезок бежит по крыше — отражение на металле. #}
+    <path class="logo-spark" fill="none" stroke-linecap="round"
+          d="M112 300C210 196 364 110 566 82c200-28 380 10 506 78 60 32 98 82 100 122"/>
+  </svg>
+
+  <span class="logo-word" aria-hidden="true">
+    <span class="logo-word-main">Экспресс</span>
+    <span class="logo-word-sub">Замена</span>
+  </span>
+</span>

@@ -36,10 +36,16 @@ server {
 
     # При DEBUG=False Django статику не отдаёт вовсе. Каталоги те же, что
     # смонтированы в контейнер в docker-compose.prod.yml.
+    #
+    # Год и immutable — потому что в проде имена файлов содержат хеш
+    # содержимого (`landing.a1b2c3d4.css`, см. STORAGES в settings/prod.py).
+    # Изменился файл — изменился адрес, старый браузер всё равно пойдёт за
+    # новым. Без хеша такой заголовок был бы ловушкой: выкатка нового
+    # оформления неделями не доезжала бы до вернувшихся посетителей.
     location /static/ {
         alias /opt/auto_service/static/;
         access_log off;
-        expires 30d;
+        add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
     location /media/ {

@@ -4,7 +4,24 @@
 {% block title %}{{ company.NAME }} — {{ company.TAGLINE }}{% endblock %}
 {% block description %}{{ company.NAME }}: замена масла по записи из мобильного приложения или по телефону {{ company.PHONE }}. Свой пост к назначенному времени, масло в наличии, работа за 30 минут.{% endblock %}
 
-{% block extra_head %}<link rel="stylesheet" href="{% static 'web/css/landing.css' %}">{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'web/css/landing.css' %}">
+{% comment %}
+Скрипт стоит до отрисовки и делает ровно две вещи, которые нельзя
+отложить до конца body: включает тёмную витрину (иначе кадр страницы
+мигнёт светлой темой панелей) и объявляет, что JS есть — только после
+этого CSS разрешает себе прятать блоки до появления.
+{% endcomment %}
+<script>
+  document.documentElement.dataset.theme = "dark";
+  document.documentElement.classList.add("has-js");
+</script>
+{% endblock %}
+
+{% comment %} Витрина всегда тёмная: неон по фирменному знаку, а не тема. {% endcomment %}
+{% block body_class %}landing{% endblock %}
+{% block theme_toggle %}{% endblock %}
+{% block theme_init %}{% endblock %}
 
 {% block topbar %}
 <div class="topbar">
@@ -16,6 +33,12 @@
     <a class="topbar-phone" href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
   </div>
 </div>
+{% endblock %}
+
+{% block brand %}
+<a class="brand" href="/" aria-label="{{ company.NAME }}">
+  {% include "web/_logo.html" with logo_class="logo-sm" %}
+</a>
 {% endblock %}
 
 {% block nav %}
@@ -33,55 +56,76 @@
 
 <!-- ------------------------------------------------------------- главное -->
 <section class="hero-full">
-  <div class="hero-grid">
-    <div class="hero-text">
-      <span class="kicker">Замена масла · {{ points|length }} адреса в городе</span>
+  <span class="hero-road" aria-hidden="true"></span>
+  <span class="hero-halo" aria-hidden="true"></span>
 
-      <h1>Приезжаете к своему времени<br>и уезжаете через <span class="hl">30 минут</span></h1>
+  <div class="hero-inner">
+    <div class="hero-sign">
+      {% include "web/_logo.html" with logo_class="logo-hero" %}
+    </div>
 
-      <p class="hero-sub">
-        Записываетесь в приложении или по телефону — мы держим за вами пост
-        и канистру. Без очереди, без «оставьте машину до вечера».
-      </p>
+    <div class="hero-grid">
+      <div class="hero-text" data-reveal-group>
+        <span class="kicker" data-reveal>Замена масла · {{ points|length }} адреса в городе</span>
 
-      <div class="hero-cta">
-        <a class="btn btn-primary btn-lg" href="#app">Записаться в приложении</a>
-        <a class="btn btn-lg btn-on-dark" href="tel:{{ company.PHONE }}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h4l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2.2 2A17 17 0 0 1 3 5.2 2 2 0 0 1 5 3z"/></svg>
-          {{ company.PHONE }}
-        </a>
+        <h1 data-reveal>Приезжаете к своему времени<br>и уезжаете через <span class="hl">30 минут</span></h1>
+
+        <p class="hero-sub" data-reveal>
+          Записываетесь в приложении или по телефону — мы держим за вами пост
+          и канистру. Без очереди, без «оставьте машину до вечера».
+        </p>
+
+        <div class="hero-cta" data-reveal>
+          <a class="btn btn-primary btn-lg" href="#app">Записаться в приложении</a>
+          <a class="btn btn-lg btn-on-dark" href="tel:{{ company.PHONE }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h4l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2.2 2A17 17 0 0 1 3 5.2 2 2 0 0 1 5 3z"/></svg>
+            {{ company.PHONE }}
+          </a>
+        </div>
+
+        <ul class="hero-list" data-reveal>
+          <li><b>Масло в наличии</b> — резервируем при записи</li>
+          <li><b>Фиксированная цена</b> — работа входит в стоимость</li>
+          <li><b>Напомним за 2 часа</b> — SMS перед визитом</li>
+        </ul>
       </div>
 
-      <ul class="hero-list">
-        <li><b>Масло в наличии</b> — резервируем при записи</li>
-        <li><b>Фиксированная цена</b> — работа входит в стоимость</li>
-        <li><b>Напомним за 2 часа</b> — SMS перед визитом</li>
-      </ul>
+      <div class="hero-visual" aria-hidden="true" data-reveal>
+        {% include "web/_phone_mockup.html" %}
+      </div>
     </div>
 
-    <div class="hero-visual" aria-hidden="true">
-      {% include "web/_phone_mockup.html" %}
+    {% comment %}
+    Цифры докручиваются при первом показе: `data-count` — итоговое
+    значение, текст внутри — то же самое для случая без JS.
+    {% endcomment %}
+    <div class="hero-stats" data-reveal-group>
+      <div class="hstat" data-reveal>
+        <b data-count="{{ company.YEARS_ON_MARKET }}">{{ company.YEARS_ON_MARKET }}</b><span>лет на рынке</span>
+      </div>
+      <div class="hstat" data-reveal>
+        <b data-count="{{ company.CARS_SERVED }}">{{ company.CARS_SERVED|intcomma }}</b><span>машин обслужено</span>
+      </div>
+      <div class="hstat" data-reveal>
+        <b data-count="30">30</b><span>минут на замену</span>
+      </div>
+      <div class="hstat" data-reveal>
+        <b data-count="4.9" data-decimals="1">4,9</b><span>средняя оценка</span>
+      </div>
     </div>
-  </div>
-
-  <div class="hero-stats">
-    <div class="hstat"><b>{{ company.YEARS_ON_MARKET }}</b><span>лет на рынке</span></div>
-    <div class="hstat"><b>{{ company.CARS_SERVED|intcomma }}</b><span>машин обслужено</span></div>
-    <div class="hstat"><b>30</b><span>минут на замену</span></div>
-    <div class="hstat"><b>4,9</b><span>средняя оценка</span></div>
   </div>
 </section>
 
 <!-- ------------------------------------------------------- что входит -->
 <section class="block" id="service">
-  <div class="block-head">
-    <span class="kicker kicker-dark">Одна услуга — и мы делаем её хорошо</span>
-    <h2>Что входит в замену масла</h2>
-    <p>Фиксированный набор работ. Ничего не «доосмотрим» на месте и не допродадим.</p>
+  <div class="block-head" data-reveal-group>
+    <span class="kicker kicker-dark" data-reveal>Одна услуга — и мы делаем её хорошо</span>
+    <h2 data-reveal>Что входит в замену масла</h2>
+    <p data-reveal>Фиксированный набор работ. Ничего не «доосмотрим» на месте и не допродадим.</p>
   </div>
 
-  <div class="bento">
-    <article class="tile tile-dark tile-wide">
+  <div class="bento" data-reveal-group>
+    <article class="tile glass tile-wide" data-reveal>
       <h3>Полный цикл за один визит</h3>
       <ol class="tile-steps">
         <li>Сливаем отработку, снимаем старый фильтр</li>
@@ -91,18 +135,18 @@
       </ol>
     </article>
 
-    <article class="tile tile-accent">
+    <article class="tile glass tile-accent" data-reveal>
       <span class="tile-num">30</span>
       <h3>минут — и вы свободны</h3>
       <p>Слот занят только вами: пока вы на посту, туда никого не поставят.</p>
     </article>
 
-    <article class="tile">
+    <article class="tile glass" data-reveal>
       <h3>Цена известна заранее</h3>
       <p>В приложении видно итог: масло плюс работа. На месте сумма не меняется.</p>
     </article>
 
-    <article class="tile tile-wide">
+    <article class="tile glass tile-wide" data-reveal>
       <h3>Не приехали — ничего не потеряли</h3>
       <p>
         Отменить запись можно самому, не позже чем за час до визита. Пост и канистра
@@ -114,14 +158,14 @@
 
 <!-- ---------------------------------------------------------------- цены -->
 <section class="block" id="prices">
-  <div class="block-head">
-    <span class="kicker kicker-dark">Прайс</span>
-    <h2>Масло и цены</h2>
-    <p>Итог указан вместе с работой. Наличие на конкретном адресе видно при записи.</p>
+  <div class="block-head" data-reveal-group>
+    <span class="kicker kicker-dark" data-reveal>Прайс</span>
+    <h2 data-reveal>Масло и цены</h2>
+    <p data-reveal>Итог указан вместе с работой. Наличие на конкретном адресе видно при записи.</p>
   </div>
 
   {% if oils %}
-    <div class="price-table-wrap">
+    <div class="price-table-wrap glass" data-reveal>
       <table class="price-table">
         <thead>
           <tr>
@@ -151,7 +195,7 @@
         </tbody>
       </table>
     </div>
-    <p class="price-foot-note">
+    <p class="price-foot-note" data-reveal>
       Не нашли своё масло? Позвоните — подберём по марке и году выпуска:
       <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
     </p>
@@ -162,14 +206,14 @@
 
 <!-- ------------------------------------------------------ как записаться -->
 <section class="block" id="how">
-  <div class="block-head">
-    <span class="kicker kicker-dark">Два пути</span>
-    <h2>Как записаться</h2>
-    <p>Результат одинаковый: вас ждут в назначенное время, масло отложено.</p>
+  <div class="block-head" data-reveal-group>
+    <span class="kicker kicker-dark" data-reveal>Два пути</span>
+    <h2 data-reveal>Как записаться</h2>
+    <p data-reveal>Результат одинаковый: вас ждут в назначенное время, масло отложено.</p>
   </div>
 
-  <div class="ways">
-    <article class="way way-primary">
+  <div class="ways" data-reveal-group>
+    <article class="way glass way-primary" data-reveal>
       <span class="way-label">Быстрее</span>
       <h3>В приложении</h3>
       <ol class="way-steps">
@@ -180,7 +224,7 @@
       <a class="btn btn-primary btn-lg btn-block" href="#app">Скачать приложение</a>
     </article>
 
-    <article class="way">
+    <article class="way glass" data-reveal>
       <span class="way-label way-label-muted">Привычнее</span>
       <h3>По телефону</h3>
       <ol class="way-steps">
@@ -195,15 +239,15 @@
 
 <!-- -------------------------------------------------------------- адреса -->
 <section class="block" id="addresses">
-  <div class="block-head">
-    <span class="kicker kicker-dark">Где нас найти</span>
-    <h2>Адреса</h2>
-    <p>Приезжайте на любой — записи не пересекаются, пост держим за вами.</p>
+  <div class="block-head" data-reveal-group>
+    <span class="kicker kicker-dark" data-reveal>Где нас найти</span>
+    <h2 data-reveal>Адреса</h2>
+    <p data-reveal>Приезжайте на любой — записи не пересекаются, пост держим за вами.</p>
   </div>
 
-  <div class="address-grid">
+  <div class="address-grid" data-reveal-group>
     {% for point in points %}
-      <article class="address-card">
+      <article class="address-card glass" data-reveal>
         <div class="address-top">
           <h3>{{ point.name }}</h3>
           <span class="chip chip-ok">открыто {{ point.opens_at|time:"H:i" }}–{{ point.closes_at|time:"H:i" }}</span>
@@ -227,7 +271,7 @@
 
 <!-- ---------------------------------------------------------- приложение -->
 <section class="block" id="app">
-  <div class="app-panel">
+  <div class="app-panel glass" data-reveal>
     <div class="app-copy">
       <span class="kicker">Приложение {{ company.NAME }}</span>
       <h2>Запись за четыре касания</h2>
@@ -278,38 +322,52 @@
 
 <!-- ----------------------------------------------------------------- FAQ -->
 <section class="block" id="faq">
-  <div class="block-head">
-    <span class="kicker kicker-dark">Вопросы</span>
-    <h2>Коротко о важном</h2>
+  <div class="block-head" data-reveal-group>
+    <span class="kicker kicker-dark" data-reveal>Вопросы</span>
+    <h2 data-reveal>Коротко о важном</h2>
   </div>
 
-  <div class="faq">
+  {% comment %}
+  Ответ обёрнут в .faq-answer — этот слой и разворачивается по высоте.
+  Без JS остаётся обычный <details>: мгновенное раскрытие, но рабочее.
+  {% endcomment %}
+  <div class="faq" data-reveal>
     <details>
       <summary>Можно приехать без записи?</summary>
-      <p>Можно, но придётся ждать свободный пост. По записи вас примут в назначенное время — это и есть смысл записи.</p>
+      <div class="faq-answer"><div>
+        <p>Можно, но придётся ждать свободный пост. По записи вас примут в назначенное время — это и есть смысл записи.</p>
+      </div></div>
     </details>
     <details>
       <summary>Своё масло принимать будете?</summary>
-      <p>Позвоните и уточните: работа считается отдельно, а гарантию на само масло в этом случае мы не даём.</p>
+      <div class="faq-answer"><div>
+        <p>Позвоните и уточните: работа считается отдельно, а гарантию на само масло в этом случае мы не даём.</p>
+      </div></div>
     </details>
     <details>
       <summary>Сколько действует запись, если опаздываю?</summary>
-      <p>Позвоните на адрес — постараемся подвинуть. Если не предупредить, пост через какое-то время отдадут следующему.</p>
+      <div class="faq-answer"><div>
+        <p>Позвоните на адрес — постараемся подвинуть. Если не предупредить, пост через какое-то время отдадут следующему.</p>
+      </div></div>
     </details>
     <details>
       <summary>Как отменить запись?</summary>
-      <p>В приложении — кнопкой, не позже чем за час до визита. Позже — звонком на адрес.</p>
+      <div class="faq-answer"><div>
+        <p>В приложении — кнопкой, не позже чем за час до визита. Позже — звонком на адрес.</p>
+      </div></div>
     </details>
     <details>
       <summary>Чем платить?</summary>
-      <p>Оплата на месте после работ: наличными или картой. Онлайн-оплаты пока нет.</p>
+      <div class="faq-answer"><div>
+        <p>Оплата на месте после работ: наличными или картой. Онлайн-оплаты пока нет.</p>
+      </div></div>
     </details>
   </div>
 </section>
 
 <!-- ------------------------------------------------------------ контакты -->
 <section class="block" id="contacts">
-  <div class="cta-band">
+  <div class="cta-band glass" data-reveal>
     <div>
       <h2>Записать вас на замену?</h2>
       <p>{{ company.WORKING_HOURS }}. Подберём масло по марке и назовём ближайшее свободное время.</p>
@@ -327,7 +385,7 @@
 <footer class="footer">
   <div class="wrap footer-grid">
     <div class="footer-col footer-brand-col">
-      <div class="footer-brand">{{ company.NAME }}</div>
+      {% include "web/_logo.html" with logo_class="logo-sm" %}
       <p>{{ company.TAGLINE }}. {{ company.WORKING_HOURS }}.</p>
     </div>
 
@@ -357,4 +415,8 @@
     <span>Цены на сайте справочные и не являются публичной офертой.</span>
   </div>
 </footer>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'web/js/landing.js' %}"></script>
 {% endblock %}

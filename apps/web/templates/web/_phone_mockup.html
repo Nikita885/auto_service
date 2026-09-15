@@ -1,7 +1,13 @@
 {% comment %}
 Мокап экрана приложения для главной. Нарисован в SVG, а не картинкой:
-весит килобайты, остаётся резким на любом экране и сам подхватывает
-цвета темы через CSS-переменные.
+весит килобайты, остаётся резким на любом экране и подхватывает цвета
+из CSS-переменных.
+
+Это не статичная картинка, а короткий показ сценария записи: шаги
+загораются по очереди, выбирается время, утекает таймер брони и в конце
+нажимается подтверждение. Цикл 12 секунд, вся анимация — в landing.css.
+Держать её в CSS, а не в SMIL или JS, нужно чтобы одна строка
+`prefers-reduced-motion` выключала всё разом.
 {% endcomment %}
 
 <svg class="mockup" viewBox="0 0 300 580" role="presentation" focusable="false">
@@ -14,11 +20,11 @@
   <text x="44" y="76" class="mk-title">Запись</text>
   <rect x="44" y="88" width="122" height="7" rx="3.5" class="mk-line-soft"/>
 
-  <!-- прогресс из четырёх шагов -->
-  <rect x="44" y="112" width="46" height="5" rx="2.5" class="mk-accent"/>
-  <rect x="96" y="112" width="46" height="5" rx="2.5" class="mk-accent"/>
-  <rect x="148" y="112" width="46" height="5" rx="2.5" class="mk-accent"/>
-  <rect x="200" y="112" width="46" height="5" rx="2.5" class="mk-line-soft"/>
+  <!-- прогресс из четырёх шагов: три проходит клиент, четвёртый — итог -->
+  <rect x="44" y="112" width="46" height="5" rx="2.5" class="mk-step mk-step-1"/>
+  <rect x="96" y="112" width="46" height="5" rx="2.5" class="mk-step mk-step-2"/>
+  <rect x="148" y="112" width="46" height="5" rx="2.5" class="mk-step mk-step-3"/>
+  <rect x="200" y="112" width="46" height="5" rx="2.5" class="mk-step"/>
 
   <!-- выбранный адрес -->
   <rect x="44" y="134" width="212" height="58" rx="14" class="mk-card"/>
@@ -42,15 +48,22 @@
   <rect x="118" y="348" width="64" height="42" rx="12" class="mk-slot"/>
   <rect x="192" y="348" width="64" height="42" rx="12" class="mk-slot"/>
 
-  <!-- таймер брони -->
+  <!-- таймер брони: пять минут на всю запись -->
   <rect x="44" y="406" width="212" height="44" rx="14" class="mk-card"/>
   <text x="62" y="434" class="mk-timer">04:38</text>
   <rect x="122" y="425" width="118" height="6" rx="3" class="mk-line-soft"/>
-  <rect x="122" y="425" width="82" height="6" rx="3" class="mk-accent"/>
+  <rect x="122" y="425" width="118" height="6" rx="3" class="mk-timer-fill"/>
 
   <!-- кнопка подтверждения -->
   <rect x="44" y="468" width="212" height="48" rx="16" class="mk-cta"/>
   <rect x="104" y="487" width="92" height="10" rx="5" class="mk-cta-label"/>
+
+  <!-- вспышка подтверждения: запись создана -->
+  <g class="mk-glow">
+    <rect x="30" y="454" width="240" height="76" rx="24" fill="none"
+          stroke="#b9e6ff" stroke-width="2" opacity=".6"/>
+    <rect x="44" y="468" width="212" height="48" rx="16" fill="#b9e6ff" opacity=".22"/>
+  </g>
 
   <rect x="118" y="538" width="64" height="6" rx="3" class="mk-line-soft"/>
 </svg>

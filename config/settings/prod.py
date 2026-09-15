@@ -13,6 +13,18 @@ CSRF_COOKIE_SECURE = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 
+# Статика с хешем в имени: `landing.a1b2c3d4.css` вместо `landing.css`.
+# nginx отдаёт /static/ с длинным сроком жизни, и без хеша выкатка нового
+# оформления не доезжает до тех, кто уже был на сайте: HTML свежий, CSS из
+# кеша браузера. Сменить адрес файла — единственный способ это пробить.
+# Подробности, почему хранилище «прощающее», — в apps/common/staticfiles.py.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "apps.common.staticfiles.ForgivingManifestStaticFilesStorage"
+    },
+}
+
 SENTRY_DSN = env("SENTRY_DSN", default="")
 if SENTRY_DSN:  # pragma: no cover
     import sentry_sdk

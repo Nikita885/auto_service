@@ -3,34 +3,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Автосервис{% endblock %}</title>
+<title>{% block title %}{{ company.NAME|default:"Автосервис" }}{% endblock %}</title>
 <meta name="description" content="{% block description %}Замена масла по записи: мобильное приложение или звонок.{% endblock %}">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛢️</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2305080f'/><path d='M4.5 21.5C8 14 14 10 21 10c3.6 0 6.2 1.6 7.5 4' fill='none' stroke='%2350b8ff' stroke-width='2.6' stroke-linecap='round'/><path d='M7 24.5c4.5-2 9.5-3 16-3' fill='none' stroke='%23cfeaff' stroke-width='2.2' stroke-linecap='round'/></svg>">
 <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
 {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
 
 {% block topbar %}{% endblock %}
 
 <header class="header">
   <div class="wrap">
+    {% block brand %}
     <a class="brand" href="/">
       <span class="brand-mark" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 3s6 6.3 6 10.2A6 6 0 0 1 6 13.2C6 9.3 12 3 12 3z"/>
         </svg>
       </span>
-      <span>Автосервис</span>
+      <span>{{ company.NAME|default:"Автосервис" }}</span>
       {% block brand_sub %}{% endblock %}
     </a>
+    {% endblock %}
 
     <nav class="nav">{% block nav %}{% endblock %}</nav>
 
     <span class="spacer"></span>
 
     {% block header_actions %}{% endblock %}
-    <button class="icon-btn" id="theme-toggle" type="button" title="Сменить тему" aria-label="Сменить тему"></button>
+    {% block theme_toggle %}
+      <button class="icon-btn" id="theme-toggle" type="button" title="Сменить тему" aria-label="Сменить тему"></button>
+    {% endblock %}
   </div>
 </header>
 
@@ -43,7 +47,7 @@
 {% block footer %}{% endblock %}
 
 <script src="{% static 'web/js/core.js' %}"></script>
-<script>App.theme.init();</script>
+{% block theme_init %}<script>App.theme.init();</script>{% endblock %}
 {% block scripts %}{% endblock %}
 
 </body>

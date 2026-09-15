@@ -18,9 +18,12 @@
   --text-soft: #5b6270;
   --text-faint: #878e9b;
 
-  --accent: #e8590c;
-  --accent-hover: #d24f08;
-  --accent-soft: #fdf1e9;
+  /* Акцент — синий из фирменного знака. На белом берём затемнённый
+     оттенок: чистый неон #2ea6ff на светлом фоне не набирает контраста
+     для текста и мелких значков. */
+  --accent: #0a6fd8;
+  --accent-hover: #0857ad;
+  --accent-soft: #e9f2fe;
   --accent-text: #ffffff;
 
   --ok: #1a7f4b;
@@ -29,15 +32,17 @@
   --warn-soft: #fdf4e1;
   --danger: #c0392b;
   --danger-soft: #fbecea;
-  --info: #1f6feb;
-  --info-soft: #e8f1fe;
+  /* Второй цвет графиков разведён с акцентом в фиолетовый: раньше он был
+     синим при оранжевом акценте, теперь синий занят. */
+  --info: #6d3ee0;
+  --info-soft: #f0eafd;
 
   --radius: 12px;
   --radius-sm: 8px;
   --radius-lg: 18px;
   --shadow: 0 1px 2px rgba(16, 20, 28, .06), 0 4px 16px rgba(16, 20, 28, .05);
   --shadow-lg: 0 8px 32px rgba(16, 20, 28, .12);
-  --ring: 0 0 0 3px rgba(232, 89, 12, .25);
+  --ring: 0 0 0 3px rgba(10, 111, 216, .25);
 
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
@@ -59,10 +64,10 @@
   --text-soft: #a8afba;
   --text-faint: #7b838f;
 
-  --accent: #ff7a2f;
-  --accent-hover: #ff8c4a;
-  --accent-soft: #35211466;
-  --accent-text: #1a1005;
+  --accent: #2ea6ff;
+  --accent-hover: #63c0ff;
+  --accent-soft: #10263d99;
+  --accent-text: #03121f;
 
   --ok: #4ade80;
   --ok-soft: #14321f;
@@ -70,12 +75,12 @@
   --warn-soft: #332714;
   --danger: #f87171;
   --danger-soft: #351b1b;
-  --info: #60a5fa;
-  --info-soft: #16263d;
+  --info: #a78bfa;
+  --info-soft: #241a3d;
 
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .3);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, .5);
-  --ring: 0 0 0 3px rgba(255, 122, 47, .3);
+  --ring: 0 0 0 3px rgba(46, 166, 255, .3);
 }
 
 /* --------------------------------------------------------------- базовое */

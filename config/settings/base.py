@@ -262,7 +262,7 @@ DEFAULT_PHONE_REGION = "RU"
 # телефон и ссылки меняет не программист, и правка не должна требовать
 # ни редактирования кода, ни пересборки образа.
 COMPANY = {
-    "NAME": env("COMPANY_NAME", default="Автосервис"),
+    "NAME": env("COMPANY_NAME", default="Экспресс Замена"),
     "TAGLINE": env("COMPANY_TAGLINE", default="Замена масла за 30 минут"),
     "PHONE": env("COMPANY_PHONE", default="+7 (499) 123-45-67"),
     "EMAIL": env("COMPANY_EMAIL", default="hello@example.com"),

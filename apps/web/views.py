@@ -12,14 +12,27 @@ from django.views.generic import TemplateView
 from apps.catalog.models import Oil, ServicePoint
 
 
-class LandingView(TemplateView):
+class CompanyMixin:
+    """Название и контакты компании в контекст любой страницы сайта.
+
+    Шапка и заголовок вкладки одинаковые на всех трёх страницах, а брать
+    название из `.env` и подставлять его руками в каждом шаблоне — верный
+    способ однажды переименовать компанию только на двух из них.
+    """
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["company"] = settings.COMPANY
+        return context
+
+
+class LandingView(CompanyMixin, TemplateView):
     """Главная: о компании, цены, адреса, ссылки на приложения и телефон."""
 
     template_name = "web/landing.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["company"] = settings.COMPANY
         context["points"] = ServicePoint.objects.filter(is_active=True)
         # Прайс на витрине — справочные цены, без остатков: наличие на
         # конкретной точке клиент увидит в приложении, когда будет выбирать.
@@ -27,13 +40,13 @@ class LandingView(TemplateView):
         return context
 
 
-class MasterView(TemplateView):
+class MasterView(CompanyMixin, TemplateView):
     """Рабочее место мастера: записи в реальном времени, действия по ним."""
 
     template_name = "web/staff.html"
 
 
-class AdminView(TemplateView):
+class AdminView(CompanyMixin, TemplateView):
     """Панель администратора: то же, что у мастера, плюс метрики по сети.
 
     Отдельный URL, а не флаг: администратору открывается вкладка аналитики,
