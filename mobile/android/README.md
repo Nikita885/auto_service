@@ -281,11 +281,17 @@ RELEASE_KEY_PASSWORD=...
 
 ### 2. Боевой адрес API
 
-В `app/build.gradle`, блок `release`, замените `https://api.example.com/` на
-свой домен (и `wss://` для канала). Убедитесь, что на сервере:
+В `app/build.gradle`, блок `release`, уже прописан боевой домен
+`https://ekspres-zamena.ru/` (и `wss://` для канала). Домен латинский
+намеренно: кириллический `экспрес-замена.рф` в punycode нечитаем, а на сервере
+он редиректит на латинский — но редирект спасёт только браузер, не OkHttp с
+JWT в заголовке.
+
+Убедитесь, что на сервере:
 
 - `DEBUG=False` и `OTP_DEBUG_EXPOSE_CODE=False`;
-- `ALLOWED_HOSTS` и `CORS_ALLOWED_ORIGINS` — конкретные домены;
+- `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS` и `CSRF_TRUSTED_ORIGINS` — конкретные
+  домены;
 - работает HTTPS перед daphne.
 
 ### 3. Сборка
