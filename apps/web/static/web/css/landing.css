@@ -143,14 +143,28 @@
     drop-shadow(0 0 54px rgba(10, 92, 255, .5));
 }
 
+/* Толщина по умолчанию — чтобы чужой рисунок без наших классов выглядел
+   осмысленно сразу. Именованные линии просто уточняют её. */
+.logo-line { stroke-width: 7; }
+
+/* Запасной вариант для знака, нарисованного заливкой, а не обводкой:
+   прочерчивать в нём нечего, поэтому он просто загорается целиком.
+   Мигание при запуске и свечение работают как обычно.
+   Ставится на <g class="logo-lines logo-lines-solid"> вместе с удалением
+   fill="none" из разметки. */
+.logo-lines-solid { fill: var(--neon-hot); }
+.logo-lines-solid .logo-line { stroke-width: 0; animation: none; }
 .logo-line-roof { stroke-width: 9; }
 .logo-line-belt { stroke-width: 7; }
 .logo-line-sill { stroke-width: 6.5; }
 .logo-line-crease { stroke-width: 5; opacity: .78; }
 
+/* Блик создаёт landing.js копией помеченного пути — в разметке его нет. */
 .logo-spark {
+  fill: none;
   stroke: #ffffff;
   stroke-width: 9;
+  stroke-linecap: round;
   opacity: 0;
   filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 22px var(--neon-hot));
 }
@@ -665,6 +679,30 @@
 
 .price-foot-note { margin-top: 18px; color: var(--text-soft); font-size: 15px; }
 
+/* Ассортимент без цен. Карточками, а не таблицей: таблица с колонками
+   «вязкость, тип, объём» и без суммы читается как прайс, у которого забыли
+   последний столбец. Карточка же честно говорит «вот что у нас есть». */
+.oil-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 14px;
+}
+
+.oil-card { padding: 22px; }
+.oil-card .oil-brand { margin-bottom: 4px; }
+
+.oil-title {
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -.02em;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+
+.oil-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.oil-tags .chip { font-size: 12.5px; padding: 3px 9px; }
+.oil-note { margin-top: 12px; font-size: 13.5px; color: var(--text-faint); }
+
 /* --------------------------------------------------------- как записаться */
 .ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
 
@@ -944,16 +982,22 @@
 /* Запуск неона: линии сначала прочерчиваются, потом трубка «схватывается»
    с неровным миганием — ровный fade выдал бы обычное появление картинки.
    Проценты подобраны неравномерно намеренно. */
+/* --len ставит landing.js, измерив путь. Запасные 2400 нужны на случай,
+   когда скрипта нет: линия тогда просто появляется целиком. */
 .logo-line {
-  stroke-dasharray: 2400;
-  stroke-dashoffset: 2400;
+  stroke-dasharray: var(--len, 2400);
+  stroke-dashoffset: var(--len, 2400);
   animation: neon-draw 1.15s var(--ease) forwards;
 }
 
-.logo-line-roof { animation-delay: .05s; }
-.logo-line-belt { animation-delay: .18s; }
-.logo-line-sill { animation-delay: .3s; }
-.logo-line-crease { animation-delay: .42s; }
+/* Задержки по порядку в разметке, а не по именам линий: так очередь
+   загорания сохранится и у другого рисунка. */
+.logo-line:nth-child(1) { animation-delay: .05s; }
+.logo-line:nth-child(2) { animation-delay: .17s; }
+.logo-line:nth-child(3) { animation-delay: .29s; }
+.logo-line:nth-child(4) { animation-delay: .41s; }
+.logo-line:nth-child(5) { animation-delay: .53s; }
+.logo-line:nth-child(n + 6) { animation-delay: .65s; }
 
 @keyframes neon-draw { to { stroke-dashoffset: 0; } }
 
@@ -973,16 +1017,16 @@
 /* Блик по кузову: короткий отрезок пробегает по крыше раз в семь секунд.
    Большую часть цикла он стоит за краем — витрина не должна мигать. */
 .logo-spark {
-  stroke-dasharray: 90 2400;
-  stroke-dashoffset: 90;
+  stroke-dasharray: var(--spark, 90) var(--len, 2400);
+  stroke-dashoffset: var(--spark, 90);
   animation: spark-run 7s var(--ease) 2.1s infinite;
 }
 
 @keyframes spark-run {
-  0% { stroke-dashoffset: 90; opacity: 0; }
+  0% { stroke-dashoffset: var(--spark, 90); opacity: 0; }
   4% { opacity: .95; }
-  26% { stroke-dashoffset: -1500; opacity: 0; }
-  100% { stroke-dashoffset: -1500; opacity: 0; }
+  26% { stroke-dashoffset: calc(-1 * var(--len, 2400)); opacity: 0; }
+  100% { stroke-dashoffset: calc(-1 * var(--len, 2400)); opacity: 0; }
 }
 
 /* Появление блока при первом показе. Класс `has-js` ставится инлайновым

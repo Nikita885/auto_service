@@ -2,7 +2,7 @@
 {% load humanize static %}
 
 {% block title %}{{ company.NAME }} — {{ company.TAGLINE }}{% endblock %}
-{% block description %}{{ company.NAME }}: замена масла по записи из мобильного приложения или по телефону {{ company.PHONE }}. Свой пост к назначенному времени, масло в наличии, работа за 30 минут.{% endblock %}
+{% block description %}{{ company.NAME }}: замена масла по записи из мобильного приложения или по телефону {{ company.PHONE }}. Свой пост к назначенному времени, масло в наличии, работа за {{ company.SERVICE_MINUTES }} минут.{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'web/css/landing.css' %}">
@@ -43,7 +43,7 @@
 
 {% block nav %}
   <a href="#service">Услуга</a>
-  <a href="#prices">Цены</a>
+  <a href="#oils">{% if company.SHOW_PRICES %}Цены{% else %}Масла{% endif %}</a>
   <a href="#how">Как записаться</a>
   <a href="#addresses">Адреса</a>
 {% endblock %}
@@ -68,7 +68,7 @@
       <div class="hero-text" data-reveal-group>
         <span class="kicker" data-reveal>Замена масла · {{ points|length }} адреса в городе</span>
 
-        <h1 data-reveal>Приезжаете к своему времени<br>и уезжаете через <span class="hl">30 минут</span></h1>
+        <h1 data-reveal>Приезжаете к своему времени<br>и уезжаете через <span class="hl">{{ company.SERVICE_MINUTES }} минут</span></h1>
 
         <p class="hero-sub" data-reveal>
           Записываетесь в приложении или по телефону — мы держим за вами пост
@@ -107,7 +107,7 @@
         <b data-count="{{ company.CARS_SERVED }}">{{ company.CARS_SERVED|intcomma }}</b><span>машин обслужено</span>
       </div>
       <div class="hstat" data-reveal>
-        <b data-count="30">30</b><span>минут на замену</span>
+        <b data-count="{{ company.SERVICE_MINUTES }}">{{ company.SERVICE_MINUTES }}</b><span>минут на замену</span>
       </div>
       <div class="hstat" data-reveal>
         <b data-count="4.9" data-decimals="1">4,9</b><span>средняя оценка</span>
@@ -136,14 +136,14 @@
     </article>
 
     <article class="tile glass tile-accent" data-reveal>
-      <span class="tile-num">30</span>
+      <span class="tile-num">{{ company.SERVICE_MINUTES }}</span>
       <h3>минут — и вы свободны</h3>
       <p>Слот занят только вами: пока вы на посту, туда никого не поставят.</p>
     </article>
 
     <article class="tile glass" data-reveal>
-      <h3>Цена известна заранее</h3>
-      <p>В приложении видно итог: масло плюс работа. На месте сумма не меняется.</p>
+      <h3>Сумму называем до работ</h3>
+      <p>Итог — масло плюс работа — вы слышите при записи. На месте он не меняется.</p>
     </article>
 
     <article class="tile glass tile-wide" data-reveal>
@@ -156,51 +156,86 @@
   </div>
 </section>
 
-<!-- ---------------------------------------------------------------- цены -->
-<section class="block" id="prices">
+<!-- --------------------------------------------------------------- масла -->
+{% comment %}
+Цены показываются, только если `COMPANY_SHOW_PRICES=true`. Заказчик может
+не хотеть раскрывать стоимость публично — тогда на сайте остаётся сам
+ассортимент: клиенту важно увидеть, что его масло есть, а сумму он узнаёт
+по телефону или в приложении. Данные в обоих случаях одни и те же, из
+таблицы `Oil`, — витрина не разъедется с тем, что отдаёт API.
+{% endcomment %}
+<section class="block" id="oils">
   <div class="block-head" data-reveal-group>
-    <span class="kicker kicker-dark" data-reveal>Прайс</span>
-    <h2 data-reveal>Масло и цены</h2>
-    <p data-reveal>Итог указан вместе с работой. Наличие на конкретном адресе видно при записи.</p>
+    <span class="kicker kicker-dark" data-reveal>{% if company.SHOW_PRICES %}Прайс{% else %}Ассортимент{% endif %}</span>
+
+    {% if company.SHOW_PRICES %}
+      <h2 data-reveal>Масло и цены</h2>
+      <p data-reveal>Итог указан вместе с работой. Наличие на конкретном адресе видно при записи.</p>
+    {% else %}
+      <h2 data-reveal>Масла в наличии</h2>
+      <p data-reveal>
+        Подберём по марке, году выпуска и пробегу. Остаток на конкретном адресе
+        видно при записи, стоимость назовём по телефону.
+      </p>
+    {% endif %}
   </div>
 
   {% if oils %}
-    <div class="price-table-wrap glass" data-reveal>
-      <table class="price-table">
-        <thead>
-          <tr>
-            <th>Масло</th>
-            <th class="hide-sm">Вязкость</th>
-            <th class="hide-sm">Тип</th>
-            <th class="num">Канистра</th>
-            <th class="num hide-sm">Работа</th>
-            <th class="num">Итого</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for oil in oils %}
+    {% if company.SHOW_PRICES %}
+      <div class="price-table-wrap glass" data-reveal>
+        <table class="price-table">
+          <thead>
             <tr>
-              <td>
-                <span class="oil-brand">{{ oil.brand }}</span>
-                <span class="oil-name">{{ oil.name }}</span>
-                <span class="oil-sub">{{ oil.volume_liters }} л{% if oil.description %} · {{ oil.description }}{% endif %}</span>
-              </td>
-              <td class="hide-sm"><span class="chip">{{ oil.viscosity }}</span></td>
-              <td class="hide-sm">{{ oil.get_oil_type_display }}</td>
-              <td class="num">{{ oil.price|floatformat:0 }} ₽</td>
-              <td class="num hide-sm">{{ oil.work_price|floatformat:0 }} ₽</td>
-              <td class="num total">{{ oil.total_price|floatformat:0 }} ₽</td>
+              <th>Масло</th>
+              <th class="hide-sm">Вязкость</th>
+              <th class="hide-sm">Тип</th>
+              <th class="num">Канистра</th>
+              <th class="num hide-sm">Работа</th>
+              <th class="num">Итого</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {% for oil in oils %}
+              <tr>
+                <td>
+                  <span class="oil-brand">{{ oil.brand }}</span>
+                  <span class="oil-name">{{ oil.name }}</span>
+                  <span class="oil-sub">{{ oil.volume_liters }} л{% if oil.description %} · {{ oil.description }}{% endif %}</span>
+                </td>
+                <td class="hide-sm"><span class="chip">{{ oil.viscosity }}</span></td>
+                <td class="hide-sm">{{ oil.get_oil_type_display }}</td>
+                <td class="num">{{ oil.price|floatformat:0 }} ₽</td>
+                <td class="num hide-sm">{{ oil.work_price|floatformat:0 }} ₽</td>
+                <td class="num total">{{ oil.total_price|floatformat:0 }} ₽</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="oil-grid" data-reveal-group>
+        {% for oil in oils %}
+          <article class="oil-card glass" data-reveal>
+            <span class="oil-brand">{{ oil.brand }}</span>
+            <h3 class="oil-title">{{ oil.name }}</h3>
+            <div class="oil-tags">
+              <span class="chip">{{ oil.viscosity }}</span>
+              <span class="chip">{{ oil.get_oil_type_display }}</span>
+              <span class="chip">{{ oil.volume_liters }} л</span>
+            </div>
+            {% if oil.description %}<p class="oil-note">{{ oil.description }}</p>{% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% endif %}
+
     <p class="price-foot-note" data-reveal>
-      Не нашли своё масло? Позвоните — подберём по марке и году выпуска:
+      {% if company.SHOW_PRICES %}Не нашли своё масло?{% else %}Не нашли своё масло или хотите узнать стоимость?{% endif %}
+      Позвоните — подберём по марке и году выпуска:
       <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
     </p>
   {% else %}
-    <p class="muted">Прайс уточняйте по телефону <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>.</p>
+    <p class="muted">Ассортимент уточняйте по телефону <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>.</p>
   {% endif %}
 </section>
 
@@ -392,7 +427,7 @@
     <div class="footer-col">
       <h4>Разделы</h4>
       <a href="#service">Услуга</a>
-      <a href="#prices">Цены</a>
+      <a href="#oils">{% if company.SHOW_PRICES %}Цены{% else %}Масла{% endif %}</a>
       <a href="#how">Как записаться</a>
       <a href="#faq">Вопросы</a>
     </div>

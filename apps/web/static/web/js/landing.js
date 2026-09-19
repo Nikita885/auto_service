@@ -20,6 +20,68 @@
     return Array.prototype.slice.call((root || document).querySelectorAll(sel));
   };
 
+  /* ------------------------------------------------------------ логотип */
+  /* Неон «зажигается» тем, что обводка прочерчивается от начала к концу, а
+     для этого нужна длина пути. Задавать её в CSS числом нельзя: знак
+     перерисовывают, и прошитая константа либо обрежет линию, либо оставит
+     её мигать. Поэтому длину меряем у самой фигуры и кладём в --len.
+
+     Блик — копия пути, помеченного data-spark. Копию делает скрипт, чтобы
+     при замене рисунка не приходилось дублировать координаты руками. */
+
+  function initLogo() {
+    var lines = $$(".logo-line");
+    if (!lines.length) return;
+
+    var longest = null;
+    var longestLen = 0;
+
+    lines.forEach(function (line) {
+      // getTotalLength есть у всех фигур SVG, но не у <g> и не в старых
+      // движках — без длины просто останется запасное значение из CSS.
+      if (typeof line.getTotalLength !== "function") return;
+
+      var len = 0;
+      try {
+        len = line.getTotalLength();
+      } catch (err) {
+        return;
+      }
+      if (!len) return;
+
+      line.style.setProperty("--len", Math.ceil(len));
+      if (len > longestLen) {
+        longestLen = len;
+        longest = line;
+      }
+    });
+
+    if (reduced) return;
+
+    var source = document.querySelector(".logo-line[data-spark]") || longest;
+    if (!source || !source.parentNode) return;
+
+    // Блик рисуется в каждом экземпляре знака: их на странице три.
+    $$(".logo").forEach(function (logo) {
+      var origin = logo.querySelector(".logo-line[data-spark]") || logo.querySelector(".logo-line");
+      var svg = logo.querySelector(".logo-car");
+      if (!origin || !svg || logo.querySelector(".logo-spark")) return;
+
+      var spark = origin.cloneNode(false);
+      spark.removeAttribute("data-spark");
+      spark.setAttribute("class", "logo-spark");
+
+      var len = parseFloat(origin.style.getPropertyValue("--len")) || 0;
+      if (len) {
+        spark.style.setProperty("--len", Math.ceil(len));
+        // Отрезок в двадцатую часть пути: короче — теряется, длиннее —
+        // перестаёт читаться как блик и выглядит как вторая линия.
+        spark.style.setProperty("--spark", Math.max(24, Math.round(len / 20)));
+      }
+      svg.appendChild(spark);
+    });
+  }
+
   /* --------------------------------------------------------- появление */
   /* Блоки въезжают на 14 px один раз и больше не двигаются: повторное
      появление при каждой прокрутке вверх-вниз читается как баг, а не как
@@ -268,6 +330,7 @@
 
   function init() {
     try {
+      initLogo();
       initReveal();
       initCounters();
       initSpotlight();
