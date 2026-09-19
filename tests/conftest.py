@@ -90,18 +90,31 @@ def auth(api):
 
 
 @pytest.fixture
-def free_slot(point):
-    """Слот на завтра.
+def free_slot(point, settings):
+    """Слот на завтра, заведомо далёкий от всех дедлайнов.
 
     Намеренно не «ближайший»: тесты подкручивают часы на минуты вперёд,
     и слот не должен из-за этого упереться в минимальный запас до визита.
+
+    И намеренно не первый слот дня. Тестовая точка открыта с 00:00, так
+    что первый слот «завтра» — это ближайшая полночь. При прогоне поздним
+    вечером до неё остаётся меньше часа: минимальный запас в 30 минут она
+    проходит, а дедлайн отмены в 60 минут — уже нет, и тесты отмены
+    начинают падать в зависимости от времени суток.
     """
     from apps.booking.services.slots import build_slots
 
-    day = timezone.now().astimezone(point.tz).date() + timedelta(days=1)
-    slots = build_slots(point, day)
-    assert slots, "Не удалось построить свободный слот для теста"
-    return slots[0]
+    now = timezone.now()
+    # Дедлайн отмены плюс запас на сдвиги часов внутри самих тестов.
+    margin = timedelta(minutes=settings.BOOKING["CANCEL_DEADLINE_MINUTES"] + 120)
+
+    for offset in (1, 2):
+        day = now.astimezone(point.tz).date() + timedelta(days=offset)
+        for slot in build_slots(point, day):
+            if slot.start_at - now >= margin:
+                return slot
+
+    raise AssertionError("Не удалось построить свободный слот для теста")
 
 
 @pytest.fixture

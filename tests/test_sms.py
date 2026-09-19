@@ -75,6 +75,7 @@ def test_sender_name_is_passed_when_set(provider, settings, monkeypatch):
         (201, "недостаточно средств"),
         (204, "имя отправителя"),
         (207, "нельзя отправлять"),
+        (221, "буквенный отправитель"),
     ],
 )
 def test_permanent_errors_are_not_retried(provider, monkeypatch, code, fragment):
@@ -87,6 +88,17 @@ def test_permanent_errors_are_not_retried(provider, monkeypatch, code, fragment)
     with pytest.raises(SmsRejectedError) as exc:
         provider.send(PHONE, "текст")
     assert fragment in str(exc.value)
+
+
+def test_gateway_downtime_is_retried(provider, monkeypatch):
+    """220 — «сервис временно недоступен», ровно тот случай для повтора."""
+    monkeypatch.setattr(
+        provider,
+        "_post",
+        lambda payload: {"status": "ERROR", "status_code": 220, "status_text": "позже"},
+    )
+    with pytest.raises(SmsDeliveryError):
+        provider.send(PHONE, "текст")
 
 
 def test_unknown_error_code_is_retried(provider, monkeypatch):
