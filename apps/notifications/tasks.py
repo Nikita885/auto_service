@@ -4,7 +4,11 @@ from celery import shared_task
 from django.utils import timezone
 
 from apps.notifications.models import Notification, NotificationStatus
-from apps.notifications.providers import SmsDeliveryError, get_sms_provider
+from apps.notifications.providers import (
+    SmsDeliveryError,
+    SmsRejectedError,
+    get_sms_provider,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +38,14 @@ def deliver_sms(self, notification_id: str, phone: str, text: str) -> str:
         )
         logger.warning("SMS на %s не доставлено: %s", phone, exc)
         raise
+    except SmsRejectedError as exc:
+        # Шлюз отказал навсегда: неверный ключ, чужое имя отправителя,
+        # номер в чёрном списке. Ретраить нечего — чинить надо настройки.
+        Notification.objects.filter(pk=notification_id).update(
+            status=NotificationStatus.FAILED, error=str(exc)
+        )
+        logger.error("SMS на %s отклонено шлюзом: %s", phone, exc)
+        return ""
     except Exception as exc:  # непредвиденная ошибка — не ретраим вслепую
         Notification.objects.filter(pk=notification_id).update(
             status=NotificationStatus.FAILED, error=repr(exc)

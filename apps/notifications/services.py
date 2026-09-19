@@ -10,16 +10,38 @@ from __future__ import annotations
 import logging
 
 from apps.notifications import templates
-from apps.notifications.models import Notification, NotificationKind
+from apps.notifications.models import (
+    Notification,
+    NotificationKind,
+    NotificationStatus,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def _enqueue(notification: Notification, text: str) -> None:
-    """Поставить отправку в очередь после коммита текущей транзакции."""
+    """Поставить отправку в очередь после коммита текущей транзакции.
+
+    Если канал для этого типа выключен в `SMS_ENABLED_KINDS`, запись в
+    журнале остаётся, но помечается как неотправленная. Тихо удалять её
+    нельзя: «клиенту не сообщили» — такой же факт, как «сообщили».
+    """
+    from django.conf import settings
     from django.db import transaction
 
     from apps.notifications.tasks import deliver_sms
+
+    if notification.kind not in settings.SMS["ENABLED_KINDS"]:
+        Notification.objects.filter(pk=notification.pk).update(
+            status=NotificationStatus.SKIPPED
+        )
+        notification.status = NotificationStatus.SKIPPED
+        logger.info(
+            "Уведомление %s на %s не отправлено: канал выключен в настройках",
+            notification.kind,
+            notification.phone,
+        )
+        return
 
     transaction.on_commit(
         lambda: deliver_sms.delay(str(notification.id), notification.phone, text)

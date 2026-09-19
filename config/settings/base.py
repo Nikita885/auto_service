@@ -250,7 +250,22 @@ OTP = {
 SMS = {
     "PROVIDER": env("SMS_PROVIDER", default="console"),
     "API_KEY": env("SMS_API_KEY", default=""),
-    "SENDER": env("SMS_SENDER", default="AutoService"),
+    # Имя отправителя согласуется у оператора отдельно. Пока не согласовано,
+    # оставьте пустым: шлюз отклонит отправку с чужим именем.
+    "SENDER": env("SMS_SENDER", default=""),
+    # Какие уведомления реально уходят. Каждое стоит денег, и основной
+    # расход — не коды входа, а «запись создана» и «работы выполнены»: их
+    # клиент и так видит в приложении. Пустой список = не слать ничего.
+    "ENABLED_KINDS": env.list(
+        "SMS_ENABLED_KINDS",
+        default=[
+            "otp",
+            "booking_created",
+            "booking_reminder",
+            "booking_cancelled_by_master",
+            "booking_completed",
+        ],
+    ),
 }
 
 # Часовой пояс, в котором сотрудники думают о «сегодня».

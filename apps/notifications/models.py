@@ -23,6 +23,10 @@ class NotificationStatus(models.TextChoices):
     PENDING = "pending", "В очереди"
     SENT = "sent", "Отправлено"
     FAILED = "failed", "Ошибка"
+    # Уведомление сформировано, но канал для него выключен в настройках.
+    # Запись в журнале всё равно нужна: «клиенту не сообщили» — такой же
+    # факт, как «сообщили», и он должен быть виден, а не пропадать.
+    SKIPPED = "skipped", "Не отправляли"
 
 
 class Notification(BaseModel):
