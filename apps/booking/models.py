@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import secrets
-import string
 from datetime import timedelta
 
 from django.conf import settings
@@ -16,14 +14,17 @@ from apps.booking.constants import (
     DraftCloseReason,
     DraftStep,
 )
+from apps.common.codes import generate_code
 from apps.common.models import BaseModel
-
-CODE_ALPHABET = string.ascii_uppercase.replace("O", "").replace("I", "") + "23456789"
 
 
 def generate_booking_code() -> str:
-    """Короткий человекочитаемый код записи: клиент называет его на посту."""
-    return "".join(secrets.choice(CODE_ALPHABET) for _ in range(6))
+    """Короткий человекочитаемый код записи: клиент называет его на посту.
+
+    Обёртка, а не прямая ссылка на `generate_code`: имя функции записано в
+    миграции как значение `default`, и переезд сломал бы её.
+    """
+    return generate_code(6)
 
 
 class BookingDraftQuerySet(models.QuerySet):

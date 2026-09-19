@@ -199,6 +199,14 @@ def complete(master, booking_id) -> Booking:
     )
     stock_service.write_off(booking)
 
+    # Баллы начисляем здесь же, а не после коммита: это деньги, и они
+    # должны появиться вместе с выполненной работой либо не появиться
+    # вовсе. Импорт локальный — иначе apps.booking и apps.referral
+    # замкнулись бы друг на друга, как это уже сделано с уведомлениями.
+    from apps.referral.services import points as referral_points
+
+    referral_points.accrue_for_booking(booking)
+
     def _after_commit() -> None:
         from apps.notifications.services import notify_booking_completed
 

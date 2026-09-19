@@ -5,6 +5,7 @@
 """
 
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import environ
@@ -50,6 +51,7 @@ LOCAL_APPS = [
     "apps.booking",
     "apps.notifications",
     "apps.master",
+    "apps.referral",
     "apps.web",
 ]
 
@@ -256,6 +258,30 @@ SMS = {
 BUSINESS_TIMEZONE = env("BUSINESS_TIMEZONE", default="Europe/Moscow")
 
 DEFAULT_PHONE_REGION = "RU"
+
+# ------------------------------------------------------- реферальная программа
+# Схема — принудительная матрица: под участником два места, начисления идут
+# на три линии вверх от того, кто заплатил. Классическая бинарка с выплатой
+# за меньшее плечо тут не работает: замену делают раз в 6–12 месяцев, и
+# слабое плечо наполняется месяцами.
+REFERRAL = {
+    "ENABLED": env.bool("REFERRAL_ENABLED", default=True),
+    # Проценты по линиям вниз от получателя: первая, вторая, третья. Длина
+    # списка задаёт и глубину — четвёртое число включит четвёртую линию.
+    "LEVEL_PERCENTS": [
+        Decimal(str(value))
+        for value in env.list("REFERRAL_LEVEL_PERCENTS", default=["5", "4", "3"])
+    ],
+    # С какой части чека считаем: "total" — масло плюс работа, "work" —
+    # только работа. От работы нагрузка ровнее: масло перепродаётся с почти
+    # фиксированной наценкой, и дорогая канистра увеличивает чек, не
+    # увеличивая заработок.
+    "BASE": env("REFERRAL_BASE", default="total"),
+    # Сколько мест под участником. 2 — бинарная матрица.
+    "WIDTH": env.int("REFERRAL_WIDTH", default=2),
+    # Потолок оплаты баллами, % от чека: баллы — скидка, а не вторая касса.
+    "MAX_DISCOUNT_PERCENT": env.int("REFERRAL_MAX_DISCOUNT_PERCENT", default=50),
+}
 
 # ---------------------------------------------------------------- лендинг
 # Контакты и ссылки на магазины приложений. Лежат в .env, а не в шаблоне:
