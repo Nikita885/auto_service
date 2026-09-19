@@ -36,6 +36,20 @@ class Command(BaseCommand):
         self.stdout.write(f"Имя отправителя: {settings.SMS['SENDER'] or '(не задано)'}")
         self.stdout.write(f"Получатель: {phone}")
 
+        # «Отправлено» на console выглядит как успех, хотя сообщение только
+        # напечаталось в лог. Перепутать провайдера легко: SMS_PROVIDER
+        # правится в .env на сервере, а команда запускается там же.
+        if provider_name == "console":
+            self.stdout.write(
+                self.style.WARNING(
+                    "\nВНИМАНИЕ: провайдер console — сообщение НЕ уходит в сеть,"
+                    " а печатается в лог.\n"
+                    "Для боевой отправки задайте в .env SMS_PROVIDER=smsru и"
+                    " SMS_API_KEY, затем пересоздайте контейнеры"
+                    " (up -d, а не restart).\n"
+                )
+            )
+
         provider = get_sms_provider()
         try:
             message_id = provider.send(phone, options["text"])
