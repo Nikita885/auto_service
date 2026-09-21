@@ -93,6 +93,25 @@ def _check_otp_expose() -> Finding:
     return Finding(OK, "OTP_DEBUG_EXPOSE_CODE", "код в ответе API не отдаётся")
 
 
+def _check_debug_phones() -> Finding:
+    """Временная заглушка на время, пока не работают SMS.
+
+    Каждый номер в списке — открытая дверь в этот аккаунт: код входа
+    возвращается прямо в ответе API, и запросить его может кто угодно.
+    Провал, а не предупреждение: заглушка обязана мозолить глаза, пока её
+    не уберут.
+    """
+    phones = settings.OTP.get("DEBUG_PHONES") or []
+    if not phones:
+        return Finding(OK, "OTP_DEBUG_PHONES", "пусто")
+    return Finding(
+        FAIL,
+        "OTP_DEBUG_PHONES",
+        f"код входа отдаётся в ответе API для {', '.join(phones)} — "
+        "временная заглушка, уберите её сразу после запуска SMS",
+    )
+
+
 def _check_hosts() -> list[Finding]:
     found = []
 
@@ -333,6 +352,7 @@ def collect_findings() -> list[Finding]:
         _check_debug(),
         _check_secret_key(),
         _check_otp_expose(),
+        _check_debug_phones(),
     ]
     findings += _check_hosts()
     findings += _check_transport()

@@ -8,6 +8,8 @@ import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.lifecycle.ViewModelProvider;
@@ -24,6 +26,7 @@ import ru.autoservice.client.ui.MainActivity;
 import ru.autoservice.client.ui.onboarding.OnboardingActivity;
 import ru.autoservice.client.ui.common.SimpleTextWatcher;
 import ru.autoservice.client.ui.common.Ui;
+import ru.autoservice.client.util.LoginCodeNotice;
 import ru.autoservice.client.util.PhoneFormat;
 
 /**
@@ -39,6 +42,10 @@ public class AuthActivity extends AppCompatActivity {
 
     private ActivityAuthBinding views;
     private AuthViewModel model;
+
+    private final ActivityResultLauncher<String> notificationPermission =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(),
+                    granted -> { /* отказ ничего не ломает: код виден на экране */ });
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -56,6 +63,7 @@ public class AuthActivity extends AppCompatActivity {
         views = ActivityAuthBinding.inflate(getLayoutInflater());
         setContentView(views.getRoot());
 
+        askNotificationPermission();
         bindInputs();
         observe();
     }
@@ -203,10 +211,15 @@ public class AuthActivity extends AppCompatActivity {
         model.debugCode().observe(this, code -> {
             boolean show = BuildConfig.DEBUG && code != null && !code.isEmpty();
             Ui.setVisible(views.debugCode, show);
-            if (show) {
-                views.debugCode.setText(getString(R.string.auth_debug_code, code));
-                views.codeInput.setText(code);
+            if (!show) {
+                return;
             }
+            views.debugCode.setText(getString(R.string.auth_debug_code, code));
+            views.codeInput.setText(code);
+            // И уведомлением — чтобы код был виден, даже если приложение
+            // свернули, пока ждали SMS. Временная заглушка, см.
+            // LoginCodeNotice.
+            LoginCodeNotice.show(this, code);
         });
 
         model.errors().observe(this, event -> {
@@ -243,6 +256,18 @@ public class AuthActivity extends AppCompatActivity {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    /**
+     * Разрешение на уведомления — только ради временной заглушки с кодом
+     * входа (см. {@link LoginCodeNotice}). Отказ ничего не ломает: код
+     * виден прямо на экране, уведомление здесь удобство, а не механизм.
+     */
+    private void askNotificationPermission() {
+        if (!LoginCodeNotice.needsPermission(this)) {
+            return;
+        }
+        notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS);
     }
 
     private void openMain() {

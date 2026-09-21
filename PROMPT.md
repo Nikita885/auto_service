@@ -66,7 +66,7 @@ API обслуживает два мобильных приложения:
 ## 4. Что уже сделано (всё работает и проверено)
 
 Серверная часть **готова полностью**, поверх неё работают лендинг и панели
-сотрудников. 198 тестов зелёные, ruff чистый, OpenAPI генерируется без
+сотрудников. 203 теста зелёные, ruff чистый, OpenAPI генерируется без
 предупреждений, сквозной сценарий прогнан по живому HTTP.
 
 ### Реализовано
@@ -286,6 +286,14 @@ docker-compose.prod.yml   надстройка для прода: закрыва
   `feTurbulence` в `data:`-URI, режим наложения `soft-light` (обычный
   обесцвечивал бы синеву в графит). Картинкой не сделано: вес, лишний
   запрос и видимый шов на широком экране.
+- **Код входа уведомлением — временная заглушка, а не push.** Пока у
+  SMS-шлюза не согласован буквенный отправитель, сообщения не уходят и
+  войти в приложение на живом сервере нельзя. Номерам из
+  `OTP_DEBUG_PHONES` сервер возвращает код в ответе API, приложение
+  показывает его местным уведомлением (`util/LoginCodeNotice`, только в
+  отладочной сборке). Настоящие push через FCM — отдельная работа, после
+  неё заглушка уходит целиком. `security_audit` считает непустой список
+  провалом: такая дыра обязана мозолить глаза.
 - **Опасные переключатели прод не читает из `.env`.** `OTP_DEBUG_EXPOSE_CODE`
   в `settings/prod.py` всегда `False`, а `SECRET_KEY` из репозитория роняет
   запуск с `ImproperlyConfigured`. Опечатка в `.env` не должна стоить
@@ -403,7 +411,8 @@ OTP_TTL_SECONDS=300
 OTP_RESEND_COOLDOWN_SECONDS=60
 OTP_MAX_VERIFY_ATTEMPTS=5
 OTP_MAX_PER_PHONE_PER_HOUR=5
-OTP_DEBUG_EXPOSE_CODE=True           # в проде обязательно False
+OTP_DEBUG_EXPOSE_CODE=True           # в проде принудительно False
+OTP_DEBUG_PHONES=                    # ВРЕМЕННО: кому отдавать код в ответе API
 
 SMS_PROVIDER=console                 # smsru — боевой шлюз
 SMS_API_KEY=
@@ -443,7 +452,7 @@ ANDROID_CERT_FINGERPRINTS=               # SHA-256 подписи, иначе Ap
 ```bash
 cp .env.example .env
 docker compose build api && docker compose up -d   # или make up
-make test    # 198 тестов
+make test    # 203 теста
 make lint    # ruff
 ```
 
@@ -667,7 +676,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api python 
 
 > Проект — бэкенд автосервиса (запись на замену масла): Django 5 + DRF +
 > PostgreSQL + Celery/Redis + JWT + Channels, всё в Docker Compose. Серверная
-> часть готова, 198 тестов зелёные; клиентское приложение под Android лежит в
+> часть готова, 203 теста зелёные; клиентское приложение под Android лежит в
 > `mobile/android`. Проект **развёрнут и работает** на https://moiservis.pro —
 > правки поедут на живой сервер, выкатка описана в `PROMPT.md`, раздел 13.
 > Прочитай `README.md` и `PROMPT.md` целиком — там полный контекст,

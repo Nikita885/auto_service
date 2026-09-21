@@ -299,3 +299,65 @@ def test_audit_strict_mode_treats_warnings_as_failures(prod_like, settings):
     call_command("security_audit")  # без --strict предупреждение не валит
     with pytest.raises(CommandError):
         call_command("security_audit", "--strict")
+
+
+# ------------------------------------ временная заглушка на время без SMS
+
+
+@pytest.mark.django_db(transaction=True)
+def test_code_is_not_exposed_without_whitelist(settings):
+    """Обычный номер в проде код в ответе не получает."""
+    settings.OTP = {**settings.OTP, "DEBUG_EXPOSE_CODE": False, "DEBUG_PHONES": []}
+    from apps.accounts.services import request_otp
+
+    assert request_otp("+79150001122").debug_code is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_whitelisted_phone_gets_the_code(settings):
+    """Заглушка нужна, пока SMS не уходят: без неё войти в приложение на
+    живом сервере нельзя вообще."""
+    settings.OTP = {
+        **settings.OTP,
+        "DEBUG_EXPOSE_CODE": False,
+        "DEBUG_PHONES": ["+79150001122"],
+    }
+    from apps.accounts.services import request_otp
+
+    assert request_otp("+79150001122").debug_code is not None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_whitelist_is_matched_after_normalization(settings):
+    """В `.env` номер напишут как придётся. Сравнение с ненормализованной
+    строкой дало бы заглушку, которая молча не работает."""
+    settings.OTP = {
+        **settings.OTP,
+        "DEBUG_EXPOSE_CODE": False,
+        "DEBUG_PHONES": ["8 915 000-11-22"],
+    }
+    from apps.accounts.services import request_otp
+
+    assert request_otp("+79150001122").debug_code is not None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_whitelist_does_not_leak_to_other_numbers(settings):
+    settings.OTP = {
+        **settings.OTP,
+        "DEBUG_EXPOSE_CODE": False,
+        "DEBUG_PHONES": ["+79150001122"],
+    }
+    from apps.accounts.services import request_otp
+
+    assert request_otp("+79160002233").debug_code is None
+
+
+@pytest.mark.django_db
+def test_audit_fails_while_the_stub_is_on(prod_like, settings):
+    """Заглушка обязана мозолить глаза, пока её не уберут."""
+    settings.OTP = {**settings.OTP, "DEBUG_PHONES": ["+79150001122"]}
+
+    assert _levels(security_audit.collect_findings())["OTP_DEBUG_PHONES"] == (
+        security_audit.FAIL
+    )

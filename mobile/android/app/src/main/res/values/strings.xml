@@ -18,6 +18,13 @@
     <string name="auth_legal">Продолжая, вы соглашаетесь с обработкой персональных данных.</string>
     <string name="auth_debug_code">Код разработки: %1$s</string>
 
+    <!-- Временная заглушка: код входа уведомлением, пока не работают SMS.
+         Уходит вместе с ней, когда согласуют буквенного отправителя. -->
+    <string name="notice_channel_name">Код для входа</string>
+    <string name="notice_channel_description">Временно: код входа приходит уведомлением, пока не подключены SMS.</string>
+    <string name="notice_code_title">Код для входа: %1$s</string>
+    <string name="notice_code_text">Уже подставлен в приложении. Никому его не сообщайте.</string>
+
     <!-- навигация -->
     <string name="nav_booking">Запись</string>
     <string name="nav_bookings">Мои записи</string>

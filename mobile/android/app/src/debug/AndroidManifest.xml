@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Только для отладочной сборки. Разрешение на уведомления нужно временной
+  заглушке, которая показывает код входа, пока у SMS-шлюза не согласован
+  буквенный отправитель. В релизе приложение уведомлений не шлёт, и просить
+  разрешение не за что — лишнее разрешение в магазине пришлось бы ещё и
+  объяснять в анкете Data Safety.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+</manifest>

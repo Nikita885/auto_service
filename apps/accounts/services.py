@@ -109,8 +109,46 @@ def request_otp(raw_phone: str, *, ip: str | None = None) -> OtpChallenge:
         phone=phone,
         expires_at=expires_at,
         resend_after_seconds=conf["RESEND_COOLDOWN_SECONDS"],
-        debug_code=code if conf["DEBUG_EXPOSE_CODE"] else None,
+        debug_code=code if _may_expose_code(phone, conf) else None,
     )
+
+
+def _may_expose_code(phone: str, conf: dict) -> bool:
+    """Можно ли вернуть код прямо в ответе API.
+
+    Два случая. В разработке — всем, чтобы не поднимать SMS-шлюз. В проде —
+    только номерам из `OTP_DEBUG_PHONES`: это временная заглушка на время,
+    пока у шлюза не согласован буквенный отправитель и SMS не уходят вовсе.
+
+    Использование заглушки пишется в лог предупреждением: она должна
+    попадаться на глаза, а не тихо жить в конфиге месяцами.
+    """
+    if conf["DEBUG_EXPOSE_CODE"]:
+        return True
+    if phone in _debug_phones(conf):
+        logger.warning(
+            "Код входа для %s отдан в ответе API: номер в OTP_DEBUG_PHONES. "
+            "Это временная заглушка, уберите её после запуска SMS",
+            mask_phone(phone),
+        )
+        return True
+    return False
+
+
+def _debug_phones(conf: dict) -> set[str]:
+    """Белый список, приведённый к E.164.
+
+    В `.env` номер напишут как придётся — «8 915…», «+7 915…». Сравнивать
+    с ним ненормализованную строку значит получить заглушку, которая молча
+    не работает, и полдня искать почему.
+    """
+    normalized = set()
+    for raw in conf["DEBUG_PHONES"]:
+        try:
+            normalized.add(normalize_phone(raw))
+        except ValidationError:
+            logger.warning("OTP_DEBUG_PHONES: не разобрал номер %r, пропускаю", raw)
+    return normalized
 
 
 def verify_otp(raw_phone: str, code: str) -> AuthResult:
