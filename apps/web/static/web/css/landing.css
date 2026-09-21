@@ -154,16 +154,12 @@
    fill="none" из разметки. */
 .logo-lines-solid { fill: var(--neon-hot); }
 .logo-lines-solid .logo-line { stroke-width: 0; animation: none; }
-.logo-line-roof { stroke-width: 9; }
-.logo-line-belt { stroke-width: 7; }
-.logo-line-sill { stroke-width: 6.5; }
-.logo-line-crease { stroke-width: 5; opacity: .78; }
 
 /* Блик создаёт landing.js копией помеченного пути — в разметке его нет. */
 .logo-spark {
   fill: none;
   stroke: #ffffff;
-  stroke-width: 9;
+  stroke-width: 4;
   stroke-linecap: round;
   opacity: 0;
   filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 22px var(--neon-hot));
@@ -176,9 +172,9 @@
   /* Надпись лежит на нижней половине кузова и свешивается ниже него —
      как на фирменном знаке. Все размеры считаются от --logo-w, поэтому
      пропорции лока не зависят от того, где он стоит. */
-  top: 45%;
+  top: 41%;
   text-align: center;
-  font-size: calc(var(--logo-w) * .097);
+  font-size: calc(var(--logo-w) * .085);
   line-height: .96;
   font-weight: 900;
   font-family: "Arial Black", "Segoe UI", var(--font);
@@ -210,8 +206,8 @@
   filter: drop-shadow(0 0 6px rgba(46, 166, 255, .75)) drop-shadow(0 0 20px rgba(10, 92, 255, .6));
 }
 
-.logo-sm { --logo-w: 160px; }
-.logo-hero { --logo-w: min(560px, 82vw); }
+.logo-sm { --logo-w: 210px; }
+.logo-hero { --logo-w: min(680px, 88vw); }
 
 /* ------------------------------------------------------- верхняя полоса */
 .topbar {
@@ -1083,7 +1079,7 @@
      на первом экране, а телефон — в верхней полосе. */
   .landing .header .btn-primary { display: none; }
   .landing { --header-h: 66px; }
-  .logo-sm { --logo-w: 132px; }
+  .logo-sm { --logo-w: 172px; }
   .block { width: calc(100% - 28px); }
   .bento { grid-template-columns: 1fr; }
   .tile-wide { grid-column: span 1; }
