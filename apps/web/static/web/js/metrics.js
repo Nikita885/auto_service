@@ -319,7 +319,7 @@
     box.innerHTML = "";
 
     $("#m-stock-sub").textContent =
-      "Остатки канистр · порог «заканчивается» — " + stock.threshold;
+      "Остатки расходных материалов · порог «заканчивается» — " + stock.threshold;
 
     if (!stock.items.length) {
       box.append(empty("Остатки не заведены.", "box"));

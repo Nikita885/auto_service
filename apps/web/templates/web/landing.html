@@ -2,7 +2,7 @@
 {% load humanize static %}
 
 {% block title %}{{ company.NAME }} — {{ company.TAGLINE }}{% endblock %}
-{% block description %}{{ company.NAME }}: замена масла по записи из мобильного приложения или по телефону {{ company.PHONE }}. Свой пост к назначенному времени, масло в наличии, работа за {{ company.SERVICE_MINUTES }} минут.{% endblock %}
+{% block description %}{{ company.NAME }}: замена масла по записи из мобильного приложения или по телефону {{ company.PHONE }}. Свой пост к назначенному времени, без очереди и без «оставьте машину до вечера».{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'web/css/landing.css' %}">
@@ -43,7 +43,7 @@
 
 {% block nav %}
   <a href="#service">Услуга</a>
-  <a href="#oils">{% if company.SHOW_PRICES %}Цены{% else %}Масла{% endif %}</a>
+  <a href="#oils">{% if company.SHOW_PRICES %}Цены{% else %}Расходные материалы{% endif %}</a>
   <a href="#how">Как записаться</a>
   <a href="#addresses">Адреса</a>
 {% endblock %}
@@ -68,11 +68,11 @@
       <div class="hero-text" data-reveal-group>
         <span class="kicker" data-reveal>Замена масла · {{ points|length }} адреса в городе</span>
 
-        <h1 data-reveal>Приезжаете к своему времени<br>и уезжаете через <span class="hl">{{ company.SERVICE_MINUTES }} минут</span></h1>
+        <h1 data-reveal>Приезжаете к своему времени<br>и уезжаете <span class="hl">без очереди</span></h1>
 
         <p class="hero-sub" data-reveal>
-          Записываетесь в приложении или по телефону — мы держим за вами пост
-          и канистру. Без очереди, без «оставьте машину до вечера».
+          Записываетесь в приложении или по телефону — и пост ждёт именно вас.
+          Без очереди, без «оставьте машину до вечера».
         </p>
 
         <div class="hero-cta" data-reveal>
@@ -84,7 +84,7 @@
         </div>
 
         <ul class="hero-list" data-reveal>
-          <li><b>Масло в наличии</b> — резервируем при записи</li>
+          <li><b>Свой пост</b> — к назначенному времени, без ожидания</li>
           <li><b>Фиксированная цена</b> — работа входит в стоимость</li>
           <li><b>Напомним за 2 часа</b> — SMS перед визитом</li>
         </ul>
@@ -107,9 +107,6 @@
         <b data-count="{{ company.CARS_SERVED }}">{{ company.CARS_SERVED|intcomma }}</b><span>машин обслужено</span>
       </div>
       <div class="hstat" data-reveal>
-        <b data-count="{{ company.SERVICE_MINUTES }}">{{ company.SERVICE_MINUTES }}</b><span>минут на замену</span>
-      </div>
-      <div class="hstat" data-reveal>
         <b data-count="4.9" data-decimals="1">4,9</b><span>средняя оценка</span>
       </div>
     </div>
@@ -121,7 +118,6 @@
   <div class="block-head" data-reveal-group>
     <span class="kicker kicker-dark" data-reveal>Одна услуга — и мы делаем её хорошо</span>
     <h2 data-reveal>Что входит в замену масла</h2>
-    <p data-reveal>Фиксированный набор работ. Ничего не «доосмотрим» на месте и не допродадим.</p>
   </div>
 
   <div class="bento" data-reveal-group>
@@ -136,21 +132,22 @@
     </article>
 
     <article class="tile glass tile-accent" data-reveal>
-      <span class="tile-num">{{ company.SERVICE_MINUTES }}</span>
-      <h3>минут — и вы свободны</h3>
-      <p>Слот занят только вами: пока вы на посту, туда никого не поставят.</p>
+      <p class="tile-claim">Ваш пост — только ваш</p>
+      <p>Пока вы на посту, туда никого не поставят: ждать, когда освободится
+        подъёмник, не придётся.</p>
     </article>
 
     <article class="tile glass" data-reveal>
       <h3>Сумму называем до работ</h3>
-      <p>Итог — масло плюс работа — вы слышите при записи. На месте он не меняется.</p>
+      <p>Итог — расходные материалы плюс работа — вы слышите при записи.
+        На месте он не меняется.</p>
     </article>
 
     <article class="tile glass tile-wide" data-reveal>
       <h3>Не приехали — ничего не потеряли</h3>
       <p>
-        Отменить запись можно самому, не позже чем за час до визита. Пост и канистра
-        сразу освобождаются — никаких звонков и объяснений.
+        Отменить запись можно самому, не позже чем за час до визита. Пост сразу
+        освобождается — никаких звонков и объяснений.
       </p>
     </article>
   </div>
@@ -169,13 +166,13 @@
     <span class="kicker kicker-dark" data-reveal>{% if company.SHOW_PRICES %}Прайс{% else %}Ассортимент{% endif %}</span>
 
     {% if company.SHOW_PRICES %}
-      <h2 data-reveal>Масло и цены</h2>
-      <p data-reveal>Итог указан вместе с работой. Наличие на конкретном адресе видно при записи.</p>
+      <h2 data-reveal>Расходные материалы и цены</h2>
+      <p data-reveal>Итог указан вместе с работой.</p>
     {% else %}
-      <h2 data-reveal>Масла в наличии</h2>
+      <h2 data-reveal>Расходные материалы</h2>
       <p data-reveal>
-        Подберём по марке, году выпуска и пробегу. Остаток на конкретном адресе
-        видно при записи, стоимость назовём по телефону.
+        Подберём по марке автомобиля, году выпуска и пробегу.
+        Стоимость назовём по телефону.
       </p>
     {% endif %}
   </div>
@@ -186,10 +183,10 @@
         <table class="price-table">
           <thead>
             <tr>
-              <th>Масло</th>
+              <th>Наименование</th>
               <th class="hide-sm">Вязкость</th>
               <th class="hide-sm">Тип</th>
-              <th class="num">Канистра</th>
+              <th class="num">Материал</th>
               <th class="num hide-sm">Работа</th>
               <th class="num">Итого</th>
             </tr>
@@ -230,7 +227,7 @@
     {% endif %}
 
     <p class="price-foot-note" data-reveal>
-      {% if company.SHOW_PRICES %}Не нашли своё масло?{% else %}Не нашли своё масло или хотите узнать стоимость?{% endif %}
+      {% if company.SHOW_PRICES %}Не нашли нужное?{% else %}Не нашли нужное или хотите узнать стоимость?{% endif %}
       Позвоните — подберём по марке и году выпуска:
       <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
     </p>
@@ -253,7 +250,7 @@
       <h3>В приложении</h3>
       <ol class="way-steps">
         <li><b>Вход по номеру.</b> Придёт код в SMS, пароль не нужен.</li>
-        <li><b>Адрес, масло, время.</b> Показываем только то, что есть в наличии.</li>
+        <li><b>Адрес, материалы, время.</b> Выбираете в приложении за пару касаний.</li>
         <li><b>Подтверждение.</b> Придёт SMS с кодом записи.</li>
       </ol>
       <a class="btn btn-primary btn-lg btn-block" href="#app">Скачать приложение</a>
@@ -290,7 +287,6 @@
         <p class="address-line">{{ point.address }}</p>
         <div class="address-facts">
           <div><b>{{ point.posts_count }}</b><span>{% if point.posts_count == 1 %}пост{% else %}поста{% endif %}</span></div>
-          <div><b>{{ point.slot_minutes }}</b><span>мин слот</span></div>
           <div><b>{{ points|length }}</b><span>адреса сети</span></div>
         </div>
         <div class="address-actions">
@@ -348,7 +344,7 @@
 
     <ul class="app-features">
       <li><b>Свободное время</b><span>только реально свободные слоты</span></li>
-      <li><b>Масло в наличии</b><span>остаток по каждому адресу</span></li>
+      <li><b>Расходные материалы</b><span>выбираете при записи</span></li>
       <li><b>Код записи</b><span>назовёте его на посту</span></li>
       <li><b>Отмена в касание</b><span>за час до визита</span></li>
     </ul>
@@ -427,7 +423,7 @@
     <div class="footer-col">
       <h4>Разделы</h4>
       <a href="#service">Услуга</a>
-      <a href="#oils">{% if company.SHOW_PRICES %}Цены{% else %}Масла{% endif %}</a>
+      <a href="#oils">{% if company.SHOW_PRICES %}Цены{% else %}Расходные материалы{% endif %}</a>
       <a href="#how">Как записаться</a>
       <a href="#faq">Вопросы</a>
     </div>

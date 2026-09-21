@@ -176,9 +176,9 @@
   /* Надпись лежит на нижней половине кузова и свешивается ниже него —
      как на фирменном знаке. Все размеры считаются от --logo-w, поэтому
      пропорции лока не зависят от того, где он стоит. */
-  top: 36%;
+  top: 44%;
   text-align: center;
-  font-size: calc(var(--logo-w) * .118);
+  font-size: calc(var(--logo-w) * .112);
   line-height: .96;
   font-weight: 900;
   font-family: "Arial Black", "Segoe UI", var(--font);
@@ -421,7 +421,7 @@
 
 .hero-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   margin-top: clamp(44px, 6vw, 72px);
   border-top: 1px solid rgba(122, 186, 255, .14);
 }
@@ -581,13 +581,14 @@
 }
 .tile-accent::before { background: linear-gradient(160deg, rgba(122, 186, 255, .7), rgba(122, 186, 255, .12)); }
 
-.tile-num {
-  display: block;
-  font-size: 60px;
+/* Селектор с .tile намеренно: правило `.tile p` выше по специфичности и
+   иначе перебивает и размер, и цвет — утверждение теряет и вес, и свечение. */
+.tile .tile-claim {
+  font-size: clamp(24px, 2.6vw, 32px);
   font-weight: 800;
-  line-height: 1;
-  letter-spacing: -.05em;
-  margin-bottom: 8px;
+  line-height: 1.1;
+  letter-spacing: -.03em;
+  margin-bottom: 12px;
   color: var(--neon-hot);
   text-shadow: 0 0 22px var(--neon), 0 0 60px rgba(10, 92, 255, .7);
 }
@@ -757,7 +758,7 @@
 
 .address-facts {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
   margin: 22px 0;
   padding: 18px 0;

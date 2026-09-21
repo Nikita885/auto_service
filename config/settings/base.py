@@ -304,7 +304,7 @@ REFERRAL = {
 # ни редактирования кода, ни пересборки образа.
 COMPANY = {
     "NAME": env("COMPANY_NAME", default="Экспресс Замена"),
-    "TAGLINE": env("COMPANY_TAGLINE", default="Замена масла за 40 минут"),
+    "TAGLINE": env("COMPANY_TAGLINE", default="Замена масла по записи"),
     "PHONE": env("COMPANY_PHONE", default="+7 (499) 123-45-67"),
     "EMAIL": env("COMPANY_EMAIL", default="hello@example.com"),
     "WORKING_HOURS": env("COMPANY_WORKING_HOURS", default="Ежедневно 09:00–21:00"),
@@ -314,10 +314,6 @@ COMPANY = {
     "GOOGLE_PLAY_URL": env("COMPANY_GOOGLE_PLAY_URL", default=""),
     "YEARS_ON_MARKET": env.int("COMPANY_YEARS_ON_MARKET", default=8),
     "CARS_SERVED": env.int("COMPANY_CARS_SERVED", default=14000),
-    # Сколько занимает замена. Обещание с лендинга: оно стоит в заголовке,
-    # в плитке и в полосе цифр, и менять его в трёх местах руками — верный
-    # способ однажды разойтись в цифрах на одной странице.
-    "SERVICE_MINUTES": env.int("COMPANY_SERVICE_MINUTES", default=40),
     # Показывать ли цены на сайте. Заказчик может не хотеть раскрывать
     # стоимость публично: тогда на лендинге остаётся ассортимент масел без
     # сумм, а цену клиент узнаёт по телефону или в приложении.
