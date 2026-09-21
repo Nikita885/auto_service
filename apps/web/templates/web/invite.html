@@ -1,0 +1,114 @@
+{% extends "web/base.html" %}
+{% load static %}
+
+{% comment %}
+Страница, на которую ведёт ссылка-приглашение `/i/<код>`.
+
+Смысл страницы — не реклама, а один шаг: дать человеку код. Если
+приложение стоит и App Links настроены, до неё дело чаще всего не дойдёт
+вовсе — Android откроет приложение сам. Страница нужна тем, у кого
+приложения ещё нет, у кого iPhone, и тем, кто открыл ссылку на
+компьютере. Поэтому код показан крупно и его можно списать руками:
+ссылка не должна быть единственным способом им воспользоваться.
+{% endcomment %}
+
+{% block title %}Приглашение · {{ company.NAME }}{% endblock %}
+{% block description %}{% if found %}{{ inviter_name }} приглашает вас в {{ company.NAME }}. Код приглашения {{ code }}.{% else %}Код приглашения не найден.{% endif %}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'web/css/landing.css' %}">
+<script>
+  document.documentElement.dataset.theme = "dark";
+  document.documentElement.classList.add("has-js");
+</script>
+{% endblock %}
+
+{% block body_class %}landing{% endblock %}
+{% block theme_toggle %}{% endblock %}
+{% block theme_init %}{% endblock %}
+
+{% block brand %}
+<a class="brand" href="/">
+  {% include "web/_logo.html" with logo_class="logo-sm" %}
+</a>
+{% endblock %}
+
+{% block content %}
+<section class="invite">
+  <div class="invite-card">
+    {% if found %}
+      <p class="invite-from">{{ inviter_name }} приглашает вас в</p>
+      <h1 class="invite-title">{{ company.NAME }}</h1>
+      <p class="invite-lead">
+        Замена масла по записи: свой пост к назначенному времени, без очереди.
+      </p>
+
+      <p class="invite-label">Код приглашения</p>
+      <p class="invite-code">{{ code }}</p>
+      <button class="btn btn-ghost invite-copy" type="button" data-copy="{{ code }}">
+        Скопировать код
+      </button>
+
+      <ol class="invite-steps">
+        <li>Установите приложение</li>
+        <li>Войдите по номеру телефона</li>
+        <li>Введите код на экране «Приглашайте друзей»</li>
+      </ol>
+    {% else %}
+      <h1 class="invite-title">Код не найден</h1>
+      <p class="invite-lead">
+        Проверьте ссылку — возможно, она скопировалась не целиком.
+        Код можно ввести и вручную, на экране «Приглашайте друзей» в приложении.
+      </p>
+    {% endif %}
+
+    <div class="stores invite-stores">
+      {% if company.APP_STORE_URL %}
+        <a class="store-btn" href="{{ company.APP_STORE_URL }}" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+          <span><small>Загрузить в</small>App Store</span>
+        </a>
+      {% else %}
+        <span class="store-btn is-soon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+          <span><small>Скоро в</small>App Store</span>
+        </span>
+      {% endif %}
+
+      {% if company.GOOGLE_PLAY_URL %}
+        <a class="store-btn" href="{{ company.GOOGLE_PLAY_URL }}" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5v17a1 1 0 0 0 1.5.9l12-8.5a1 1 0 0 0 0-1.7l-12-8.5A1 1 0 0 0 5 3.5z"/></svg>
+          <span><small>Доступно в</small>Google Play</span>
+        </a>
+      {% else %}
+        <span class="store-btn is-soon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5v17a1 1 0 0 0 1.5.9l12-8.5a1 1 0 0 0 0-1.7l-12-8.5A1 1 0 0 0 5 3.5z"/></svg>
+          <span><small>Скоро в</small>Google Play</span>
+        </span>
+      {% endif %}
+    </div>
+
+    <p class="invite-foot">
+      Записаться можно и звонком:
+      <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+    </p>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Копирование кода. Без JS страница остаётся рабочей: код виден и
+  // выделяется мышью, кнопка просто ничего не делает.
+  document.querySelectorAll("[data-copy]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      if (!navigator.clipboard) { return; }
+      navigator.clipboard.writeText(button.dataset.copy).then(function () {
+        var was = button.textContent;
+        button.textContent = "Скопировано";
+        setTimeout(function () { button.textContent = was; }, 1500);
+      }, function () {});
+    });
+  });
+</script>
+{% endblock %}

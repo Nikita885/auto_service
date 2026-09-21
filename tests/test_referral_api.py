@@ -330,3 +330,75 @@ def test_code_check_on_unknown_code(api):
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "referral_code_not_found"
+
+
+# ----------------------------------------- страница ссылки-приглашения
+
+
+def test_invite_page_shows_code_and_inviter(client, make_user):
+    inviter = make_user("Пригласивший")
+    node = tree_service.ensure_node(inviter)
+
+    response = client.get(f"/i/{node.code}/")
+    body = response.content.decode()
+
+    assert response.status_code == 200
+    assert node.code in body
+    assert inviter.full_name in body
+
+
+def test_invite_page_accepts_lowercase_code(client, make_user):
+    """Ссылку набирают руками и пересылают в мессенджере — регистр по
+    дороге теряется."""
+    node = tree_service.ensure_node(make_user())
+
+    assert client.get(f"/i/{node.code.lower()}/").status_code == 200
+
+
+def test_invite_page_without_trailing_slash(client, make_user):
+    """Хвостовой слеш при копировании теряется первым."""
+    node = tree_service.ensure_node(make_user())
+
+    assert client.get(f"/i/{node.code}").status_code == 200
+
+
+def test_unknown_code_explains_instead_of_404(client):
+    """Ссылка могла скопироваться не целиком. Объяснить это полезнее, чем
+    показать страницу ошибки."""
+    response = client.get("/i/ZZZZZZ/")
+
+    assert response.status_code == 200
+    assert "не найден" in response.content.decode().lower()
+
+
+def test_invite_page_does_not_leak_inviter_phone(client, make_user):
+    inviter = make_user("Пригласивший")
+    node = tree_service.ensure_node(inviter)
+
+    body = client.get(f"/i/{node.code}/").content.decode()
+
+    assert inviter.phone not in body
+
+
+# --------------------------------------------------------- App Links
+
+
+def test_assetlinks_is_absent_until_fingerprint_is_set(client, settings):
+    """Пустой или выдуманный файл Android считает провалом проверки, и
+    отлаживать это потом очень неприятно. Лучше честный 404."""
+    settings.ANDROID_APP = {**settings.ANDROID_APP, "FINGERPRINTS": []}
+
+    assert client.get("/.well-known/assetlinks.json").status_code == 404
+
+
+def test_assetlinks_lists_package_and_fingerprint(client, settings):
+    settings.ANDROID_APP = {
+        "PACKAGE": "ru.autoservice.client",
+        "FINGERPRINTS": ["AA:BB:CC"],
+    }
+
+    body = client.get("/.well-known/assetlinks.json").json()
+
+    assert body[0]["target"]["package_name"] == "ru.autoservice.client"
+    assert body[0]["target"]["sha256_cert_fingerprints"] == ["AA:BB:CC"]
+    assert body[0]["relation"] == ["delegate_permission/common.handle_all_urls"]

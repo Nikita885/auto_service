@@ -352,6 +352,18 @@ COMPANY = {
     "SHOW_PRICES": env.bool("COMPANY_SHOW_PRICES", default=False),
 }
 
+# ------------------------------------------------- мобильное приложение
+# Нужно для Android App Links: по `/.well-known/assetlinks.json` система
+# проверяет, что домен признаёт приложение своим, и только тогда открывает
+# ссылку-приглашение в нём, а не в браузере.
+ANDROID_APP = {
+    "PACKAGE": env("ANDROID_PACKAGE", default="ru.autoservice.client"),
+    # SHA-256 отпечатки сертификата подписи, через запятую. У отладочной и
+    # релизной сборки они разные, а в Google Play подписывает сам Google —
+    # там отпечаток берётся из консоли, раздел «Целостность приложения».
+    "FINGERPRINTS": env.list("ANDROID_CERT_FINGERPRINTS", default=[]),
+}
+
 # ---------------------------------------------------------------- logging
 LOGGING = {
     "version": 1,
