@@ -157,6 +157,7 @@ def verify_otp(raw_phone: str, code: str) -> AuthResult:
         if is_new:
             user.set_unusable_password()
             user.save(update_fields=["password"])
+            _ensure_referral_node(user)
 
     if not user.is_active:
         raise PermissionError_("Аккаунт заблокирован", code="user_blocked")
@@ -164,6 +165,25 @@ def verify_otp(raw_phone: str, code: str) -> AuthResult:
     tokens = issue_tokens(user)
     logger.info("Вход %s (новый: %s)", mask_phone(phone), is_new)
     return AuthResult(user=user, is_new_user=is_new, **tokens)
+
+
+def _ensure_referral_node(user: User) -> None:
+    """Завести клиенту место в матрице сразу при регистрации.
+
+    Импорт локальный: `apps.accounts` не должен зависеть от рефералки на
+    уровне модуля — так же сделано в `booking.services.booking.complete()`.
+
+    Без этого вызова программа не работала вовсе: узел появлялся только у
+    того, кто ввёл чужой код, а начисления ищут узел заплатившего и на
+    его отсутствии молча выходят. То есть первый же клиент без кода
+    обрывал цепочку для всех, кто над ним.
+    """
+    if user.role != UserRole.CLIENT:
+        return
+
+    from apps.referral.services import tree as referral_tree
+
+    referral_tree.ensure_node(user)
 
 
 def issue_tokens(user: User) -> dict[str, str]:

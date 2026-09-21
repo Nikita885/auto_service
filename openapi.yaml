@@ -794,6 +794,129 @@ paths:
               schema:
                 $ref: '#/components/schemas/Metrics'
           description: ''
+  /api/v1/referral/:
+    get:
+      operationId: referral_retrieve
+      description: Код приглашения, ссылка, баланс баллов и счётчики по линиям. При
+        выключенной программе приходит только enabled=false.
+      summary: Моя реферальная программа
+      tags:
+      - Реферальная программа
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralSummary'
+          description: ''
+  /api/v1/referral/attach/:
+    post:
+      operationId: referral_attach_create
+      description: 'Привязка одноразовая: сменить пригласившего нельзя, иначе кто-то
+        уже получил бы баллы за чужого клиента.'
+      summary: Принять приглашение по коду
+      tags:
+      - Реферальная программа
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttachRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AttachRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AttachRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralSummary'
+          description: ''
+  /api/v1/referral/codes/{code}/:
+    get:
+      operationId: referral_codes_retrieve
+      description: |-
+        Проверка кода до входа: страница-приглашение показывает, чей он.
+
+        Открыта без авторизации намеренно — человек переходит по ссылке ещё до
+        того, как поставил приложение. Наружу уходит только имя пригласившего:
+        по коду не должно быть видно ни телефона, ни размера ветки.
+      summary: Чей это код приглашения
+      parameters:
+      - in: path
+        name: code
+        schema:
+          type: string
+        required: true
+      tags:
+      - Реферальная программа
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/referral/invited/:
+    get:
+      operationId: referral_invited_list
+      description: |-
+        Общая база: программа только для клиентов.
+
+        Мастеру и администратору код приглашения не нужен, а узел в матрице на
+        сотруднике означал бы, что сервис начисляет баллы сам себе.
+      summary: Кого я пригласил
+      tags:
+      - Реферальная программа
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invited'
+          description: ''
+  /api/v1/referral/points/:
+    get:
+      operationId: referral_points_list
+      description: 'История баллов: начисления, списания, корректировки.'
+      summary: История баллов
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - Реферальная программа
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPointsEntryList'
+          description: ''
   /api/v1/service-points/:
     get:
       operationId: service_points_list
@@ -897,6 +1020,15 @@ paths:
           description: ''
 components:
   schemas:
+    AttachRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 16
+      required:
+      - code
     AuthResponse:
       type: object
       properties:
@@ -1382,6 +1514,28 @@ components:
       - key
       - label
       - share
+    Invited:
+      type: object
+      properties:
+        name:
+          type: string
+        phone_masked:
+          type: string
+        joined_at:
+          type: string
+          format: date-time
+        line:
+          type: integer
+        earned_from:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+      required:
+      - earned_from
+      - joined_at
+      - line
+      - name
+      - phone_masked
     LiveDraft:
       type: object
       description: Кто прямо сейчас записывается. Полезно, чтобы понимать нагрузку.
@@ -2235,6 +2389,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MasterBooking'
+    PaginatedPointsEntryList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PointsEntry'
     PatchedProfileUpdateRequest:
       type: object
       properties:
@@ -2247,6 +2424,101 @@ components:
         car_plate:
           type: string
           maxLength: 16
+    PointsEntry:
+      type: object
+      description: |-
+        Строка журнала баллов.
+
+        `percent` и `level` — снимок на момент начисления: ставки меняются в
+        `.env`, а история переписываться не должна.
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        kind:
+          type: string
+        kind_display:
+          type: string
+        level:
+          type: integer
+          nullable: true
+        percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        base_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        booking_code:
+          type: string
+          default: ''
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - amount
+      - base_amount
+      - comment
+      - created_at
+      - id
+      - kind
+      - kind_display
+      - level
+      - percent
+    ReferralSummary:
+      type: object
+      description: |-
+        Экран реферальной программы одним ответом.
+
+        Все поля необязательные: при выключенной программе приходит только
+        `enabled: false`, и приложение прячет раздел целиком.
+      properties:
+        enabled:
+          type: boolean
+        code:
+          type: string
+        invite_url:
+          type: string
+          format: uri
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        max_discount_percent:
+          type: integer
+        level_percents:
+          type: array
+          items:
+            type: string
+        attached:
+          type: boolean
+        sponsor_code:
+          type: string
+        invited_count:
+          type: integer
+        line_counts:
+          type: array
+          items:
+            type: integer
+        earned_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        spent_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+      required:
+      - enabled
     RoleEnum:
       enum:
       - client
