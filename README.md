@@ -1293,10 +1293,33 @@ make lint    # ruff: E, F, I, UP, B, DJ, C4, SIM
   запрос, вес и мигание при загрузке, а лёгкое искажение на таком кегле
   незаметно.
 
-**При смене названия подбирайте кегль заново.** Он задан долей от
-`--logo-w` (сейчас `.085`), и слово другой длины либо вылезет за габарит
-кузова, либо потеряется на нём. Заодно проверьте, что знак по-прежнему
-влезает в шапку: её высоту задаёт `--header-h` на `.landing`.
+**При смене названия подбирайте кегль и посадку заново.** Оба заданы долей
+от `--logo-w` (сейчас `.078` и `.137`). Слово другой длины либо вылезет за
+габарит кузова, либо потеряется на нём, а строка не должна наезжать на
+линии машины: надпись стоит *под* линией борта, а не поперёк неё. Проверить
+пересечения можно в консоли браузера — `isPointInFill()` по сетке точек
+внутри текстового бокса:
+
+```js
+const L = document.querySelector('.logo-hero');
+const svg = L.querySelector('.logo-car');
+const path = L.querySelector('.logo-line-body');
+const r = document.createRange();
+r.selectNodeContents(L.querySelector('.logo-word-main'));
+const t = r.getBoundingClientRect();
+const m = svg.getScreenCTM().inverse();
+let hits = 0;
+for (let i = 0; i <= 80; i++) for (let j = 0; j <= 24; j++) {
+  const p = svg.createSVGPoint();
+  p.x = t.left + t.width * i / 80;
+  p.y = t.top + t.height * j / 24;
+  if (path.isPointInFill(p.matrixTransform(m))) hits++;
+}
+hits;   // попадания в верхней полосе — это межстрочный отступ, не буквы
+```
+
+Заодно проверьте, что знак по-прежнему влезает в шапку: её высоту задаёт
+`--header-h` на `.landing`.
 
 #### Движение
 
