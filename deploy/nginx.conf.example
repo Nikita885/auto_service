@@ -7,7 +7,10 @@
 #
 # Два блока: основной домен обслуживает сайт, второстепенные редиректят на
 # него. Так у страницы один канонический адрес — иначе поисковики видят один и
-# тот же контент на четырёх адресах и делят между ними вес.
+# тот же контент на пяти адресах и делят между ними вес.
+#
+# Основной — moiservis.pro. Прежние домены «Экспресс Замена» остались и ведут
+# сюда же: у них уже есть история и их успели раздать.
 #
 # Кириллический домен пишется в punycode (`xn--…`): именно в таком виде он
 # приходит в заголовке Host, и certbot работает только с этой формой.
@@ -16,20 +19,22 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name www.ekspres-zamena.ru
+    server_name www.moiservis.pro
+                ekspres-zamena.ru
+                www.ekspres-zamena.ru
                 xn----8sbarcksuknlkd6n.xn--p1ai
                 www.xn----8sbarcksuknlkd6n.xn--p1ai;
 
     # 301, а не 302: постоянный редирект поисковики учитывают при склейке
     # адресов, временный — нет.
-    return 301 https://ekspres-zamena.ru$request_uri;
+    return 301 https://moiservis.pro$request_uri;
 }
 
 # ---------------------------------------------------------------- основной
 server {
     listen 80;
     listen [::]:80;
-    server_name ekspres-zamena.ru;
+    server_name moiservis.pro;
 
     # Загрузки пользователей: аватары и вложения крупнее дефолтного 1 МБ.
     client_max_body_size 10m;

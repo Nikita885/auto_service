@@ -79,10 +79,10 @@ android {
             }
 
             // Боевой домен. Только https и wss: по открытому каналу уходит JWT.
-            // Латинский, а не кириллический экспрес-замена.рф: тот в punycode
-            // нечитаем, а на сервере он всё равно редиректит сюда.
-            buildConfigField "String", "API_BASE_URL", '"https://ekspres-zamena.ru/"'
-            buildConfigField "String", "WS_BASE_URL", '"wss://ekspres-zamena.ru/"'
+            // Здесь нужен именно основной домен, а не один из редиректящих:
+            // браузер редирект отработает, а OkHttp с JWT в заголовке — нет.
+            buildConfigField "String", "API_BASE_URL", '"https://moiservis.pro/"'
+            buildConfigField "String", "WS_BASE_URL", '"wss://moiservis.pro/"'
         }
     }
 
