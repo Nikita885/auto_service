@@ -1,0 +1,90 @@
+# Справочник марок и моделей для подсказок при заполнении профиля.
+#
+# Формат строки:  Марка | синонимы через запятую | модели через запятую
+#
+# Порядок строк задаёт порядок в списке, когда клиент просто открыл выбор
+# марки и ничего не набрал: сверху то, что реально заезжает на замену, а не
+# то, что раньше по алфавиту.
+#
+# Синонимы — всё, как марку могут набрать: русское написание, разговорное
+# сокращение, прежнее имя. Транслитерацию писать не нужно, её делает
+# apps/common/translit.py: «Мерседес» и «Mercedes» сойдутся сами.
+#
+# Список не обязан быть полным. В профиле остаётся свободная строка, и
+# редкую машину клиент впишет сам — иначе неполнота справочника стоила бы
+# нам клиента. Дополнять можно здесь (затем `manage.py import_cars`) или
+# прямо в Django-админке.
+
+LADA | Лада, ВАЗ, Жигули, Ваз | Granta, Vesta, Largus, Niva Legend, Niva Travel, XRAY, Kalina, Priora, Samara, 2107, 2110, 2114, 2115, Iskra
+Kia | Киа, Кия | Rio, Rio X, Rio X-Line, Ceed, Cerato, Optima, K5, Sportage, Sorento, Seltos, Soul, Picanto, Carnival, Mohave, Stinger, Venga, Spectra
+Hyundai | Хендай, Хундай, Хёндэ, Хендэ | Solaris, Creta, Accent, Elantra, Sonata, Tucson, Santa Fe, ix35, Getz, i20, i30, i40, Palisade, Staria, Porter
+Toyota | Тойота | Camry, Corolla, RAV4, Land Cruiser, Land Cruiser Prado, Highlander, Avensis, Yaris, Auris, Prius, Hilux, Fortuner, C-HR, Venza, Alphard, Vitz, Mark II, Carina, Crown
+Volkswagen | Фольксваген, Фольц, ВВ, VW | Polo, Golf, Passat, Jetta, Tiguan, Touareg, Teramont, Caddy, Transporter, Touran, Sharan, Amarok, Multivan, Bora
+Nissan | Ниссан | Qashqai, X-Trail, Almera, Juke, Terrano, Murano, Note, Tiida, Teana, Pathfinder, Patrol, Sentra, Primera, Navara, Serena
+Renault | Рено | Logan, Sandero, Duster, Kaptur, Arkana, Megane, Fluence, Scenic, Koleos, Symbol, Laguna, Master
+Mercedes-Benz | Мерседес, Мерс, Мерин, Мерседес-Бенц | A-Class, B-Class, C-Class, E-Class, S-Class, CLA, CLS, GLA, GLB, GLC, GLE, GLS, G-Class, V-Class, Vito, Sprinter, ML, GL, Viano
+BMW | БМВ, Бэха, Бумер | 1 Series, 2 Series, 3 Series, 4 Series, 5 Series, 6 Series, 7 Series, 8 Series, X1, X2, X3, X4, X5, X6, X7, Z4, i3, i4, iX
+Skoda | Шкода | Octavia, Rapid, Fabia, Superb, Kodiaq, Karoq, Kamiq, Yeti, Roomster, Kushaq
+Ford | Форд | Focus, Fiesta, Mondeo, Kuga, Explorer, EcoSport, Transit, Ranger, Mustang, S-Max, Galaxy, Escape
+Chevrolet | Шевроле, Шеви | Cruze, Aveo, Lacetti, Captiva, Niva, Cobalt, Camaro, Tahoe, Spark, Epica, Orlando, TrailBlazer
+Audi | Ауди | A1, A3, A4, A5, A6, A7, A8, Q2, Q3, Q5, Q7, Q8, TT, RS3, RS6, e-tron
+Mazda | Мазда | 3, 6, CX-3, CX-30, CX-5, CX-7, CX-9, MX-5, 2, 323, 626, Demio
+Mitsubishi | Мицубиси, Митсубиси, Мицубиши, Митсу | Lancer, Outlander, ASX, Pajero, Pajero Sport, L200, Eclipse Cross, Colt, Galant, Carisma
+Haval | Хавал, Хавейл | Jolion, F7, F7x, Dargo, H3, H5, H6, H9, M6
+Chery | Чери, Черри | Tiggo 2, Tiggo 3, Tiggo 4, Tiggo 7 Pro, Tiggo 8 Pro, Arrizo 8, Amulet, Bonus, Fora, Indis, Kimo
+Geely | Джили, Джилли | Coolray, Atlas, Atlas Pro, Tugella, Monjaro, Emgrand, Okavango, MK, Preface
+Opel | Опель | Astra, Corsa, Insignia, Zafira, Mokka, Vectra, Antara, Meriva, Combo, Frontera
+Volvo | Вольво | XC40, XC60, XC70, XC90, S60, S80, S90, V40, V60, V90
+Lexus | Лексус | RX, NX, LX, GX, ES, IS, LS, UX, GS, RC
+Peugeot | Пежо | 206, 207, 208, 301, 307, 308, 408, 508, 2008, 3008, 5008, Partner, Boxer, Traveller
+Citroen | Ситроен | C3, C4, C4 Picasso, C5, C5 Aircross, Berlingo, Jumper, Jumpy, DS4
+Honda | Хонда | Civic, Accord, CR-V, Pilot, Fit, Jazz, HR-V, Insight, Legend, Stepwgn
+Subaru | Субару | Forester, Outback, XV, Impreza, Legacy, WRX, Tribeca, Levorg
+Suzuki | Сузуки, Судзуки | Grand Vitara, Vitara, SX4, Swift, Jimny, Liana, Escudo
+UAZ | УАЗ, Уазик, Буханка, Патриот | Patriot, Hunter, Pickup, Profi, 3909, 452, 469
+GAZ | ГАЗ, Газель, Газон | Gazelle Next, Gazelle Business, Sobol, Valday, 3302, 31105, Volga
+Land Rover | Ленд Ровер, Лендровер, Рендж Ровер | Range Rover, Range Rover Sport, Range Rover Velar, Range Rover Evoque, Discovery, Discovery Sport, Defender, Freelander
+Jeep | Джип | Grand Cherokee, Cherokee, Compass, Renegade, Wrangler, Commander, Patriot
+Infiniti | Инфинити | QX50, QX56, QX60, QX70, QX80, Q50, Q70, FX35, FX37, EX35, G25
+Porsche | Порше, Порш | Cayenne, Macan, Panamera, 911, Boxster, Cayman, Taycan
+Changan | Чанган | CS35 Plus, CS55 Plus, CS75 Plus, UNI-K, UNI-T, UNI-V, Alsvin, Eado
+Exeed | Эксид | TXL, LX, VX, RX
+Omoda | Омода | C5, S5, S5 GT
+Jetour | Джетур | X70 Plus, X90 Plus, Dashing, T2
+Tank | Танк | 300, 500, 700
+Great Wall | Грейт Вол, Грейтвол, ГВМ | Hover, Hover H3, Hover H5, Wingle, Poer, Safe
+Lifan | Лифан | X50, X60, X70, Solano, Smily, Breez, Myway
+Datsun | Датсун | on-DO, mi-DO
+Daewoo | Дэу, Дэо | Nexia, Matiz, Gentra, Lanos, Espero, Nubira
+SsangYong | Санг Йонг, Сангйонг, Ссангйонг | Actyon, Actyon Sport, Kyron, Rexton, Korando, Musso
+Cadillac | Кадиллак | Escalade, CTS, SRX, XT5, ATS, STS
+Chrysler | Крайслер | 300C, Sebring, Voyager, PT Cruiser
+Dodge | Додж | Caravan, Journey, Ram, Charger, Challenger, Durango
+Jaguar | Ягуар | XF, XE, XJ, F-Pace, E-Pace, F-Type
+Mini | Мини, Мини Купер | Cooper, Countryman, Clubman, Paceman
+Fiat | Фиат | Ducato, Doblo, Albea, Punto, 500, Bravo, Linea
+Alfa Romeo | Альфа Ромео, Альфа | Giulietta, Giulia, Stelvio, 159, 147, Brera
+Acura | Акура | MDX, RDX, TLX, TSX, ZDX
+Lincoln | Линкольн | Navigator, MKX, MKZ, Continental
+Genesis | Дженезис, Генезис | G70, G80, G90, GV70, GV80
+Iveco | Ивеко | Daily, Stralis, Eurocargo
+MAN | МАН | TGX, TGS, TGM, TGL
+Scania | Скания | R-Series, G-Series, P-Series
+Volkswagen Commercial | Фольксваген Коммерческие | Crafter, Caravelle
+Zeekr | Зикр, Зеекр | 001, 007, 009, X
+Li Auto | Лисян, Ли Авто, Лиауто | L6, L7, L8, L9
+Voyah | Вояж, Воях | Free, Dream, Passion
+Belgee | Белджи, Белжи | X50, X70
+Moskvich | Москвич | 3, 3e, 6, 8, 2141
+Tesla | Тесла | Model 3, Model S, Model X, Model Y
+BYD | БИД, Бид, БВД | Song Plus, Han, Tang, Seal, Atto 3, Qin
+FAW | ФАВ | Bestune T77, Bestune T99, Besturn X40
+JAC | ЖАК, Джак | S3, S5, S7, T6, JS4, JS6
+Ravon | Равон | Nexia R3, R2, Gentra
+Isuzu | Исузу | D-Max, Elf, Forward
+Hummer | Хаммер | H1, H2, H3
+Smart | Смарт | Fortwo, Forfour
+Seat | Сеат, Сиат | Ibiza, Leon, Toledo, Ateca
+Vortex | Вортекс | Estina, Tingo, Corda
+Brilliance | Бриллианс | V5, H230, M2
+Dongfeng | Донгфенг, Дунфэн | AX7, S30, H30

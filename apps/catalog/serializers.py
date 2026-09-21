@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.catalog.models import Oil, ServicePoint
+from apps.catalog.models import CarMake, CarModel, Oil, ServicePoint
 
 
 class ServicePointSerializer(serializers.ModelSerializer):
@@ -59,3 +59,20 @@ class SlotSerializer(serializers.Serializer):
     end_at = serializers.DateTimeField()
     local_time = serializers.CharField()
     free_posts = serializers.IntegerField()
+
+
+class CarMakeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CarMake
+        fields = ("id", "name")
+
+
+class CarModelSerializer(serializers.ModelSerializer):
+    make_name = serializers.CharField(source="make.name", read_only=True)
+    # Готовая строка «марка + модель»: ровно её приложение кладёт в профиль,
+    # и склеивать её на клиенте значит однажды склеить иначе.
+    title = serializers.CharField(source="__str__", read_only=True)
+
+    class Meta:
+        model = CarModel
+        fields = ("id", "name", "make_name", "title")
