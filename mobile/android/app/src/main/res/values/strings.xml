@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Все тексты здесь: формулировки читает клиент, и правит их не программист. -->
 <resources>
-    <string name="app_name">Мой Сервис</string>
+    <string name="app_name">Мой Автосервис</string>
 
     <!-- вход -->
     <string name="auth_title">Замена масла\nбез очереди</string>
