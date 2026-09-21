@@ -23,8 +23,9 @@ API обслуживает два мобильных приложения:
 - приложение клиента — написано, Android на Java, лежит в `mobile/android`;
 - отдельное приложение мастера (вторая версия, ещё не написана).
 
-**Сайт записью не занимается.** В вебе есть лендинг (о компании, цены, адреса,
-ссылки на App Store и Google Play, телефон для записи по звонку), рабочее место
+**Сайт записью не занимается.** В вебе есть лендинг (о компании, ассортимент
+расходных материалов, адреса, ссылки на App Store и Google Play, телефон для
+записи по звонку; цены по умолчанию скрыты), рабочее место
 мастера с обновлением записей в реальном времени и панель администратора
 с метриками. Клиент записывается в приложении или по телефону.
 
@@ -43,7 +44,7 @@ API обслуживает два мобильных приложения:
 | Документация | drf-spectacular (Swagger `/api/docs/`, ReDoc `/api/redoc/`) |
 | Телефоны | phonenumbers (нормализация в E.164) |
 | Инфраструктура | Docker Compose: api, worker, beat, db, redis |
-| Тесты | pytest + pytest-django + factory-boy + freezegun |
+| Тесты | pytest + pytest-django + freezegun (factory-boy стоит в `requirements/dev.txt`, но не используется ни одним тестом) |
 | Линтер | ruff |
 | Python | 3.12 (в контейнере) |
 | Клиент под Android | Java (без Kotlin), MVVM, Retrofit + OkHttp, minSdk 24 |
@@ -125,6 +126,11 @@ API обслуживает два мобильных приложения:
 ### Чего ещё нет
 
 - Приложения мастера (вторая версия) — API и канал `ws/master/` под него готовы.
+- Внешней части реферальной программы. Ядро работает, но снаружи её не видно:
+  у рефералки нет ни одного эндпоинта в API, клиент не знает своего кода
+  приглашения, мастер не может списать баллы при расчёте (`points.spend()`
+  написан, кнопки нет), дерева и журнала в панели администратора тоже нет —
+  только Django-админка. Дерево без кода на руках у клиента не вырастет.
 - Push-уведомлений (только SMS; поле `channel` в модели уже есть).
 - Онлайн-оплаты.
 - CI/CD — выкатка на сервер руками, `git pull` плюс пересоздание контейнеров.
@@ -140,6 +146,8 @@ config/
 
 apps/
   common/          BaseModel, доменные исключения, permissions, phone.py, ws_auth.py
+    codes.py       короткие коды: записи и приглашения (общий алфавит)
+    staticfiles.py хеширующее хранилище статики для прода
   accounts/        User (логин = телефон), OtpCode, вход, профиль
   catalog/         ServicePoint, Oil, OilStock
   booking/         ЯДРО: BookingDraft, Booking, BookingStatusLog
@@ -153,6 +161,7 @@ apps/
   referral/        реферальная матрица и баллы
     services/      tree.py (размещение в матрице), points.py (начисления)
   notifications/   журнал + SMS-провайдеры (console / smsru / http_gateway)
+    management/    send_test_sms — проверка шлюза одной командой
   web/             лендинг и панели: templates/web/*.html + static/web/{css,js}
     _logo.html     фирменный знак: силуэт машины неоном + «хромированная» надпись
     landing.css    витрина: свои токены поверх дизайн-системы app.css
@@ -278,7 +287,7 @@ docker-compose.prod.yml   надстройка для прода: закрыва
 ## 9. API (базовый путь `/api/v1`)
 
 **Аутентификация:** `POST /auth/otp/request/`, `POST /auth/otp/verify/`,
-`POST /auth/token/refresh/`, `GET|PATCH /auth/me/`
+`POST /auth/token/refresh/`, `POST /auth/token/verify/`, `GET|PATCH /auth/me/`
 
 **Справочники и доступность:** `GET /service-points/`,
 `GET /service-points/{id}/oils/`, `GET /service-points/{id}/slots/?date=YYYY-MM-DD`
@@ -319,16 +328,32 @@ BOOKING_MIN_LEAD_MINUTES=30          # минимальный запас до с
 BOOKING_HORIZON_DAYS=14              # горизонт записи
 BOOKING_CANCEL_DEADLINE_MINUTES=60   # дедлайн отмены клиентом
 BOOKING_REMINDER_LEAD_MINUTES=120    # напоминание за 2 часа
+BOOKING_DRAFT_PURGE_AFTER_DAYS=7      # когда физически удалять мёртвые черновики
+
+REFERRAL_ENABLED=true
 REFERRAL_LEVEL_PERCENTS=5,4,3        # проценты по трём линиям вверх
 REFERRAL_BASE=total                  # total (весь чек) или work (только работа)
 REFERRAL_WIDTH=2                     # мест под участником: 2 = бинарная матрица
 REFERRAL_MAX_DISCOUNT_PERCENT=50     # потолок оплаты баллами
+
 OTP_TTL_SECONDS=300
 OTP_RESEND_COOLDOWN_SECONDS=60
 OTP_MAX_VERIFY_ATTEMPTS=5
 OTP_MAX_PER_PHONE_PER_HOUR=5
 OTP_DEBUG_EXPOSE_CODE=True           # в проде обязательно False
+
+SMS_PROVIDER=console                 # smsru — боевой шлюз
+SMS_API_KEY=
+SMS_SENDER=                          # буквенный отправитель, без него шлюз молчит
+SMS_ENABLED_KINDS=otp,booking_created,booking_reminder,booking_cancelled_by_master,booking_completed
+
+BUSINESS_TIMEZONE=Europe/Moscow      # в каком поясе сотрудники думают о «сегодня»
 ```
+
+Витрина настраивается там же — `COMPANY_*`: название, тег-лайн, телефон,
+почта, часы работы, ссылки на магазины, годы на рынке, число обслуженных
+машин и `COMPANY_SHOW_PRICES` (показывать ли цены). Полный список с
+пояснениями — в `.env.example` и в README.
 
 ## 11. Фоновые задачи (Celery beat)
 
