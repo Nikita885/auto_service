@@ -252,4 +252,64 @@ public final class Dtos {
         @SerializedName("event") public String event;
         @SerializedName("payload") public DraftDto payload;
     }
+
+    /* --------------------------------------------- реферальная программа */
+
+    public static final class ReferralSummaryDto {
+        @SerializedName("enabled") public boolean enabled;
+        @SerializedName("code") public String code;
+        @SerializedName("invite_url") public String inviteUrl;
+        @SerializedName("balance") public String balance;
+        @SerializedName("max_discount_percent") public int maxDiscountPercent;
+        @SerializedName("level_percents") public List<String> levelPercents;
+        @SerializedName("attached") public boolean attached;
+        @SerializedName("sponsor_code") public String sponsorCode;
+        @SerializedName("invited_count") public int invitedCount;
+        @SerializedName("line_counts") public List<Integer> lineCounts;
+        @SerializedName("earned_total") public String earnedTotal;
+        @SerializedName("spent_total") public String spentTotal;
+    }
+
+    public static final class AttachBody {
+        @SerializedName("code") public final String code;
+
+        public AttachBody(String code) {
+            this.code = code;
+        }
+    }
+
+    public static final class PointsEntryDto {
+        @SerializedName("id") public String id;
+        @SerializedName("amount") public String amount;
+        @SerializedName("kind") public String kind;
+        @SerializedName("kind_display") public String kindDisplay;
+        @SerializedName("level") public Integer level;
+        @SerializedName("percent") public String percent;
+        @SerializedName("booking_code") public String bookingCode;
+        @SerializedName("comment") public String comment;
+        @SerializedName("created_at") public String createdAt;
+    }
+
+    public static final class InvitedDto {
+        @SerializedName("name") public String name;
+        @SerializedName("phone_masked") public String phoneMasked;
+        @SerializedName("joined_at") public String joinedAt;
+        @SerializedName("line") public int line;
+        @SerializedName("earned_from") public String earnedFrom;
+    }
+
+    /* ------------------------------------------------------- автомобили */
+
+    public static final class CarMakeDto {
+        @SerializedName("id") public String id;
+        @SerializedName("name") public String name;
+    }
+
+    public static final class CarModelDto {
+        @SerializedName("id") public String id;
+        @SerializedName("name") public String name;
+        @SerializedName("make_name") public String makeName;
+        /** Готовая строка «марка + модель» — ровно её кладём в профиль. */
+        @SerializedName("title") public String title;
+    }
 }

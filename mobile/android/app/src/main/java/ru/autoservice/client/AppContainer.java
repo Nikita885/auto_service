@@ -4,12 +4,15 @@ import android.content.Context;
 
 import androidx.annotation.NonNull;
 
+import ru.autoservice.client.data.local.InviteStorage;
 import ru.autoservice.client.data.local.ServerConfig;
 import ru.autoservice.client.data.local.TokenStorage;
 import ru.autoservice.client.data.remote.ApiFactory;
 import ru.autoservice.client.data.remote.ApiService;
 import ru.autoservice.client.data.repository.AuthRepository;
 import ru.autoservice.client.data.repository.BookingRepository;
+import ru.autoservice.client.data.repository.CarsRepository;
+import ru.autoservice.client.data.repository.ReferralRepository;
 import ru.autoservice.client.data.ws.DraftSocket;
 
 /**
@@ -23,16 +26,22 @@ public final class AppContainer {
 
     private final TokenStorage tokenStorage;
     private final ServerConfig serverConfig;
+    private final InviteStorage inviteStorage;
     private final ApiService api;
     private final AuthRepository authRepository;
     private final BookingRepository bookingRepository;
+    private final ReferralRepository referralRepository;
+    private final CarsRepository carsRepository;
 
     AppContainer(@NonNull Context context) {
         this.tokenStorage = new TokenStorage(context);
         this.serverConfig = new ServerConfig(context);
+        this.inviteStorage = new InviteStorage(context);
         this.api = ApiFactory.create(tokenStorage, serverConfig);
         this.authRepository = new AuthRepository(api, tokenStorage);
         this.bookingRepository = new BookingRepository(api);
+        this.referralRepository = new ReferralRepository(api);
+        this.carsRepository = new CarsRepository(api);
     }
 
     @NonNull
@@ -43,6 +52,25 @@ public final class AppContainer {
     @NonNull
     public BookingRepository booking() {
         return bookingRepository;
+    }
+
+    @NonNull
+    public ReferralRepository referral() {
+        return referralRepository;
+    }
+
+    @NonNull
+    public CarsRepository cars() {
+        return carsRepository;
+    }
+
+    /**
+     * Код приглашения, пришедший по ссылке, пока им нельзя
+     * воспользоваться: между переходом по ссылке и привязкой стоит вход.
+     */
+    @NonNull
+    public InviteStorage invites() {
+        return inviteStorage;
     }
 
     /**

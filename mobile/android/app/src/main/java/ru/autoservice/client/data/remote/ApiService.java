@@ -82,4 +82,30 @@ public interface ApiService {
 
     @POST("api/v1/bookings/{id}/cancel/")
     Call<Dtos.BookingDto> cancelBooking(@Path("id") String bookingId, @Body Dtos.ReasonBody body);
+
+    /* --------------------------------------------- реферальная программа */
+
+    @GET("api/v1/referral/")
+    Call<Dtos.ReferralSummaryDto> referral();
+
+    @POST("api/v1/referral/attach/")
+    Call<Dtos.ReferralSummaryDto> attachReferral(@Body Dtos.AttachBody body);
+
+    @GET("api/v1/referral/points/")
+    Call<Dtos.Page<Dtos.PointsEntryDto>> referralPoints();
+
+    @GET("api/v1/referral/invited/")
+    Call<List<Dtos.InvitedDto>> referralInvited();
+
+    /* ------------------------------------------------------- автомобили */
+
+    @GET("api/v1/cars/makes/")
+    Call<List<Dtos.CarMakeDto>> carMakes(@Query("q") String query);
+
+    @GET("api/v1/cars/makes/{id}/models/")
+    Call<List<Dtos.CarModelDto>> carModels(@Path("id") String makeId, @Query("q") String query);
+
+    /** Поиск одной строкой: «киа рио», «kia rio», «камри». */
+    @GET("api/v1/cars/search/")
+    Call<List<Dtos.CarModelDto>> carSearch(@Query("q") String query);
 }

@@ -15,9 +15,10 @@ import ru.autoservice.client.ui.auth.AuthActivity;
 import ru.autoservice.client.ui.booking.BookingFragment;
 import ru.autoservice.client.ui.bookings.BookingsFragment;
 import ru.autoservice.client.ui.profile.ProfileFragment;
+import ru.autoservice.client.ui.referral.ReferralFragment;
 
 /**
- * Главный экран: запись, свои записи и профиль.
+ * Главный экран: запись, свои записи, приглашения и профиль.
  *
  * <p>Фрагменты не пересоздаются при переключении вкладок, а прячутся: экран
  * записи держит живой черновик с таймером, и терять его из-за перехода на
@@ -27,6 +28,7 @@ public class MainActivity extends AppCompatActivity implements BookingFragment.O
 
     private static final String TAG_BOOKING = "booking";
     private static final String TAG_BOOKINGS = "bookings";
+    private static final String TAG_REFERRAL = "referral";
     private static final String TAG_PROFILE = "profile";
 
     private ActivityMainBinding views;
@@ -48,6 +50,7 @@ public class MainActivity extends AppCompatActivity implements BookingFragment.O
         if (savedInstanceState == null) {
             addFragment(new BookingFragment(), TAG_BOOKING);
             addFragment(new BookingsFragment(), TAG_BOOKINGS);
+            addFragment(new ReferralFragment(), TAG_REFERRAL);
             addFragment(new ProfileFragment(), TAG_PROFILE);
             show(TAG_BOOKING);
         }
@@ -58,6 +61,8 @@ public class MainActivity extends AppCompatActivity implements BookingFragment.O
                 show(TAG_BOOKING);
             } else if (id == R.id.nav_bookings) {
                 show(TAG_BOOKINGS);
+            } else if (id == R.id.nav_referral) {
+                show(TAG_REFERRAL);
             } else {
                 show(TAG_PROFILE);
             }
@@ -85,7 +90,7 @@ public class MainActivity extends AppCompatActivity implements BookingFragment.O
         var manager = getSupportFragmentManager();
         var transaction = manager.beginTransaction();
 
-        for (String other : new String[]{TAG_BOOKING, TAG_BOOKINGS, TAG_PROFILE}) {
+        for (String other : new String[]{TAG_BOOKING, TAG_BOOKINGS, TAG_REFERRAL, TAG_PROFILE}) {
             Fragment fragment = manager.findFragmentByTag(other);
             if (fragment == null) {
                 continue;

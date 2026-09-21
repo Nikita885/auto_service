@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Экран приглашений. Порядок блоков — по тому, зачем сюда заходят:
+  сколько накопилось, чем поделиться, что уже произошло.
+-->
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/refresh"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="@dimen/space">
+
+            <TextView
+                style="@style/Text.H2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/referral_title" />
+
+            <TextView
+                android:id="@+id/subtitle"
+                style="@style/Text.Small"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_xs"
+                android:text="@string/referral_sub" />
+
+            <!-- Программу могли выключить на сервере: тогда весь экран
+                 сводится к одной строке, а не показывает пустые нули. -->
+            <TextView
+                android:id="@+id/disabled"
+                style="@style/Text.Soft"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_lg"
+                android:gravity="center"
+                android:text="@string/referral_off"
+                android:visibility="gone"
+                tools:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/content"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- баланс -->
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.AutoService.Card"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/space">
+
+                        <TextView
+                            style="@style/Text.Kicker"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/referral_balance" />
+
+                        <TextView
+                            android:id="@+id/balance"
+                            style="@style/Text.H1"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            tools:text="450 ₽" />
+
+                        <TextView
+                            android:id="@+id/discount"
+                            style="@style/Text.Small"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_xs"
+                            tools:text="Баллами можно закрыть до 50 % чека" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/earned"
+                                style="@style/Text.Small"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                tools:text="Начислено 600 ₽" />
+
+                            <TextView
+                                android:id="@+id/spent"
+                                style="@style/Text.Small"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                tools:text="Потрачено 150 ₽" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- код и кнопка «Поделиться» -->
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/Widget.AutoService.Card"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_sm">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:padding="@dimen/space">
+
+                        <TextView
+                            style="@style/Text.Kicker"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/referral_code_label" />
+
+                        <!-- Код диктуют вслух и переписывают: разрядка и
+                             моноширинный шрифт, чтобы «8» не путалась с «B». -->
+                        <TextView
+                            android:id="@+id/code"
+                            style="@style/Text.H1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_xs"
+                            android:fontFamily="monospace"
+                            android:letterSpacing="0.22"
+                            android:textIsSelectable="true"
+                            tools:text="DPMSZA" />
+
+                        <ImageView
+                            android:id="@+id/qr"
+                            android:layout_width="200dp"
+                            android:layout_height="200dp"
+                            android:layout_marginTop="@dimen/space"
+                            android:background="@color/surface"
+                            android:contentDescription="@string/referral_qr_hint"
+                            android:padding="@dimen/space_sm"
+                            tools:src="@tools:sample/avatars" />
+
+                        <TextView
+                            android:id="@+id/qr_hint"
+                            style="@style/Text.Small"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_xs"
+                            android:text="@string/referral_qr_hint" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/share"
+                            style="@style/Widget.AutoService.Button"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space"
+                            android:text="@string/referral_share" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/copy"
+                            style="@style/Widget.AutoService.Button.Text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/referral_copy" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- ввод чужого кода -->
+                <LinearLayout
+                    android:id="@+id/attach_block"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_sm"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <TextView
+                        style="@style/Text.Small"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/referral_have_code" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_xs"
+                        android:baselineAligned="false"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.AutoService.TextInput"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="@string/referral_enter_code">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/attach_input"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="textCapCharacters"
+                                android:maxLength="8" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/attach"
+                            style="@style/Widget.AutoService.Button.Outlined"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginStart="@dimen/space_sm"
+                            android:text="@string/referral_apply" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- история и команда -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_lg"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/counters"
+                        style="@style/Text.Small"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        tools:text="Вы пригласили: 3 · В структуре: 7" />
+                </LinearLayout>
+
+                <com.google.android.material.tabs.TabLayout
+                    android:id="@+id/tabs"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_sm"
+                    app:tabGravity="fill"
+                    app:tabMode="fixed" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_sm"
+                    android:nestedScrollingEnabled="false"
+                    tools:itemCount="3"
+                    tools:listitem="@layout/item_points" />
+
+                <TextView
+                    android:id="@+id/empty"
+                    style="@style/Text.Soft"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:paddingVertical="@dimen/space_lg"
+                    android:visibility="gone"
+                    tools:text="@string/referral_points_empty"
+                    tools:visibility="visible" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

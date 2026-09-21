@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Знакомство сразу после первого входа. Имя и машину всё равно спросят —
+  лучше один раз здесь, чем мастер по телефону в день визита.
+-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/bg"
     android:fillViewport="true">
 
     <LinearLayout
@@ -13,32 +17,25 @@
         android:padding="@dimen/space">
 
         <TextView
-            style="@style/Text.H2"
+            style="@style/Text.H1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/profile_title" />
+            android:layout_marginTop="@dimen/space_lg"
+            android:text="@string/onboarding_title" />
 
         <TextView
-            android:id="@+id/phone"
             style="@style/Text.Soft"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_xs"
-            tools:text="+7 900 111-22-33" />
-
-        <TextView
-            style="@style/Text.Small"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space"
-            android:text="@string/profile_sub" />
+            android:layout_marginTop="@dimen/space_sm"
+            android:text="@string/onboarding_sub" />
 
         <com.google.android.material.textfield.TextInputLayout
             style="@style/Widget.AutoService.TextInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space"
-            android:hint="@string/profile_name">
+            android:layout_marginTop="@dimen/space_lg"
+            android:hint="@string/onboarding_name">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/name_input"
@@ -49,72 +46,80 @@
                 android:maxLength="150" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Подсказки открываются кнопкой в конце поля: набрать «мерс» и
-             выбрать из списка быстрее и надёжнее, чем вписывать
-             «Мерседес-Бенц» целиком. Само поле остаётся обычным —
-             редкую машину человек впишет руками. -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/car_layout"
-            style="@style/Widget.AutoService.TextInput"
+        <TextView
+            style="@style/Text.Kicker"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_sm"
-            android:hint="@string/profile_car"
-            app:endIconContentDescription="@string/car_picker_title"
-            app:endIconDrawable="@drawable/ic_nav_list"
-            app:endIconMode="custom">
+            android:layout_marginTop="@dimen/space"
+            android:text="@string/onboarding_car" />
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/car_input"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textCapWords"
-                android:maxLength="120" />
-        </com.google.android.material.textfield.TextInputLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/car"
+            style="@style/Widget.AutoService.Button.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_xs"
+            android:text="@string/onboarding_car_empty"
+            tools:text="Kia Rio" />
 
         <com.google.android.material.textfield.TextInputLayout
             style="@style/Widget.AutoService.TextInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_sm"
-            android:hint="@string/profile_plate">
+            android:hint="@string/onboarding_plate">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/plate_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:imeOptions="actionDone"
                 android:inputType="textCapCharacters"
                 android:maxLength="16" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/save"
-            style="@style/Widget.AutoService.Button"
+        <TextView
+            style="@style/Text.Kicker"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space"
-            android:text="@string/profile_save" />
-
-        <Space
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/space_xl" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/sign_out"
-            style="@style/Widget.AutoService.Button.Danger"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/profile_sign_out" />
+            android:layout_marginTop="@dimen/space_lg"
+            android:text="@string/onboarding_invite" />
 
         <TextView
-            android:id="@+id/version"
             style="@style/Text.Small"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space"
-            android:gravity="center"
-            android:textColor="@color/text_faint"
-            tools:text="Версия 1.0.0" />
+            android:layout_marginTop="@dimen/space_xs"
+            android:text="@string/onboarding_invite_sub" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.AutoService.TextInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_sm"
+            android:hint="@string/onboarding_invite_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/invite_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textCapCharacters"
+                android:maxLength="8" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/done"
+            style="@style/Widget.AutoService.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_lg"
+            android:text="@string/onboarding_done" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/skip"
+            style="@style/Widget.AutoService.Button.Text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/space"
+            android:text="@string/onboarding_skip" />
     </LinearLayout>
 </ScrollView>

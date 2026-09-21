@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Выбор автомобиля. Поиск идёт на сервере: он один знает про
+     транслитерацию и разговорные сокращения, и справочник пополняется
+     без обновления приложения. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/space"
+        android:paddingEnd="@dimen/space_sm"
+        android:paddingTop="@dimen/space">
+
+        <TextView
+            android:id="@+id/title"
+            style="@style/Text.H2"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/car_picker_title" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/close"
+            style="@style/Widget.AutoService.Button.Text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/car_picker_cancel" />
+    </LinearLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        style="@style/Widget.AutoService.TextInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/space"
+        android:layout_marginTop="@dimen/space_sm"
+        android:hint="@string/car_picker_hint">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/query"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:maxLength="60" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <TextView
+        android:id="@+id/hint"
+        style="@style/Text.Kicker"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/space"
+        android:layout_marginTop="@dimen/space_sm"
+        tools:text="Выберите марку" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/back_to_makes"
+        style="@style/Widget.AutoService.Button.Text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_sm"
+        android:text="@string/car_picker_back"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <!-- Над списком, а не под ним: снизу кнопку закрывает клавиатура,
+         а справочник не бывает полным — упереться в его неполноту прямо
+         на регистрации значит потерять клиента. -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/use_custom"
+        style="@style/Widget.AutoService.Button.Outlined"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/space"
+        android:layout_marginTop="@dimen/space_sm"
+        android:visibility="gone"
+        tools:text="Вписать «Тагаз»"
+        tools:visibility="visible" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="@dimen/space_sm"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="@dimen/space"
+        tools:itemCount="6"
+        tools:listitem="@layout/item_suggestion" />
+
+    <TextView
+        android:id="@+id/empty"
+        style="@style/Text.Soft"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="@dimen/space"
+        android:text="@string/car_picker_nothing"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+</LinearLayout>

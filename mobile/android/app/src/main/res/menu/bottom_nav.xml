@@ -2,5 +2,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:id="@+id/nav_booking" android:icon="@drawable/ic_nav_booking" android:title="@string/nav_booking" />
     <item android:id="@+id/nav_bookings" android:icon="@drawable/ic_nav_list" android:title="@string/nav_bookings" />
+    <item android:id="@+id/nav_referral" android:icon="@drawable/ic_nav_referral" android:title="@string/nav_referral" />
     <item android:id="@+id/nav_profile" android:icon="@drawable/ic_nav_profile" android:title="@string/nav_profile" />
 </menu>

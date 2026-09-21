@@ -21,6 +21,8 @@ import ru.autoservice.client.R;
 import ru.autoservice.client.data.local.ServerConfig;
 import ru.autoservice.client.databinding.ActivityAuthBinding;
 import ru.autoservice.client.ui.MainActivity;
+import ru.autoservice.client.ui.onboarding.OnboardingActivity;
+import ru.autoservice.client.ui.common.SimpleTextWatcher;
 import ru.autoservice.client.ui.common.Ui;
 import ru.autoservice.client.util.PhoneFormat;
 
@@ -218,10 +220,29 @@ public class AuthActivity extends AppCompatActivity {
         });
 
         model.signedIn().observe(this, event -> {
-            if (event != null && event.consume() != null) {
+            if (event == null) {
+                return;
+            }
+            var user = event.consume();
+            if (user == null) {
+                return;
+            }
+            // Новичка и того, у кого профиль пуст, ведём на знакомство:
+            // мастеру у подъёмника нужно знать, кто приехал и на чём, а
+            // выяснять это по телефону в день визита — худший способ.
+            if (user.isIncomplete()) {
+                openOnboarding();
+            } else {
                 openMain();
             }
         });
+    }
+
+    private void openOnboarding() {
+        Intent intent = new Intent(this, OnboardingActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private void openMain() {

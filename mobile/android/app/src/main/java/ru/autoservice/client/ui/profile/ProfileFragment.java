@@ -16,6 +16,7 @@ import ru.autoservice.client.R;
 import ru.autoservice.client.databinding.FragmentProfileBinding;
 import ru.autoservice.client.domain.model.Models;
 import ru.autoservice.client.ui.auth.AuthActivity;
+import ru.autoservice.client.ui.cars.CarPickerDialog;
 import ru.autoservice.client.ui.common.Ui;
 
 /** Профиль: имя и автомобиль для мастера, выход из аккаунта. */
@@ -37,6 +38,18 @@ public class ProfileFragment extends Fragment {
         model = new ViewModelProvider(this).get(ProfileViewModel.class);
 
         views.version.setText(getString(R.string.profile_version, BuildConfig.VERSION_NAME));
+
+        // Выбор машины из справочника — тот же экран, что на знакомстве:
+        // две реализации одного выбора неизбежно разошлись бы.
+        views.carLayout.setEndIconOnClickListener(
+                v -> CarPickerDialog.show(getChildFragmentManager()));
+        getChildFragmentManager().setFragmentResultListener(
+                CarPickerDialog.RESULT, getViewLifecycleOwner(),
+                (key, bundle) -> {
+                    if (views != null) {
+                        views.carInput.setText(bundle.getString(CarPickerDialog.KEY_TITLE, ""));
+                    }
+                });
 
         views.save.setOnClickListener(v -> {
             Ui.hideKeyboard(v);

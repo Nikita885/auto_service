@@ -176,6 +176,45 @@ public final class DtoMapper {
         return result;
     }
 
+    /* --------------------------------------------- реферальная программа */
+
+    @NonNull
+    public static Models.Referral toReferral(@NonNull Dtos.ReferralSummaryDto dto) {
+        return new Models.Referral(
+                dto.enabled,
+                dto.code,
+                dto.inviteUrl,
+                money(dto.balance),
+                dto.maxDiscountPercent,
+                dto.attached,
+                dto.invitedCount,
+                dto.lineCounts,
+                money(dto.earnedTotal),
+                money(dto.spentTotal));
+    }
+
+    @NonNull
+    public static Models.PointsEntry toPointsEntry(@NonNull Dtos.PointsEntryDto dto) {
+        return new Models.PointsEntry(
+                dto.id,
+                money(dto.amount),
+                dto.kindDisplay,
+                dto.level,
+                dto.bookingCode,
+                dto.comment,
+                Formats.parseIso(dto.createdAt));
+    }
+
+    @NonNull
+    public static Models.InvitedPerson toInvited(@NonNull Dtos.InvitedDto dto) {
+        return new Models.InvitedPerson(
+                dto.name,
+                dto.phoneMasked,
+                Formats.parseIso(dto.joinedAt),
+                dto.line,
+                money(dto.earnedFrom));
+    }
+
     /** Деньги приходят строкой вида «3900.00». Битая строка — не повод падать. */
     private static double money(@Nullable String raw) {
         if (raw == null || raw.isEmpty()) {

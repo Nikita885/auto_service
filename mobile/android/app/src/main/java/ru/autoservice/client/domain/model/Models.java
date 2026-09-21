@@ -350,6 +350,160 @@ public final class Models {
         }
     }
 
+    /* --------------------------------------------- реферальная программа */
+
+    /** Сводка по программе: всё, что показывает один экран. */
+    public static final class Referral {
+        private final boolean enabled;
+        private final String code;
+        private final String inviteUrl;
+        private final double balance;
+        private final int maxDiscountPercent;
+        private final boolean attached;
+        private final int invitedCount;
+        private final List<Integer> lineCounts;
+        private final double earnedTotal;
+        private final double spentTotal;
+
+        public Referral(boolean enabled, String code, String inviteUrl, double balance,
+                        int maxDiscountPercent, boolean attached, int invitedCount,
+                        @Nullable List<Integer> lineCounts, double earnedTotal,
+                        double spentTotal) {
+            this.enabled = enabled;
+            this.code = orEmpty(code);
+            this.inviteUrl = orEmpty(inviteUrl);
+            this.balance = balance;
+            this.maxDiscountPercent = maxDiscountPercent;
+            this.attached = attached;
+            this.invitedCount = invitedCount;
+            this.lineCounts = lineCounts == null ? Collections.emptyList() : lineCounts;
+            this.earnedTotal = earnedTotal;
+            this.spentTotal = spentTotal;
+        }
+
+        /** Программу могли выключить на сервере — экран тогда прячется целиком. */
+        public boolean enabled() { return enabled; }
+
+        public String code() { return code; }
+        public String inviteUrl() { return inviteUrl; }
+        public double balance() { return balance; }
+
+        /** Потолок оплаты баллами, % от чека. */
+        public int maxDiscountPercent() { return maxDiscountPercent; }
+
+        /** Принял ли клиент чьё-то приглашение. Привязка одноразовая. */
+        public boolean attached() { return attached; }
+
+        public int invitedCount() { return invitedCount; }
+
+        @NonNull
+        public List<Integer> lineCounts() { return lineCounts; }
+
+        public double earnedTotal() { return earnedTotal; }
+        public double spentTotal() { return spentTotal; }
+
+        /** Сколько всего человек под участником на всех линиях. */
+        public int teamSize() {
+            int total = 0;
+            for (Integer count : lineCounts) {
+                total += count == null ? 0 : count;
+            }
+            return total;
+        }
+    }
+
+    /** Движение баллов: начисление, списание или корректировка. */
+    public static final class PointsEntry {
+        private final String id;
+        private final double amount;
+        private final String kindDisplay;
+        @Nullable private final Integer level;
+        private final String bookingCode;
+        private final String comment;
+        @Nullable private final Date createdAt;
+
+        public PointsEntry(String id, double amount, String kindDisplay,
+                           @Nullable Integer level, String bookingCode, String comment,
+                           @Nullable Date createdAt) {
+            this.id = id;
+            this.amount = amount;
+            this.kindDisplay = orEmpty(kindDisplay);
+            this.level = level;
+            this.bookingCode = orEmpty(bookingCode);
+            this.comment = orEmpty(comment);
+            this.createdAt = createdAt;
+        }
+
+        public String id() { return id; }
+        public double amount() { return amount; }
+        public String kindDisplay() { return kindDisplay; }
+        public String bookingCode() { return bookingCode; }
+        public String comment() { return comment; }
+        @Nullable public Date createdAt() { return createdAt; }
+
+        /** Линия, с которой пришло начисление. У списания её нет. */
+        @Nullable public Integer level() { return level; }
+
+        /** Списания приходят отрицательными — знак и есть признак. */
+        public boolean isAccrual() { return amount > 0; }
+    }
+
+    /** Приглашённый глазами пригласившего. Телефон маскирует сервер. */
+    public static final class InvitedPerson {
+        private final String name;
+        private final String phoneMasked;
+        @Nullable private final Date joinedAt;
+        private final int line;
+        private final double earnedFrom;
+
+        public InvitedPerson(String name, String phoneMasked, @Nullable Date joinedAt,
+                             int line, double earnedFrom) {
+            this.name = orEmpty(name);
+            this.phoneMasked = orEmpty(phoneMasked);
+            this.joinedAt = joinedAt;
+            this.line = line;
+            this.earnedFrom = earnedFrom;
+        }
+
+        public String name() { return name; }
+        public String phoneMasked() { return phoneMasked; }
+        @Nullable public Date joinedAt() { return joinedAt; }
+
+        /** На какой линии оказался: при спиловере не обязательно на первой. */
+        public int line() { return line; }
+
+        public double earnedFrom() { return earnedFrom; }
+    }
+
+    /* ------------------------------------------------------- автомобили */
+
+    /**
+     * Строка подсказки при выборе машины.
+     *
+     * <p>Одна модель на марки и на модели: экран выбора у них общий, а
+     * разница только в том, есть ли у строки следующий шаг. `makeId` не
+     * пустой — значит можно спуститься к моделям этой марки.
+     */
+    public static final class CarSuggestion {
+        private final String id;
+        private final String title;
+        private final boolean hasModels;
+
+        public CarSuggestion(String id, String title, boolean hasModels) {
+            this.id = orEmpty(id);
+            this.title = orEmpty(title);
+            this.hasModels = hasModels;
+        }
+
+        public String id() { return id; }
+
+        /** То, что показываем и кладём в профиль. Склеивает сервер. */
+        public String title() { return title; }
+
+        /** Марка: по нажатию открывается список её моделей. */
+        public boolean hasModels() { return hasModels; }
+    }
+
     private static String orEmpty(@Nullable String value) {
         return value == null ? "" : value;
     }

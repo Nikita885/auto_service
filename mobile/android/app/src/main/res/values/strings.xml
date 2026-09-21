@@ -96,4 +96,71 @@
     <string name="server_current">Сервер: %1$s</string>
     <string name="booking_drop_title">Прервать запись?</string>
     <string name="booking_drop_message">Выбранное время и канистра сразу освободятся.</string>
+
+    <!-- Домен ссылок-приглашений: в манифесте нельзя сослаться на
+         BuildConfig, поэтому он лежит строкой. В отладочной сборке
+         автопроверка домена не пройдёт (другая подпись) — ссылка
+         откроется в браузере, на странице с кодом. Это ожидаемо:
+         проверять App Links можно только релизной подписью. -->
+    <string name="invite_host" translatable="false">moiservis.pro</string>
+
+    <!-- выбор автомобиля -->
+    <string name="car_picker_title">Ваш автомобиль</string>
+    <!-- Своя строка, а не @android:string/cancel: системная приходит на
+         языке устройства, и на английской прошивке в русском интерфейсе
+         появлялось бы «Cancel». -->
+    <string name="car_picker_cancel">Отмена</string>
+    <string name="car_picker_hint">Марка или модель</string>
+    <string name="car_picker_makes">Выберите марку</string>
+    <string name="car_picker_models">Модели: %1$s</string>
+    <string name="car_picker_found">Подходящие автомобили</string>
+    <string name="car_picker_nothing">Ничего не нашли</string>
+    <string name="car_picker_custom">Вписать «%1$s»</string>
+    <string name="car_picker_back">Назад к маркам</string>
+
+    <!-- знакомство после первого входа -->
+    <string name="onboarding_title">Давайте познакомимся</string>
+    <string name="onboarding_sub">Имя и машину увидит мастер, когда вы приедете. Это займёт полминуты.</string>
+    <string name="onboarding_name">Как вас зовут</string>
+    <string name="onboarding_car">Марка и модель</string>
+    <string name="onboarding_car_empty">Выбрать автомобиль</string>
+    <string name="onboarding_plate">Госномер</string>
+    <string name="onboarding_invite">Код приглашения, если есть</string>
+    <string name="onboarding_invite_hint">Код приглашения</string>
+    <string name="onboarding_invite_sub">Если вас пригласил знакомый — введите его код. Позже это сделать нельзя.</string>
+    <string name="onboarding_done">Готово</string>
+    <string name="onboarding_skip">Заполнить позже</string>
+    <string name="onboarding_name_required">Без имени мастер не поймёт, кто приехал</string>
+    <string name="onboarding_invite_failed">Код приглашения не подошёл, профиль сохранён</string>
+
+    <!-- приглашения и баллы -->
+    <string name="nav_referral">Бонусы</string>
+    <string name="referral_title">Приглашайте друзей</string>
+    <string name="referral_sub">Друг меняет масло — вам приходят баллы. Ими оплачивается следующая замена.</string>
+    <string name="referral_off">Программа приглашений сейчас недоступна.</string>
+    <string name="referral_balance">Баллов на счету</string>
+    <string name="referral_discount">Баллами можно закрыть до %1$d %% чека</string>
+    <string name="referral_earned">Начислено</string>
+    <string name="referral_spent">Потрачено</string>
+    <string name="referral_code_label">Ваш код приглашения</string>
+    <string name="referral_qr_hint">Дайте отсканировать этот код</string>
+    <string name="referral_share">Поделиться</string>
+    <string name="referral_share_subject">Приглашение в %1$s</string>
+    <string name="referral_share_text">Меняю масло в «%1$s» — по записи, без очереди. Заходи по ссылке, код приглашения %2$s: %3$s</string>
+    <string name="referral_copy">Скопировать код</string>
+    <string name="referral_copied">Код скопирован</string>
+    <string name="referral_have_code">У меня есть код приглашения</string>
+    <string name="referral_enter_code">Введите код</string>
+    <string name="referral_apply">Применить</string>
+    <string name="referral_attached">Приглашение принято</string>
+    <string name="referral_invited_count">Вы пригласили: %1$d</string>
+    <string name="referral_team">В вашей структуре: %1$d</string>
+    <string name="referral_tab_points">История баллов</string>
+    <string name="referral_tab_invited">Приглашённые</string>
+    <string name="referral_points_empty">Баллы появятся, когда приглашённый вами приедет на замену.</string>
+    <string name="referral_invited_empty">Вы ещё никого не пригласили. Отправьте код — это одно сообщение.</string>
+    <string name="referral_line">%1$d-я линия</string>
+    <string name="referral_from_booking">Запись %1$s</string>
+    <string name="referral_earned_from">Принёс %1$s</string>
+    <string name="referral_joined">С %1$s</string>
 </resources>

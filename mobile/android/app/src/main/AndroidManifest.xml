@@ -35,5 +35,33 @@
             android:name=".ui.MainActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.onboarding.OnboardingActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!--
+          Ссылка-приглашение. autoVerify требует, чтобы сервер отдавал
+          /.well-known/assetlinks.json с отпечатком подписи этой сборки —
+          иначе система откроет ссылку в браузере, и человек попадёт на
+          страницу с кодом (она для этого и сделана), а не в приложение.
+
+          noHistory: экрана у активности нет, и возвращаться на неё по
+          кнопке «назад» не к чему.
+        -->
+        <activity
+            android:name=".ui.invite.InviteActivity"
+            android:exported="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="@string/invite_host" />
+                <data android:pathPrefix="/i/" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

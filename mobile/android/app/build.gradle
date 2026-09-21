@@ -132,5 +132,12 @@ dependencies {
     // Токены лежат в EncryptedSharedPreferences, а не в обычных настройках.
     implementation 'androidx.security:security-crypto:1.0.0'
 
+    // Генерация QR-кода приглашения. Единственная сторонняя библиотека,
+    // добавленная ради одной функции, и это оправдано: кодирование QR —
+    // это коды Рида — Соломона, маски и таблицы версий, полтысячи строк
+    // математики, в которой ошибка не видна глазом. `core` без android-
+    // обвязки: рисуем битмап сами, камера нам не нужна.
+    implementation 'com.google.zxing:core:3.5.3'
+
     testImplementation 'junit:junit:4.13.2'
 }
