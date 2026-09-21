@@ -303,7 +303,7 @@ REFERRAL = {
 # телефон и ссылки меняет не программист, и правка не должна требовать
 # ни редактирования кода, ни пересборки образа.
 COMPANY = {
-    "NAME": env("COMPANY_NAME", default="Мой Автосервис"),
+    "NAME": env("COMPANY_NAME", default="Мой Сервис"),
     "TAGLINE": env("COMPANY_TAGLINE", default="Замена масла по записи"),
     "PHONE": env("COMPANY_PHONE", default="+7 (499) 123-45-67"),
     "EMAIL": env("COMPANY_EMAIL", default="hello@example.com"),
