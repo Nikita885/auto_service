@@ -11,3 +11,10 @@ Makefile text eol=lf
 
 # Сгенерированная схема — не считать её изменения в diff-статистике
 openapi.yaml linguist-generated=true
+
+# Gradle wrapper. gradlew запускают из sh — ему нужен LF; gradlew.bat
+# выполняет cmd.exe, там ожидается CRLF. Правило `*.sh` ни то, ни другое
+# не покрывает: у обоих файлов нет расширения .sh.
+gradlew  text eol=lf
+gradlew.bat text eol=crlf
+*.jar    binary
