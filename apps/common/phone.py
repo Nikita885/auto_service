@@ -32,8 +32,18 @@ def normalize_phone(raw: str, region: str | None = None) -> str:
     return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
 
 
+# Показываем 5 символов с начала и 4 с конца. Порог — их сумма плюс один:
+# на более коротком номере срезы перекрываются, и «маска» выдала бы все
+# цифры разом, да ещё и повторив часть из них. Короткие номера в E.164
+# существуют (сервисные, зарубежные), и маскировка не должна зависеть от
+# того, что до сих пор встречались только российские одиннадцатизначные.
+_MASK_HEAD = 5
+_MASK_TAIL = 4
+_MASK_MIN_LENGTH = _MASK_HEAD + _MASK_TAIL + 1
+
+
 def mask_phone(phone: str) -> str:
-    """`+79001234567` -> `+7900***4567`. Для логов и списков в панели мастера."""
-    if len(phone) < 8:
+    """`+79001234567` -> `+7900***4567`. Для логов: телефон — это ПДн."""
+    if len(phone) < _MASK_MIN_LENGTH:
         return "***"
-    return f"{phone[:5]}***{phone[-4:]}"
+    return f"{phone[:_MASK_HEAD]}***{phone[-_MASK_TAIL:]}"

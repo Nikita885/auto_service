@@ -15,6 +15,21 @@
 # Кириллический домен пишется в punycode (`xn--…`): именно в таком виде он
 # приходит в заголовке Host, и certbot работает только с этой формой.
 
+# ------------------------------------------------------------- лог и лимиты
+# Браузер не умеет слать заголовки при открытии WebSocket, поэтому access-токен
+# едет в адресе: `/ws/booking/?token=<JWT>`. Стандартный combined-формат пишет
+# в access.log строку запроса целиком — и токен живёт в файле, пока логи не
+# ротируются, доступный всем, кто дотянулся до сервера или до выгрузки логов.
+# `$uri` — тот же путь, но без параметров.
+log_format ws_no_args '$remote_addr - [$time_local] "$request_method $uri" '
+                      '$status $body_bytes_sent "$http_referer" "$http_user_agent"';
+
+# Вход в Django-админку — единственная форма на сайте, которую защищает только
+# пароль: API-эндпоинты входа лимитирует сам DRF, а здесь перебирать можно
+# сколько угодно. За админкой лежат телефоны и госномера всей клиентской базы.
+# 10 попыток в минуту с адреса живому человеку хватает с запасом.
+limit_req_zone $binary_remote_addr zone=admin_login:10m rate=10r/m;
+
 # ---------------------------------------------------------------- редирект
 server {
     listen 80;
@@ -63,6 +78,9 @@ server {
     # заголовков Upgrade: без них nginx закрывает соединение как обычный HTTP,
     # и WebSocket не поднимается.
     location /ws/ {
+        # Без строки запроса: в ней едет access-токен, см. log_format выше.
+        access_log /var/log/nginx/access.log ws_no_args;
+
         proxy_pass http://127.0.0.1:8000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -74,6 +92,20 @@ server {
         # Канал молчит, пока ничего не происходит; дефолтные 60 секунд рвали бы
         # его на каждой паузе.
         proxy_read_timeout 3600s;
+    }
+
+    # Отдельная секция ровно под форму входа в админку: лимит вешается на
+    # неё, а не на весь /admin/, иначе работа администратора со справочниками
+    # упёрлась бы в тот же счётчик.
+    location = /admin/login/ {
+        limit_req zone=admin_login burst=5 nodelay;
+
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location / {

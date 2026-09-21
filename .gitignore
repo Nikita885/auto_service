@@ -15,3 +15,6 @@ htmlcov/
 # Локальные переопределения compose: у каждого разработчика свои
 # занятые порты и пути.
 docker-compose.override.yml
+
+# Снимки базы: делает deploy/backup.sh, в репозиторий им нельзя.
+/backups/

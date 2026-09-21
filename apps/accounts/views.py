@@ -16,13 +16,7 @@ from apps.accounts.serializers import (
     ProfileUpdateSerializer,
     UserSerializer,
 )
-
-
-def _client_ip(request: Request) -> str | None:
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR")
+from apps.common.net import client_ip
 
 
 class OtpRequestView(APIView):
@@ -40,7 +34,7 @@ class OtpRequestView(APIView):
         payload.is_valid(raise_exception=True)
 
         challenge = services.request_otp(
-            payload.validated_data["phone"], ip=_client_ip(request)
+            payload.validated_data["phone"], ip=client_ip(request)
         )
         data = asdict(challenge)
         if data.get("debug_code") is None:

@@ -1,5 +1,15 @@
 name: autoservice
 
+# Логи Docker по умолчанию растут без предела: json-file пишет, пока не
+# кончится диск. На сервере с одним небольшим томом это отказ сайта —
+# PostgreSQL первым получит «no space left on device». Ограничение общее
+# для всех сервисов, поэтому вынесено в якорь.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 # api, worker и beat — это один и тот же код с разной командой запуска.
 # Общий якорь гарантирует, что образ собирается один раз и версии кода
 # в веб-процессе и в фоновых задачах не разъезжаются.
@@ -11,6 +21,7 @@ x-app: &app
   image: autoservice-api:latest
   env_file: .env
   restart: unless-stopped
+  logging: *logging
   volumes:
     - .:/app
     # Именованные тома поверх bind-mount: каталоги принадлежат пользователю
@@ -21,6 +32,11 @@ x-app: &app
 services:
   db:
     image: postgres:16-alpine
+    # Без политики перезапуска база не поднимается после перезагрузки
+    # сервера, а api с `unless-stopped` уходит в бесконечный рестарт —
+    # сайт лежит до ручного вмешательства.
+    restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-autoservice}
       POSTGRES_USER: ${POSTGRES_USER:-autoservice}
@@ -37,6 +53,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
+    logging: *logging
     command: redis-server --appendonly yes
     volumes:
       - redisdata:/data

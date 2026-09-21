@@ -35,6 +35,7 @@ from apps.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from apps.common.phone import mask_phone
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +149,9 @@ def start_draft(user, *, restart: bool = False) -> BookingDraft:
         + timedelta(seconds=settings.BOOKING["DRAFT_TTL_SECONDS"]),
     )
     transaction.on_commit(lambda: events.publish_draft(draft))
-    logger.info("Клиент %s начал запись, черновик %s", user.phone, draft.pk)
+    logger.info(
+        "Клиент %s начал запись, черновик %s", mask_phone(user.phone), draft.pk
+    )
     return draft
 
 
@@ -267,7 +270,7 @@ def confirm(user, draft_id, *, comment: str = "") -> Booking:
         notify_booking_created(booking)
 
     transaction.on_commit(_after_commit)
-    logger.info("Создана запись %s для %s", booking.code, user.phone)
+    logger.info("Создана запись %s для %s", booking.code, mask_phone(user.phone))
     return booking
 
 

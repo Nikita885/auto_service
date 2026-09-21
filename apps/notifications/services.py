@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 
+from apps.common.phone import mask_phone
 from apps.notifications import templates
 from apps.notifications.models import (
     Notification,
@@ -39,7 +40,7 @@ def _enqueue(notification: Notification, text: str) -> None:
         logger.info(
             "Уведомление %s на %s не отправлено: канал выключен в настройках",
             notification.kind,
-            notification.phone,
+            mask_phone(notification.phone),
         )
         return
 

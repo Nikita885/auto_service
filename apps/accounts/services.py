@@ -26,7 +26,7 @@ from apps.common.exceptions import (
     RateLimitError,
     ValidationError,
 )
-from apps.common.phone import normalize_phone
+from apps.common.phone import mask_phone, normalize_phone
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,9 @@ def request_otp(raw_phone: str, *, ip: str | None = None) -> OtpChallenge:
     from apps.notifications.services import send_otp_sms
 
     send_otp_sms(phone=phone, code=code)
-    logger.info("OTP выдан для %s", phone)
+    # Телефон в логах маскируем: это персональные данные, а лог живёт
+    # дольше и доступен шире, чем база.
+    logger.info("OTP выдан для %s", mask_phone(phone))
 
     return OtpChallenge(
         phone=phone,
@@ -160,7 +162,7 @@ def verify_otp(raw_phone: str, code: str) -> AuthResult:
         raise PermissionError_("Аккаунт заблокирован", code="user_blocked")
 
     tokens = issue_tokens(user)
-    logger.info("Вход %s (новый: %s)", phone, is_new)
+    logger.info("Вход %s (новый: %s)", mask_phone(phone), is_new)
     return AuthResult(user=user, is_new_user=is_new, **tokens)
 
 
