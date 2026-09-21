@@ -17,8 +17,10 @@
 .landing {
   color-scheme: dark;
 
-  /* Фон: не чистый чёрный — синий подтон даёт неону во что светить. */
-  --void: #04070e;
+  /* Фон: не чистый чёрный — синий подтон даёт неону во что светить.
+     Значение снято пипеткой с фирменной картинки: средний тон её фона
+     ровно такой, и на глаз он заметно синее прежнего #04070e. */
+  --void: #030b14;
   --void-2: #070c16;
 
   --neon: #2ea6ff;          /* основной синий логотипа */
@@ -61,17 +63,33 @@
   color: var(--text);
 }
 
-/* Общий фон страницы: два далёких синих пятна, неподвижных при прокрутке. */
+/* Общий фон страницы: два далёких синих пятна и фактура поверх них.
+   Неподвижен при прокрутке — это поверхность, а не слой контента.
+
+   Фактура генерируется фильтром внутри data-URI, а не лежит картинкой:
+   файл такого размера весил бы сотни килобайт, тянулся бы отдельным
+   запросом и на широком экране повторялся бы видимым швом. `stitchTiles`
+   сшивает плитку бесшовно, а размер её задан в `background-size`.
+
+   Частота 0.5 при четырёх октавах даёт не мелкое зерно, а крупную
+   облачность — на фирменной картинке фактура именно такая. Режим
+   `soft-light` наложения выбран потому, что сохраняет синеву основы:
+   обычное наложение серым шумом обесцвечивает фон в графит, что и
+   произошло на первых пробах. */
 .landing::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
+  background-color: var(--void);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E"),
     radial-gradient(70% 55% at 78% -8%, rgba(10, 92, 255, .20), transparent 62%),
-    radial-gradient(60% 50% at 6% 26%, rgba(46, 166, 255, .10), transparent 66%),
-    var(--void);
+    radial-gradient(60% 50% at 6% 26%, rgba(46, 166, 255, .10), transparent 66%);
+  background-size: 220px 220px, auto, auto;
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-blend-mode: soft-light, normal, normal;
 }
 
 /* Контейнер задаёт каждая секция сама — так первый экран и полосы
