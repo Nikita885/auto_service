@@ -441,6 +441,15 @@
     </div>
   </div>
 
+  {% if company.LEGAL_NAME or company.INN or company.OGRN %}
+    <div class="wrap footer-legal">
+      {% if company.LEGAL_NAME %}<span>{{ company.LEGAL_NAME }}</span>{% endif %}
+      {% if company.INN %}<span>ИНН {{ company.INN }}</span>{% endif %}
+      {% if company.OGRN %}<span>ОГРНИП {{ company.OGRN }}</span>{% endif %}
+      {% if company.LEGAL_ADDRESS %}<span>{{ company.LEGAL_ADDRESS }}</span>{% endif %}
+    </div>
+  {% endif %}
+
   <div class="wrap footer-bottom">
     <span>© {{ company.NAME }}</span>
     <span>Цены на сайте справочные и не являются публичной офертой.</span>

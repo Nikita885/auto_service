@@ -992,6 +992,17 @@
 
 .footer-brand-col p { font-size: 14.5px; max-width: 34ch; margin-top: 18px; }
 
+/* Реквизиты владельца. Оператор связи при регистрации имени отправителя SMS
+   смотрит именно сюда — значит они должны читаться, а не прятаться. */
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding-top: 20px;
+  font-size: 13.5px;
+  color: var(--on-ink-soft);
+}
+
 .footer-bottom {
   display: flex;
   justify-content: space-between;
