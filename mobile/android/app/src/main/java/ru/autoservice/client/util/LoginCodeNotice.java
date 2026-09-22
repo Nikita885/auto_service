@@ -54,7 +54,7 @@ public final class LoginCodeNotice {
         ensureChannel(context);
 
         Notification notification = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_logo)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(context.getString(R.string.notice_code_title, code))
                 .setContentText(context.getString(R.string.notice_code_text))
                 // Код нужен здесь и сейчас, поэтому всплывающее уведомление,

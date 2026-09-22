@@ -18,11 +18,20 @@
         android:padding="@dimen/space_lg"
         android:paddingTop="64dp">
 
+        <!-- Знак во всю ширину, как в шапке витрины: он широкий
+             (1483:326), и в квадратные 44 dp его не уместить. -->
+        <!-- Знак широкий (1483:326) — ставим его строкой, как в шапке
+             витрины. wrap_content, а не match_parent: при match_parent
+             maxWidth не действует, и на планшете знак растянулся бы во всю
+             ширину, а кузов обрезало сверху. -->
         <ImageView
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:src="@drawable/ic_logo"
-            android:contentDescription="@string/app_name" />
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:contentDescription="@string/app_name"
+            android:layout_marginTop="@dimen/space"
+            android:maxWidth="240dp"
+            android:src="@drawable/ic_logo_mark" />
 
         <TextView
             android:id="@+id/title"
@@ -31,7 +40,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_lg"
             android:text="@string/auth_title"
-            android:textColor="#F2F3F5"
+            android:textColor="@color/text"
             android:textSize="32sp" />
 
         <TextView
@@ -41,7 +50,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_sm"
             android:text="@string/auth_sub"
-            android:textColor="#A7ADB7" />
+            android:textColor="@color/text_soft" />
 
         <!-- ==================================================== шаг: телефон -->
         <LinearLayout
@@ -57,9 +66,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="@string/auth_phone_hint"
-                app:boxBackgroundColor="#1E2126"
+                app:boxBackgroundColor="@color/surface"
                 app:boxStrokeColor="@color/accent"
-                app:hintTextColor="#A7ADB7">
+                app:hintTextColor="@color/text_soft">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/phone_input"
@@ -68,7 +77,7 @@
                     android:autofillHints="phone"
                     android:imeOptions="actionDone"
                     android:inputType="phone"
-                    android:textColor="#F2F3F5"
+                    android:textColor="@color/text"
                     android:textSize="17sp"
                     tools:text="+7 900 111-22-33" />
             </com.google.android.material.textfield.TextInputLayout>
@@ -98,9 +107,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="@string/auth_code_hint"
-                app:boxBackgroundColor="#1E2126"
+                app:boxBackgroundColor="@color/surface"
                 app:boxStrokeColor="@color/accent"
-                app:hintTextColor="#A7ADB7">
+                app:hintTextColor="@color/text_soft">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/code_input"
@@ -111,7 +120,7 @@
                     android:inputType="number"
                     android:letterSpacing="0.4"
                     android:maxLength="6"
-                    android:textColor="#F2F3F5"
+                    android:textColor="@color/text"
                     android:textSize="22sp"
                     android:textStyle="bold"
                     tools:text="4821" />
@@ -150,7 +159,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/auth_change_phone"
-                android:textColor="#A7ADB7" />
+                android:textColor="@color/text_soft" />
         </LinearLayout>
 
         <ProgressBar
@@ -174,7 +183,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_xl"
             android:text="@string/auth_legal"
-            android:textColor="#7B838F" />
+            android:textColor="@color/text_faint" />
 
         <!-- Смена адреса сервера: показывается только в отладочной сборке. -->
         <com.google.android.material.button.MaterialButton
@@ -183,7 +192,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_sm"
-            android:textColor="#7B838F"
+            android:textColor="@color/text_faint"
             android:textSize="@dimen/text_small"
             android:visibility="gone"
             tools:text="Сервер: 10.0.2.2:8000"

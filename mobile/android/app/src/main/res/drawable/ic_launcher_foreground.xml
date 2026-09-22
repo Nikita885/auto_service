@@ -1,7 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Знак в безопасной зоне адаптивной иконки: у неё 108×108, а видно
+  гарантированно только центральные 72×72 — края система обрезает по
+  форме, выбранной производителем.
+
+  Центруем по фактическим границам рисунка, а не по его холсту. Кузов
+  занимает в исходных 32×32 прямоугольник x 4.5..28.5, y 10..24.5, то
+  есть сидит ниже середины: по холсту знак вставал заметно низко и влево.
+  Отсюда масштаб 2.6 и сдвиг (11.1, 9.15) — при них середина рисунка
+  приходится ровно на центр иконки, а сам он укладывается в 62×38 внутри
+  видимой зоны.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <!-- Капля масла в безопасной зоне адаптивной иконки. -->
-    <path android:fillColor="#FFFFFF"
-        android:pathData="M54,30C54,30 74,51 74,64A20,20 0 0,1 34,64C34,51 54,30 54,30Z" />
+    <group android:translateX="11.1" android:translateY="9.15"
+        android:scaleX="2.6" android:scaleY="2.6">
+        <path
+            android:pathData="M4.5,21.5C8,14 14,10 21,10c3.6,0 6.2,1.6 7.5,4"
+            android:strokeColor="#2EA6FF"
+            android:strokeWidth="2.6"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M7,24.5c4.5,-2 9.5,-3 16,-3"
+            android:strokeColor="#CFEAFF"
+            android:strokeWidth="2.2"
+            android:strokeLineCap="round" />
+    </group>
 </vector>

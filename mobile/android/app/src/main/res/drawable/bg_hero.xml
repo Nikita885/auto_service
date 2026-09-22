@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Тёмный экран входа: тот же графит, что на первом экране лендинга. -->
+<!-- Экран входа: тот же почти чёрный фон с синим подтоном и дальним
+     синим пятном, что на первом экране витрины. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
@@ -10,9 +11,19 @@
         <shape android:shape="rectangle">
             <gradient
                 android:type="radial"
-                android:gradientRadius="640"
-                android:centerX="0.85" android:centerY="0.08"
-                android:startColor="#59E8590C"
+                android:gradientRadius="720"
+                android:centerX="0.8" android:centerY="0.06"
+                android:startColor="@color/neon_glow"
+                android:endColor="@color/transparent" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="560"
+                android:centerX="0.1" android:centerY="0.9"
+                android:startColor="@color/neon_glow_deep"
                 android:endColor="@color/transparent" />
         </shape>
     </item>

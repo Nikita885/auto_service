@@ -1,6 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Упрощённый фирменный знак для малых размеров: дуга кузова неоном и
+  подсветка дорожного полотна под ним. Тот же рисунок, что у иконки
+  вкладки браузера на сайте (см. `<link rel="icon">` в web/base.html), —
+  полный знак с надписью в 24 dp превратился бы в кашу.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
-    android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#E8590C"
-        android:pathData="M12,2.5C12,2.5 19,9.4 19,13.7A7,7 0 0,1 5,13.7C5,9.4 12,2.5 12,2.5Z" />
+    android:viewportWidth="32" android:viewportHeight="32">
+    <path
+        android:pathData="M4.5,21.5C8,14 14,10 21,10c3.6,0 6.2,1.6 7.5,4"
+        android:strokeColor="@color/neon"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M7,24.5c4.5,-2 9.5,-3 16,-3"
+        android:strokeColor="@color/neon_hot"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round" />
 </vector>

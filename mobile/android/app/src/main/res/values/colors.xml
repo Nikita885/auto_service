@@ -1,35 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Палитра повторяет лендинг: тот же графит и тот же оранжевый.
-  Клиент не должен чувствовать, что сайт и приложение сделаны разными людьми.
+  Палитра снята с витрины: те же значения, что у токенов .landing в landing.css.
+  Раньше приложение повторяло прежнее оформление сайта — светлый графит с
+  оранжевым, а витрину с тех пор одели по фирменному знаку: почти чёрный
+  фон с синим подтоном и неоновая трубка. Клиент видит и сайт, и
+  приложение; разное оформление читается как «сделано разными людьми».
+
+  Тема одна и тёмная, набора values-night нет. На витрине переключателя
+  темы тоже нет и по той же причине: неон на белом фоне перестаёт быть
+  неоном, а знак — собой.
 -->
 <resources>
-    <color name="ink">#101215</color>
-    <color name="ink_2">#181B20</color>
+    <!-- Фон: не чистый чёрный. Синий подтон даёт неону во что светить;
+         значение снято пипеткой с фирменной картинки. -->
+    <!-- `ink`, а не `void`: void зарезервирован в Java, и такой ресурс
+         не собирается. На сайте этот же цвет зовётся токеном void. -->
+    <color name="ink">#030B14</color>
+    <color name="ink_2">#070C16</color>
 
-    <color name="accent">#E8590C</color>
-    <color name="accent_pressed">#D24F08</color>
-    <color name="accent_soft">#FDF1E9</color>
-    <color name="on_accent">#FFFFFF</color>
+    <color name="neon">#2EA6FF</color>
+    <color name="neon_hot">#B9E6FF</color>
+    <color name="neon_deep">#0A5CFF</color>
+    <!-- Дальние пятна на фоне экрана входа. Альфа в самом значении:
+         в градиенте shape её иначе не задать. -->
+    <color name="neon_glow">#452EA6FF</color>
+    <color name="neon_glow_deep">#2B0A5CFF</color>
 
-    <color name="bg">#F4F5F7</color>
-    <color name="surface">#FFFFFF</color>
-    <color name="surface_2">#F8F9FB</color>
-    <color name="border">#E0E3E8</color>
-    <color name="border_strong">#C9CDD4</color>
+    <color name="accent">#2EA6FF</color>
+    <color name="accent_pressed">#63C0FF</color>
+    <color name="accent_soft">#122A40</color>
+    <!-- Текст на кнопке: почти чёрный с синевой, как токен accent-text на сайте.
+         Белый по яркому неону читается хуже — не хватает контраста. -->
+    <color name="on_accent">#03121F</color>
 
-    <color name="text">#171A1F</color>
-    <color name="text_soft">#5B6270</color>
-    <color name="text_faint">#878E9B</color>
+    <color name="bg">#030B14</color>
+    <color name="surface">#0B1220</color>
+    <color name="surface_2">#101A2C</color>
+    <color name="border">#1B2C44</color>
+    <color name="border_strong">#2B4569</color>
 
-    <color name="ok">#1A7F4B</color>
-    <color name="ok_soft">#E6F4EC</color>
-    <color name="warn">#A5720B</color>
-    <color name="warn_soft">#FDF4E1</color>
-    <color name="danger">#C0392B</color>
-    <color name="danger_soft">#FBECEA</color>
-    <color name="info">#1F6FEB</color>
-    <color name="info_soft">#E8F1FE</color>
+    <color name="text">#E6F1FF</color>
+    <color name="text_soft">#97ACCB</color>
+    <color name="text_faint">#6A7F9F</color>
+
+    <color name="ok">#3DDC97</color>
+    <color name="ok_soft">#0E2B22</color>
+    <color name="warn">#F5C35C</color>
+    <color name="warn_soft">#2E2413</color>
+    <color name="danger">#FF6B6B</color>
+    <color name="danger_soft">#33171C</color>
+    <color name="info">#2EA6FF</color>
+    <color name="info_soft">#122A40</color>
 
     <color name="transparent">#00000000</color>
 </resources>

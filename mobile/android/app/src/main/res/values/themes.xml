@@ -1,13 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <style name="Theme.AutoService" parent="Theme.Material3.DayNight.NoActionBar">
+    <!--
+      Тема одна и тёмная. На витрине переключателя тоже нет: неон на белом
+      фоне перестаёт быть неоном, а фирменный знак — собой. DayNight здесь
+      означал бы, что половина клиентов видит другое приложение.
+    -->
+    <style name="Theme.AutoService" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/accent</item>
         <item name="colorOnPrimary">@color/on_accent</item>
         <item name="colorPrimaryContainer">@color/accent_soft</item>
         <item name="colorOnPrimaryContainer">@color/accent</item>
 
+        <!--
+          Вторичные и третичные роли Material тоже привязаны к неону.
+          Без этого подсветка выбранной вкладки и выбранного сегмента
+          берётся из базовой палитры Material и выходит серо-фиолетовой —
+          единственное чужое пятно на всём экране.
+        -->
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorOnSecondary">@color/on_accent</item>
+        <item name="colorSecondaryContainer">@color/accent_soft</item>
+        <item name="colorOnSecondaryContainer">@color/accent</item>
+        <item name="colorTertiary">@color/accent</item>
+        <item name="colorOnTertiary">@color/on_accent</item>
+        <item name="colorTertiaryContainer">@color/accent_soft</item>
+        <item name="colorOnTertiaryContainer">@color/accent</item>
+
         <item name="colorSurface">@color/surface</item>
+        <!-- Уровни поверхностей: их берут диалоги, меню и подложки
+             Material 3. По умолчанию они высветляются в серый. -->
+        <item name="colorSurfaceContainerLowest">@color/bg</item>
+        <item name="colorSurfaceContainerLow">@color/surface</item>
+        <item name="colorSurfaceContainer">@color/surface</item>
+        <item name="colorSurfaceContainerHigh">@color/surface_2</item>
+        <item name="colorSurfaceContainerHighest">@color/surface_2</item>
+        <item name="colorErrorContainer">@color/danger_soft</item>
+        <item name="colorOnErrorContainer">@color/danger</item>
         <item name="colorOnSurface">@color/text</item>
         <item name="colorSurfaceVariant">@color/surface_2</item>
         <item name="colorOnSurfaceVariant">@color/text_soft</item>
@@ -17,8 +46,8 @@
 
         <item name="android:colorBackground">@color/bg</item>
         <item name="android:statusBarColor">@color/bg</item>
-        <item name="android:navigationBarColor">@color/surface</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
 
         <item name="materialButtonStyle">@style/Widget.AutoService.Button</item>
         <item name="textInputStyle">@style/Widget.AutoService.TextInput</item>
