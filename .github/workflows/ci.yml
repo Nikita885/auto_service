@@ -1,0 +1,68 @@
+# Проверка на каждый push и pull request: линтер, миграции, тесты.
+#
+# Выкатка на сервер по-прежнему руками (`git pull` + пересоздание
+# контейнеров), и до этого файла тесты гонял только тот, кто не забыл.
+# Теперь красный крестик в GitHub виден до `git pull` на сервере.
+#
+# Тесты идут на настоящем PostgreSQL, а не на SQLite: на нём держатся
+# блокировки строк (`select_for_update`) и частичные уникальные индексы,
+# а SQLite первые молча игнорирует — гонки на нём не ловятся.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: autoservice
+          POSTGRES_USER: autoservice
+          POSTGRES_PASSWORD: autoservice
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U autoservice"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      POSTGRES_HOST: localhost
+      POSTGRES_DB: autoservice
+      POSTGRES_USER: autoservice
+      POSTGRES_PASSWORD: autoservice
+      SECRET_KEY: ci-only-not-a-real-secret-key-0123456789abcdefghij
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Та же версия, что в Dockerfile (python:3.12-slim).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements/*.txt
+
+      - name: Зависимости
+        run: pip install -r requirements/dev.txt
+
+      - name: Линтер
+        run: ruff check .
+
+      - name: Проверка настроек
+        run: python manage.py check
+
+      - name: Миграции соответствуют моделям
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Тесты
+        run: pytest
