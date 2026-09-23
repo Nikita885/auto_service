@@ -107,6 +107,34 @@ p { margin: 0; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
+/* Фокус с клавиатуры виден на всём, что кликается. Раньше кольцо было
+   только у кнопок: ссылки, иконки и вопросы FAQ полагались на системную
+   обводку, которую тёмная витрина почти не показывает. `:focus-visible` —
+   чтобы мышью кольцо не мигало. */
+a:focus-visible,
+summary:focus-visible,
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Первая клавиша Tab — сразу к содержанию, мимо шапки и меню. */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -100px;
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.skip-link:focus { top: 12px; text-decoration: none; }
+/* Сама область получает фокус от ссылки выше; обводить весь экран незачем. */
+main:focus { outline: none; }
+
 ::selection { background: var(--accent); color: var(--accent-text); }
 
 [hidden] { display: none !important; }

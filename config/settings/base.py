@@ -353,8 +353,18 @@ COMPANY = {
     # показываются неактивными с пометкой «скоро», а не ведут в никуда.
     "APP_STORE_URL": env("COMPANY_APP_STORE_URL", default=""),
     "GOOGLE_PLAY_URL": env("COMPANY_GOOGLE_PLAY_URL", default=""),
-    "YEARS_ON_MARKET": env.int("COMPANY_YEARS_ON_MARKET", default=8),
-    "CARS_SERVED": env.int("COMPANY_CARS_SERVED", default=14000),
+    # Цифры в шапке витрины. По умолчанию нули, а ноль шаблон не показывает:
+    # на сайте должна стоять только реальная цифра заказчика. Выдуманная
+    # по умолчанию «14 000 машин» попадала на живой сайт, если переменную
+    # забыли, — а это уже недостоверная реклама, а не оформление.
+    "YEARS_ON_MARKET": env.int("COMPANY_YEARS_ON_MARKET", default=0),
+    "CARS_SERVED": env.int("COMPANY_CARS_SERVED", default=0),
+    # Оценка клиентов и где она взята («Яндекс Картах»). Отзывов система
+    # не собирает, поэтому число — только с внешней площадки, с источником.
+    # Строкой, а не env.float: пустое `COMPANY_RATING=` из примера роняло
+    # бы старт всего сайта, а «4,9» с запятой — естественная запись.
+    "RATING": float(env("COMPANY_RATING", default="").replace(",", ".") or 0),
+    "RATING_SOURCE": env("COMPANY_RATING_SOURCE", default=""),
     # Показывать ли цены на сайте. Заказчик может не хотеть раскрывать
     # стоимость публично: тогда на лендинге остаётся ассортимент масел без
     # сумм, а цену клиент узнаёт по телефону или в приложении.

@@ -41,6 +41,11 @@ class LandingView(CompanyMixin, TemplateView):
         # Прайс на витрине — справочные цены, без остатков: наличие на
         # конкретной точке клиент увидит в приложении, когда будет выбирать.
         context["oils"] = Oil.objects.filter(is_active=True).order_by("price")
+        # Сроки, которые витрина обещает клиенту, — из тех же настроек, по
+        # которым работает сервер. Напоминание обещаем, только если такие
+        # SMS вообще отправляются: их можно выключить в SMS_ENABLED_KINDS.
+        context["booking"] = settings.BOOKING
+        context["reminder_enabled"] = "booking_reminder" in settings.SMS["ENABLED_KINDS"]
         return context
 
 

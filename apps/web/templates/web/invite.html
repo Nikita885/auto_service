@@ -1,5 +1,5 @@
 {% extends "web/base.html" %}
-{% load static %}
+{% load static web_tags %}
 
 {% comment %}
 Страница, на которую ведёт ссылка-приглашение `/i/<код>`.
@@ -90,7 +90,7 @@
 
     <p class="invite-foot">
       Записаться можно и звонком:
-      <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+      <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>
     </p>
   </div>
 </section>

@@ -444,7 +444,9 @@
 
 .hero-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Сколько цифр задано в .env, столько и колонок: незаданная не рисуется. */
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   margin-top: clamp(44px, 6vw, 72px);
   border-top: 1px solid rgba(122, 186, 255, .14);
 }
@@ -1096,7 +1098,7 @@
   .hero-grid { grid-template-columns: 1fr; gap: 34px; }
   /* На телефоне первым экраном должно быть предложение, а не мокап. */
   .mockup { width: min(220px, 56vw); }
-  .hero-stats { grid-template-columns: repeat(2, 1fr); }
+  .hero-stats { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); }
   .hstat + .hstat { border-left: none; padding-left: 8px; }
   .hstat:nth-child(n + 3) { border-top: 1px solid rgba(122, 186, 255, .14); }
   .app-panel { grid-template-columns: 1fr; padding: 34px 26px; }

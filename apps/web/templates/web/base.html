@@ -10,6 +10,7 @@
 {% block extra_head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
+<a class="skip-link" href="#main">Перейти к содержанию</a>
 
 {% block topbar %}{% endblock %}
 
@@ -38,7 +39,7 @@
   </div>
 </header>
 
-<main class="page">
+<main class="page" id="main" tabindex="-1">
   <div class="wrap">
     {% block content %}{% endblock %}
   </div>

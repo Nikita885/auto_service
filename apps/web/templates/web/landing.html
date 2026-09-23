@@ -1,5 +1,5 @@
 {% extends "web/base.html" %}
-{% load humanize static %}
+{% load humanize static web_tags %}
 
 {% block title %}{{ company.NAME }} — {{ company.TAGLINE }}{% endblock %}
 {% block description %}{{ company.NAME }}: замена масла по записи из мобильного приложения или по телефону {{ company.PHONE }}. Свой пост к назначенному времени, без очереди и без «оставьте машину до вечера».{% endblock %}
@@ -28,9 +28,9 @@
   <div class="wrap topbar-inner">
     <span class="topbar-item">{{ company.WORKING_HOURS }}</span>
     <span class="topbar-sep"></span>
-    <span class="topbar-item topbar-hide-sm">{{ points|length }} адреса · запись день в день</span>
+    <span class="topbar-item topbar-hide-sm">{{ points|length }} {{ points|length|ru_plural:"адрес,адреса,адресов" }} · запись день в день</span>
     <span class="spacer"></span>
-    <a class="topbar-phone" href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+    <a class="topbar-phone" href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>
   </div>
 </div>
 {% endblock %}
@@ -66,7 +66,7 @@
 
     <div class="hero-grid">
       <div class="hero-text" data-reveal-group>
-        <span class="kicker" data-reveal>Замена масла · {{ points|length }} адреса в городе</span>
+        <span class="kicker" data-reveal>Замена масла · {{ points|length }} {{ points|length|ru_plural:"адрес,адреса,адресов" }} в городе</span>
 
         <h1 data-reveal>Приезжаете к своему времени<br>и уезжаете <span class="hl">без очереди</span></h1>
 
@@ -77,7 +77,7 @@
 
         <div class="hero-cta" data-reveal>
           <a class="btn btn-primary btn-lg" href="#app">Записаться в приложении</a>
-          <a class="btn btn-lg btn-on-dark" href="tel:{{ company.PHONE }}">
+          <a class="btn btn-lg btn-on-dark" href="tel:{{ company.PHONE|tel_href }}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h4l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2.2 2A17 17 0 0 1 3 5.2 2 2 0 0 1 5 3z"/></svg>
             {{ company.PHONE }}
           </a>
@@ -86,7 +86,7 @@
         <ul class="hero-list" data-reveal>
           <li><b>Свой пост</b> — к назначенному времени, без ожидания</li>
           <li><b>Фиксированная цена</b> — работа входит в стоимость</li>
-          <li><b>Напомним за 2 часа</b> — SMS перед визитом</li>
+          {% if reminder_enabled %}<li><b>Напомним за {{ booking.REMINDER_LEAD_MINUTES|ru_before }}</b> — SMS перед визитом</li>{% endif %}
         </ul>
       </div>
 
@@ -98,18 +98,28 @@
     {% comment %}
     Цифры докручиваются при первом показе: `data-count` — итоговое
     значение, текст внутри — то же самое для случая без JS.
+    Каждая цифра — только из `.env`: не задана (ноль) — не показываем.
+    Выдуманная цифра на витрине хуже пустого места.
     {% endcomment %}
+    {% if company.YEARS_ON_MARKET or company.CARS_SERVED or company.RATING %}
     <div class="hero-stats" data-reveal-group>
+      {% if company.YEARS_ON_MARKET %}
       <div class="hstat" data-reveal>
-        <b data-count="{{ company.YEARS_ON_MARKET }}">{{ company.YEARS_ON_MARKET }}</b><span>лет на рынке</span>
+        <b data-count="{{ company.YEARS_ON_MARKET }}">{{ company.YEARS_ON_MARKET }}</b><span>{{ company.YEARS_ON_MARKET|ru_plural:"год,года,лет" }} на рынке</span>
       </div>
+      {% endif %}
+      {% if company.CARS_SERVED %}
       <div class="hstat" data-reveal>
-        <b data-count="{{ company.CARS_SERVED }}">{{ company.CARS_SERVED|intcomma }}</b><span>машин обслужено</span>
+        <b data-count="{{ company.CARS_SERVED }}">{{ company.CARS_SERVED|intcomma }}</b><span>{{ company.CARS_SERVED|ru_plural:"машина обслужена,машины обслужено,машин обслужено" }}</span>
       </div>
+      {% endif %}
+      {% if company.RATING %}
       <div class="hstat" data-reveal>
-        <b data-count="4.9" data-decimals="1">4,9</b><span>средняя оценка</span>
+        <b data-count="{{ company.RATING|stringformat:'.1f' }}" data-decimals="1">{{ company.RATING|floatformat:1 }}</b><span>{% if company.RATING_SOURCE %}оценка на {{ company.RATING_SOURCE }}{% else %}средняя оценка{% endif %}</span>
       </div>
+      {% endif %}
     </div>
+    {% endif %}
   </div>
 </section>
 
@@ -146,7 +156,7 @@
     <article class="tile glass tile-wide" data-reveal>
       <h3>Не приехали — ничего не потеряли</h3>
       <p>
-        Отменить запись можно самому, не позже чем за час до визита. Пост сразу
+        Отменить запись можно самому, не позже чем за {{ booking.CANCEL_DEADLINE_MINUTES|ru_before }} до визита. Пост сразу
         освобождается — никаких звонков и объяснений.
       </p>
     </article>
@@ -229,10 +239,10 @@
     <p class="price-foot-note" data-reveal>
       {% if company.SHOW_PRICES %}Не нашли нужное?{% else %}Не нашли нужное или хотите узнать стоимость?{% endif %}
       Позвоните — подберём по марке и году выпуска:
-      <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+      <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>
     </p>
   {% else %}
-    <p class="muted">Ассортимент уточняйте по телефону <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>.</p>
+    <p class="muted">Ассортимент уточняйте по телефону <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>.</p>
   {% endif %}
 </section>
 
@@ -264,7 +274,7 @@
         <li><b>Называете марку.</b> Подскажем, какое масло подойдёт.</li>
         <li><b>Записываем сами.</b> Скажем адрес и время, приезжайте.</li>
       </ol>
-      <a class="btn btn-lg btn-block btn-outline" href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+      <a class="btn btn-lg btn-block btn-outline" href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>
     </article>
   </div>
 </section>
@@ -287,15 +297,15 @@
         <p class="address-line">{{ point.address }}</p>
         <div class="address-facts">
           <div><b>{{ point.posts_count }}</b><span>{% if point.posts_count == 1 %}пост{% else %}поста{% endif %}</span></div>
-          <div><b>{{ points|length }}</b><span>адреса сети</span></div>
+          <div><b>{{ points|length }}</b><span>{{ points|length|ru_plural:"адрес,адреса,адресов" }} сети</span></div>
         </div>
         <div class="address-actions">
-          {% if point.phone %}<a class="btn btn-sm" href="tel:{{ point.phone }}">{{ point.phone }}</a>{% endif %}
+          {% if point.phone %}<a class="btn btn-sm" href="tel:{{ point.phone|tel_href }}">{{ point.phone }}</a>{% endif %}
           <a class="btn btn-sm btn-ghost" href="https://yandex.ru/maps/?text={{ point.address|urlencode }}" rel="noopener" target="_blank">Маршрут</a>
         </div>
       </article>
     {% empty %}
-      <p class="muted">Адреса уточняйте по телефону <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>.</p>
+      <p class="muted">Адреса уточняйте по телефону <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>.</p>
     {% endfor %}
   </div>
 </section>
@@ -346,7 +356,7 @@
       <li><b>Свободное время</b><span>только реально свободные слоты</span></li>
       <li><b>Расходные материалы</b><span>выбираете при записи</span></li>
       <li><b>Код записи</b><span>назовёте его на посту</span></li>
-      <li><b>Отмена в касание</b><span>за час до визита</span></li>
+      <li><b>Отмена в касание</b><span>за {{ booking.CANCEL_DEADLINE_MINUTES|ru_before }} до визита</span></li>
     </ul>
   </div>
 </section>
@@ -384,7 +394,7 @@
     <details>
       <summary>Как отменить запись?</summary>
       <div class="faq-answer"><div>
-        <p>В приложении — кнопкой, не позже чем за час до визита. Позже — звонком на адрес.</p>
+        <p>В приложении — кнопкой, не позже чем за {{ booking.CANCEL_DEADLINE_MINUTES|ru_before }} до визита. Позже — звонком на адрес.</p>
       </div></div>
     </details>
     <details>
@@ -404,7 +414,7 @@
       <p>{{ company.WORKING_HOURS }}. Подберём масло по марке и назовём ближайшее свободное время.</p>
     </div>
     <div class="cta-side">
-      <a class="phone-big" href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+      <a class="phone-big" href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>
       <a class="cta-mail" href="mailto:{{ company.EMAIL }}">{{ company.EMAIL }}</a>
     </div>
   </div>
@@ -435,7 +445,7 @@
 
     <div class="footer-col">
       <h4>Связаться</h4>
-      <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>
+      <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>
       <a href="mailto:{{ company.EMAIL }}">{{ company.EMAIL }}</a>
       <a href="/master/">Вход для сотрудников</a>
     </div>
