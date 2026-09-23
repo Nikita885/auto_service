@@ -101,6 +101,10 @@ def summary(user) -> dict:
         # Плечи до ближайшего сведения: перенос плюс пришедшее за сегодня.
         "left_leg": left,
         "right_leg": right,
+        # Сколько придёт в ближайшую полночь, если до неё ничего не добавится.
+        # Считает сервер: вторая копия правил в приложении однажды разошлась
+        # бы с первой, и спорить с клиентом пришлось бы о цифрах.
+        "expected_payout": points_service.split_payout(left, right)[0],
         "next_payout_at": points_service.next_payout_at(),
         "payout_timezone_label": config["PAYOUT_TIMEZONE_LABEL"],
         # В журнале списания лежат отрицательными — наружу отдаём модуль,

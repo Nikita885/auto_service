@@ -112,6 +112,72 @@
                                 android:gravity="end"
                                 tools:text="Потрачено 150 ₽" />
                         </LinearLayout>
+
+                        <!-- Плечи до ночного сведения. Две цифры рядом: клиенту
+                             сразу видно, какое плечо отстаёт и почему выплаты нет. -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space"
+                            android:baselineAligned="false"
+                            android:orientation="horizontal">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    style="@style/Text.Kicker"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/referral_leg_left" />
+
+                                <TextView
+                                    android:id="@+id/leg_left"
+                                    style="@style/Text.H3"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    tools:text="300" />
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    style="@style/Text.Kicker"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/referral_leg_right" />
+
+                                <TextView
+                                    android:id="@+id/leg_right"
+                                    style="@style/Text.H3"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    tools:text="500" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/payout"
+                            style="@style/Text.Small"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_sm"
+                            tools:text="В 00:00 по Челябинску придёт 300 ₽" />
+
+                        <TextView
+                            style="@style/Text.Small"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/space_xs"
+                            android:text="@string/referral_rule" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 

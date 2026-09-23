@@ -78,6 +78,14 @@ public class BookingAdapter extends ListAdapter<Models.Booking, BookingAdapter.H
             views.address.setText(booking.servicePoint() == null
                     ? "" : booking.servicePoint().address());
             views.price.setText(Formats.money(booking.totalPrice()));
+            boolean withPoints = booking.pointsSpent() > 0;
+            Ui.setVisible(views.paid, withPoints);
+            if (withPoints) {
+                views.paid.setText(views.getRoot().getContext().getString(
+                        R.string.booking_paid_points,
+                        Formats.money(booking.paidAmount()),
+                        Formats.money(booking.pointsSpent())));
+            }
 
             views.status.setText(booking.statusDisplay());
             views.status.setBackgroundResource(R.drawable.bg_chip);

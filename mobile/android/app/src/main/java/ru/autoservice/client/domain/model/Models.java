@@ -289,13 +289,14 @@ public final class Models {
         private final double oilPrice;
         private final double workPrice;
         private final double totalPrice;
+        private final double pointsSpent;
         private final String cancelReason;
         private final boolean canCancel;
 
         public Booking(String id, String code, BookingStatus status, String statusDisplay,
                        ServicePoint servicePoint, String oilTitle, Date startAt,
                        double oilPrice, double workPrice, double totalPrice,
-                       String cancelReason, boolean canCancel) {
+                       double pointsSpent, String cancelReason, boolean canCancel) {
             this.id = id;
             this.code = code;
             this.status = status;
@@ -306,6 +307,7 @@ public final class Models {
             this.oilPrice = oilPrice;
             this.workPrice = workPrice;
             this.totalPrice = totalPrice;
+            this.pointsSpent = pointsSpent;
             this.cancelReason = orEmpty(cancelReason);
             this.canCancel = canCancel;
         }
@@ -320,6 +322,13 @@ public final class Models {
         public double oilPrice() { return oilPrice; }
         public double workPrice() { return workPrice; }
         public double totalPrice() { return totalPrice; }
+
+        /** Сколько чека закрыто баллами при расчёте у мастера. */
+        public double pointsSpent() { return pointsSpent; }
+
+        /** Заплачено деньгами: чек минус баллы. */
+        public double paidAmount() { return totalPrice - pointsSpent; }
+
         public String cancelReason() { return cancelReason; }
 
         /**
@@ -364,11 +373,16 @@ public final class Models {
         private final List<Integer> lineCounts;
         private final double earnedTotal;
         private final double spentTotal;
+        private final double leftLeg;
+        private final double rightLeg;
+        private final double expectedPayout;
+        private final String payoutZoneLabel;
 
         public Referral(boolean enabled, String code, String inviteUrl, double balance,
                         int maxDiscountPercent, boolean attached, int invitedCount,
                         @Nullable List<Integer> lineCounts, double earnedTotal,
-                        double spentTotal) {
+                        double spentTotal, double leftLeg, double rightLeg,
+                        double expectedPayout, @Nullable String payoutZoneLabel) {
             this.enabled = enabled;
             this.code = orEmpty(code);
             this.inviteUrl = orEmpty(inviteUrl);
@@ -379,6 +393,10 @@ public final class Models {
             this.lineCounts = lineCounts == null ? Collections.emptyList() : lineCounts;
             this.earnedTotal = earnedTotal;
             this.spentTotal = spentTotal;
+            this.leftLeg = leftLeg;
+            this.rightLeg = rightLeg;
+            this.expectedPayout = expectedPayout;
+            this.payoutZoneLabel = orEmpty(payoutZoneLabel);
         }
 
         /** Программу могли выключить на сервере — экран тогда прячется целиком. */
@@ -401,6 +419,16 @@ public final class Models {
 
         public double earnedTotal() { return earnedTotal; }
         public double spentTotal() { return spentTotal; }
+
+        /** Баллы в плечах до ближайшего ночного сведения. */
+        public double leftLeg() { return leftLeg; }
+        public double rightLeg() { return rightLeg; }
+
+        /** Сколько придёт в ближайшую полночь. Считает сервер, не приложение. */
+        public double expectedPayout() { return expectedPayout; }
+
+        /** «по Челябинску» — в каком поясе полночь выплат. */
+        public String payoutZoneLabel() { return payoutZoneLabel; }
 
         /** Сколько всего человек под участником на всех линиях. */
         public int teamSize() {

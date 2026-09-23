@@ -28,6 +28,7 @@ class ReferralSummarySerializer(serializers.Serializer):
     )
     left_leg = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
     right_leg = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    expected_payout = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
     next_payout_at = serializers.DateTimeField(required=False)
     payout_timezone_label = serializers.CharField(required=False)
 

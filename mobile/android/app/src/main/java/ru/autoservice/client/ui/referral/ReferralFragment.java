@@ -31,8 +31,8 @@ import ru.autoservice.client.util.Qr;
  *
  * <p>Экран отвечает на три вопроса в том порядке, в котором их задают:
  * сколько у меня накопилось, чем поделиться и что уже произошло. Дерева
- * матрицы здесь нет намеренно — клиенту важно, сколько он заработал и
- * кого привёл, а не кто под кем стоит.
+ * здесь нет намеренно — клиенту важно, сколько в каждом плече и когда
+ * выплата, а не кто под кем стоит.
  */
 public class ReferralFragment extends Fragment {
 
@@ -152,6 +152,13 @@ public class ReferralFragment extends Fragment {
                 + " " + Formats.money(referral.earnedTotal()));
         views.spent.setText(getString(R.string.referral_spent)
                 + " " + Formats.money(referral.spentTotal()));
+
+        views.legLeft.setText(Formats.money(referral.leftLeg()));
+        views.legRight.setText(Formats.money(referral.rightLeg()));
+        views.payout.setText(referral.expectedPayout() > 0
+                ? getString(R.string.referral_payout_next,
+                        referral.payoutZoneLabel(), Formats.money(referral.expectedPayout()))
+                : getString(R.string.referral_payout_wait));
 
         views.code.setText(referral.code());
         views.counters.setText(

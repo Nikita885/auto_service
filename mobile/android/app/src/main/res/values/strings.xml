@@ -147,7 +147,13 @@
     <string name="referral_off">Программа приглашений сейчас недоступна.</string>
     <string name="referral_balance">Баллов на счету</string>
     <string name="referral_discount">Баллами можно закрыть до %1$d %% чека</string>
-    <string name="referral_earned">Начислено</string>
+    <string name="referral_earned">Получено</string>
+    <string name="referral_leg_left">Левое плечо</string>
+    <string name="referral_leg_right">Правое плечо</string>
+    <string name="referral_payout_next">В 00:00 %1$s придёт %2$s</string>
+    <string name="referral_payout_wait">Выплата будет, когда баллы появятся в обоих плечах. Пока они копятся.</string>
+    <string name="referral_rule">Каждую ночь выплачивается меньшее плечо, а если плечи равны — оба. Остаток переносится.</string>
+    <string name="booking_paid_points">%1$s деньгами + %2$s баллами</string>
     <string name="referral_spent">Потрачено</string>
     <string name="referral_code_label">Ваш код приглашения</string>
     <string name="referral_qr_hint">Дайте отсканировать этот код</string>
@@ -164,7 +170,7 @@
     <string name="referral_team">В вашей структуре: %1$d</string>
     <string name="referral_tab_points">История баллов</string>
     <string name="referral_tab_invited">Приглашённые</string>
-    <string name="referral_points_empty">Баллы появятся, когда приглашённый вами приедет на замену.</string>
+    <string name="referral_points_empty">Здесь появятся ночные выплаты и списания баллов.</string>
     <string name="referral_invited_empty">Вы ещё никого не пригласили. Отправьте код — это одно сообщение.</string>
     <string name="referral_line">%1$d-я линия</string>
     <string name="referral_from_booking">Запись %1$s</string>

@@ -218,6 +218,8 @@ public final class Dtos {
         @SerializedName("oil_price") public String oilPrice;
         @SerializedName("work_price") public String workPrice;
         @SerializedName("total_price") public String totalPrice;
+        @SerializedName("points_spent") public String pointsSpent;
+        @SerializedName("paid_amount") public String paidAmount;
         @SerializedName("client_comment") public String clientComment;
         @SerializedName("cancel_reason") public String cancelReason;
         @SerializedName("can_cancel") public boolean canCancel;
@@ -268,6 +270,10 @@ public final class Dtos {
         @SerializedName("line_counts") public List<Integer> lineCounts;
         @SerializedName("earned_total") public String earnedTotal;
         @SerializedName("spent_total") public String spentTotal;
+        @SerializedName("left_leg") public String leftLeg;
+        @SerializedName("right_leg") public String rightLeg;
+        @SerializedName("expected_payout") public String expectedPayout;
+        @SerializedName("payout_timezone_label") public String payoutTimezoneLabel;
     }
 
     public static final class AttachBody {

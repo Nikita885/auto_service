@@ -138,6 +138,7 @@ def test_summary_counts_lines_and_money(auth, make_user, completed_booking):
     # 5 % от чека 4000 = 200 — в левом плече, до ночного сведения.
     assert body["left_leg"] == "200.00"
     assert body["right_leg"] == "0.00"
+    assert body["expected_payout"] == "0.00"  # правое плечо пустое — выплаты не будет
     assert body["balance"] == "0.00"
     assert body["next_payout_at"]
     assert body["payout_timezone_label"] == "по Челябинску"

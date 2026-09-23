@@ -111,6 +111,18 @@
                 tools:text="4 800 ₽" />
         </LinearLayout>
 
+        <!-- Видна, только если часть чека закрыта баллами. -->
+        <TextView
+            android:id="@+id/paid"
+            style="@style/Text.Small"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_xs"
+            android:gravity="end"
+            android:visibility="gone"
+            tools:text="3 800 ₽ деньгами + 1 000 ₽ баллами"
+            tools:visibility="visible" />
+
         <TextView
             android:id="@+id/reason"
             style="@style/Text.Small"

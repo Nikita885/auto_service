@@ -158,6 +158,7 @@ public final class DtoMapper {
                 money(dto.oilPrice),
                 money(dto.workPrice),
                 money(dto.totalPrice),
+                money(dto.pointsSpent),
                 dto.cancelReason,
                 dto.canCancel);
     }
@@ -190,7 +191,11 @@ public final class DtoMapper {
                 dto.invitedCount,
                 dto.lineCounts,
                 money(dto.earnedTotal),
-                money(dto.spentTotal));
+                money(dto.spentTotal),
+                money(dto.leftLeg),
+                money(dto.rightLeg),
+                money(dto.expectedPayout),
+                dto.payoutTimezoneLabel);
     }
 
     @NonNull
