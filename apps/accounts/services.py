@@ -163,7 +163,17 @@ def verify_otp(raw_phone: str, code: str) -> AuthResult:
             "Код не найден или истёк. Запросите новый.", code="otp_not_found"
         )
 
-    if otp.attempts >= conf["MAX_VERIFY_ATTEMPTS"]:
+    # Попытку занимаем до сверки кода, одним условным UPDATE. Прочитать
+    # счётчик и потом увеличить его нельзя: параллельные запросы видят один
+    # и тот же `attempts=0`, и лимит в пять попыток превращается в «сколько
+    # запросов успели отправить разом» — при четырёх цифрах это перебор.
+    # Условие в WHERE Postgres перепроверяет после чужого UPDATE той же
+    # строки, поэтому больше MAX_VERIFY_ATTEMPTS попыток не пройдёт никогда.
+    # Вне транзакции успеха — счётчик обязан пережить отказ.
+    reserved = OtpCode.objects.filter(
+        pk=otp.pk, attempts__lt=conf["MAX_VERIFY_ATTEMPTS"]
+    ).update(attempts=F("attempts") + 1)
+    if not reserved:
         OtpCode.objects.filter(pk=otp.pk).update(expires_at=timezone.now())
         raise RateLimitError(
             "Слишком много неверных попыток. Запросите новый код.",
@@ -171,9 +181,8 @@ def verify_otp(raw_phone: str, code: str) -> AuthResult:
         )
 
     if not check_password(code, otp.code_hash):
-        # Инкремент вне транзакции успеха — счётчик обязан пережить отказ.
-        OtpCode.objects.filter(pk=otp.pk).update(attempts=F("attempts") + 1)
-        attempts_left = max(conf["MAX_VERIFY_ATTEMPTS"] - otp.attempts - 1, 0)
+        used = OtpCode.objects.filter(pk=otp.pk).values_list("attempts", flat=True).get()
+        attempts_left = max(conf["MAX_VERIFY_ATTEMPTS"] - used, 0)
         raise ValidationError(
             "Неверный код",
             code="otp_invalid",

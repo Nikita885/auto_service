@@ -77,6 +77,66 @@ def test_attempts_are_limited(api, settings):
     assert blocked.data["error"]["code"] == "otp_attempts_exceeded"
 
 
+@pytest.mark.django_db(transaction=True)
+def test_parallel_guesses_do_not_exceed_attempt_limit(settings, monkeypatch):
+    """Перебор кода параллельными запросами упирается в тот же лимит.
+
+    Сверку кода замедляем: так все потоки гарантированно оказываются внутри
+    `verify_otp` одновременно. Раньше каждый читал `attempts=0`, и неверных
+    попыток проходило столько, сколько запросов успели отправить разом.
+    """
+    import threading
+    import time as time_module
+
+    from django.db import connection
+
+    from apps.accounts import services
+    from apps.common.exceptions import RateLimitError, ValidationError
+
+    settings.OTP = {**settings.OTP, "MAX_VERIFY_ATTEMPTS": 3}
+    services.request_otp("+79001112233")
+
+    real_check = services.check_password
+
+    def slow_check(raw, encoded):
+        time_module.sleep(0.2)
+        return real_check(raw, encoded)
+
+    monkeypatch.setattr(services, "check_password", slow_check)
+
+    outcomes: list[str] = []
+    lock = threading.Lock()
+
+    def guess(n: int) -> None:
+        try:
+            services.verify_otp("+79001112233", f"{n:04d}")
+            result = "ok"
+        except ValidationError:
+            result = "invalid"
+        except RateLimitError:
+            result = "limited"
+        except Exception as exc:  # noqa: BLE001 — в потоке исключение иначе теряется
+            result = f"error: {exc!r}"
+        finally:
+            connection.close()
+        with lock:
+            outcomes.append(result)
+
+    # Настоящий код случаен и изредка совпадёт с одной из догадок, поэтому
+    # "ok" считаем вместе с "invalid": важно, сколько раз код сверяли.
+    threads = [threading.Thread(target=guess, args=(9000 + n,)) for n in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert len(outcomes) == 8, outcomes
+    checked = outcomes.count("invalid") + outcomes.count("ok")
+    assert checked == 3
+    assert outcomes.count("limited") == 5
+    assert OtpCode.objects.get().attempts == 3
+
+
 def test_resend_is_throttled_by_cooldown(api):
     get_code(api, "+79001112233")
     second = request_otp(api, "+79001112233")
