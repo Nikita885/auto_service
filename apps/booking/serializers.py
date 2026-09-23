@@ -103,6 +103,7 @@ class BookingSerializer(serializers.ModelSerializer):
     can_cancel = serializers.BooleanField(
         source="is_cancellable_by_client", read_only=True
     )
+    paid_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Booking
@@ -118,6 +119,8 @@ class BookingSerializer(serializers.ModelSerializer):
             "oil_price",
             "work_price",
             "total_price",
+            "points_spent",
+            "paid_amount",
             "client_comment",
             "cancel_reason",
             "cancelled_at",

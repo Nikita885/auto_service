@@ -266,6 +266,10 @@
     play: '<path d="M7 4v16l13-8z"/>',
     users: '<circle cx="9" cy="8" r="3.5"/><path d="M2 20c1-3.4 3.6-5.2 7-5.2s6 1.8 7 5.2"/><path d="M17 4.5a3.5 3.5 0 0 1 0 7M18.5 20c-.3-1.6-.9-3-1.8-4"/>',
     wallet: '<path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M16 12h5v-3h-5a1.5 1.5 0 0 0 0 3z"/>',
+    left: '<path d="M15 18l-6-6 6-6"/>',
+    right: '<path d="M9 18l6-6-6-6"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/>',
   };
 
   function icon(name, size) {
@@ -369,5 +373,43 @@
     });
   }
 
-  global.App = { API, ApiError, createClient, toast, guard, theme, fmt, icon, esc, $, $$, el, empty, ask };
+  /** Модальное окно с произвольным содержимым: расчёт, форма масла.
+
+      В отличие от `ask`, содержимое и кнопки собирает вызывающий. Окно
+      закрывается Escape и кликом по фону; фокус уходит в первое поле. */
+  function dialog({ title, sub, body, actions, wide }) {
+    const backdrop = el("div", { class: "modal-backdrop" });
+    const titleId = "dlg-" + Math.random().toString(36).slice(2, 8);
+    const modal = el("div", {
+      class: "modal" + (wide ? " modal-wide" : ""),
+      role: "dialog", "aria-modal": "true", "aria-labelledby": titleId,
+    }, [
+      el("div", { class: "modal-head" }, [
+        el("div", {}, [
+          el("div", { class: "modal-title", id: titleId, text: title }),
+          sub ? el("div", { class: "modal-sub", text: sub }) : null,
+        ]),
+      ]),
+      body,
+      el("div", { class: "modal-actions" }, actions || []),
+    ]);
+
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    function close() {
+      backdrop.remove();
+      document.removeEventListener("keydown", onKey);
+    }
+    backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+    document.addEventListener("keydown", onKey);
+
+    backdrop.append(modal);
+    document.body.append(backdrop);
+    const first = modal.querySelector("input, select, textarea, button.btn-primary");
+    if (first) first.focus();
+    return { close, root: modal };
+  }
+
+  global.App = {
+    API, ApiError, createClient, toast, guard, theme, fmt, icon, esc, $, $$, el, empty, ask, dialog,
+  };
 })(window);

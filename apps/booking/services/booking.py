@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -71,6 +72,7 @@ def _transition(
     *,
     actor=None,
     reason: str = "",
+    comment_suffix: str = "",
     extra_fields: dict | None = None,
 ) -> Booking:
     if booking.status in FINAL_BOOKING_STATUSES:
@@ -101,7 +103,7 @@ def _transition(
         from_status=from_status,
         to_status=to_status,
         actor=actor,
-        comment=reason,
+        comment=", ".join(part for part in (reason, comment_suffix) if part),
     )
     logger.info("Запись %s: %s -> %s", booking.code, from_status, to_status)
     return booking
@@ -186,26 +188,48 @@ def start_work(master, booking_id) -> Booking:
 
 
 @transaction.atomic
-def complete(master, booking_id) -> Booking:
-    """Работы выполнены: фиксируем статус и списываем канистру со склада."""
+def complete(master, booking_id, *, points: Decimal = Decimal(0)) -> Booking:
+    """Работы выполнены: расчёт, статус, склад и баллы — одной транзакцией.
+
+    `points` — сколько чека клиент решил закрыть баллами (решает клиент,
+    вводит мастер). Списание, списание канистры и баллы в плечи вышестоящих
+    либо происходят вместе, либо не происходят вовсе: это деньги.
+    Импорт рефералки локальный — иначе apps.booking и apps.referral
+    замкнулись бы друг на друга, как это уже сделано с уведомлениями.
+    """
+    from apps.referral.services import points as referral_points
+    from apps.referral.services import tree as referral_tree
+
     booking = Booking.objects.select_for_update().get(
         pk=get_for_master(master, booking_id).pk
     )
+
+    points = Decimal(points or 0)
+    extra = {"master": booking.master or master}
+    if points > 0:
+        # Статус проверяем до списания: у завершённой записи списать баллы
+        # и потом упасть на переходе значило бы откатывать чужой баланс.
+        if booking.status in FINAL_BOOKING_STATUSES:
+            raise ConflictError(
+                "Запись уже завершена, изменить статус нельзя",
+                code="booking_final",
+                details={"status": booking.status},
+            )
+        node = referral_tree.get_node(booking.user)
+        if node is None:
+            raise ConflictError("У клиента нет баллов", code="not_enough_points")
+        entry = referral_points.spend(node, points, booking=booking)
+        extra["points_spent"] = booking.points_spent - entry.amount
+
     _transition(
         booking,
         BookingStatus.COMPLETED,
         actor=master,
-        extra_fields={"master": booking.master or master},
+        comment_suffix=f"баллами {extra['points_spent']}" if points > 0 else "",
+        extra_fields=extra,
     )
     stock_service.write_off(booking)
-
-    # Баллы начисляем здесь же, а не после коммита: это деньги, и они
-    # должны появиться вместе с выполненной работой либо не появиться
-    # вовсе. Импорт локальный — иначе apps.booking и apps.referral
-    # замкнулись бы друг на друга, как это уже сделано с уведомлениями.
-    from apps.referral.services import points as referral_points
-
-    referral_points.accrue_for_booking(booking)
+    referral_points.credit_legs_for_booking(booking)
 
     def _after_commit() -> None:
         from apps.notifications.services import notify_booking_completed

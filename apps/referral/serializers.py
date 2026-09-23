@@ -26,6 +26,10 @@ class ReferralSummarySerializer(serializers.Serializer):
     spent_total = serializers.DecimalField(
         max_digits=10, decimal_places=2, required=False
     )
+    left_leg = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    right_leg = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    next_payout_at = serializers.DateTimeField(required=False)
+    payout_timezone_label = serializers.CharField(required=False)
 
 
 class PointsEntrySerializer(serializers.Serializer):

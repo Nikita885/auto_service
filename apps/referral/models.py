@@ -1,15 +1,20 @@
-"""Реферальная программа: матрица участников и журнал баллов.
+"""Реферальная программа: бинарное дерево участников и журнал баллов.
 
-Схема — принудительная матрица: под каждым участником ровно два места
-(`REFERRAL["WIDTH"]`), и начисления идут на три линии вверх от того, кто
-заплатил (`REFERRAL["LEVEL_PERCENTS"]` — 5 %, 4 %, 3 %).
+Под каждым участником два места — левое и правое плечо. Когда кто-то в
+ветке оплатил замену, его чек превращается в баллы для трёх вышестоящих:
+первая линия получает 5 %, вторая 4 %, третья 3 % (`LEVEL_PERCENTS`).
+Баллы ложатся не на баланс, а в то плечо участника, где стоит покупатель
+(`LegCredit`).
 
-Почему матрица, а не классическая бинарка с выплатой за меньшее плечо:
-замену масла делают раз в 6–12 месяцев, и «слабое» плечо наполняется
-месяцами. Схема, которая полгода не платит ничего, перестаёт работать
-раньше, чем участник увидит первый балл. Матрица платит с первого же визита
-приглашённого, а переполнение (спиловер) капает и тем, кто сам никого не
-привёл, — при годовом цикле это единственное, что удерживает людей.
+Раз в сутки, в 00:00 по Челябинску (`PAYOUT_TIMEZONE`), плечи сводятся
+(`BinarySettlement`): если одно пустое — выплаты нет и всё переносится;
+если равны — выплачиваются оба; иначе выплачивается меньшее, а излишек
+сильного переносится на следующие сутки. Правила — от заказчика, расчёт
+на полном дереве совпадает с его таблицей: 600 + 960 + 1440 = 3000 баллов
+с участника при чеке 6000 ₽.
+
+Размещение новичков — обходом в ширину от пригласившего (`services/tree`),
+со спиловером: оба места у спонсора заняты — человек встаёт ниже в его ветке.
 """
 
 from django.conf import settings
@@ -78,6 +83,15 @@ class ReferralNode(BaseModel):
     depth = models.PositiveIntegerField("уровень в матрице", default=0, db_index=True)
 
     balance = models.DecimalField("баллы", max_digits=10, decimal_places=2, default=0)
+    # Невыплаченный остаток плеч после последнего сведения. Хранится, а не
+    # считается суммой по истории: сведение идёт каждую ночь по всем, и
+    # пересчитывать ради него весь журнал с начала времён незачем.
+    carry_left = models.DecimalField(
+        "перенос левого плеча", max_digits=12, decimal_places=2, default=0
+    )
+    carry_right = models.DecimalField(
+        "перенос правого плеча", max_digits=12, decimal_places=2, default=0
+    )
 
     class Meta:
         verbose_name = "участник программы"
@@ -164,3 +178,109 @@ class PointsEntry(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.get_kind_display()} {self.amount} → {self.node_id}"
+
+
+class BinarySettlement(BaseModel):
+    """Сведение плеч участника за одни сутки — вся арифметика выплаты.
+
+    Хранится целиком, а не одной суммой: «почему мне заплатили 300, а не
+    600» — первый вопрос клиента, и ответ должен лежать в базе, а не
+    восстанавливаться по журналу.
+    """
+
+    node = models.ForeignKey(
+        ReferralNode,
+        on_delete=models.CASCADE,
+        related_name="settlements",
+        verbose_name="участник",
+    )
+    day = models.DateField("сутки (по времени выплат)")
+    left_before = models.DecimalField("перенос слева", max_digits=12, decimal_places=2)
+    right_before = models.DecimalField("перенос справа", max_digits=12, decimal_places=2)
+    left_added = models.DecimalField("пришло слева", max_digits=12, decimal_places=2)
+    right_added = models.DecimalField("пришло справа", max_digits=12, decimal_places=2)
+    paid = models.DecimalField("выплачено", max_digits=12, decimal_places=2)
+    left_after = models.DecimalField("осталось слева", max_digits=12, decimal_places=2)
+    right_after = models.DecimalField("осталось справа", max_digits=12, decimal_places=2)
+    entry = models.OneToOneField(
+        PointsEntry,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="settlement",
+        verbose_name="строка журнала",
+    )
+
+    class Meta:
+        verbose_name = "сведение плеч"
+        verbose_name_plural = "сведения плеч"
+        ordering = ("-day",)
+        constraints = [
+            # Одни сутки сводятся один раз: задача идёт по расписанию и
+            # может быть запущена повторно — выплата дважды недопустима.
+            models.UniqueConstraint(fields=["node", "day"], name="uniq_settlement_per_day"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.node_id} {self.day}: {self.paid}"
+
+
+class LegCredit(BaseModel):
+    """Баллы, пришедшие в плечо участника с чужой покупки, до сведения.
+
+    Одна строка — одна выполненная запись для одного вышестоящего. После
+    ночного сведения строка привязывается к `settlement` и больше не
+    участвует в расчёте.
+    """
+
+    node = models.ForeignKey(
+        ReferralNode,
+        on_delete=models.CASCADE,
+        related_name="leg_credits",
+        verbose_name="кому в плечо",
+    )
+    side = models.CharField("плечо", max_length=5, choices=MatrixPosition.choices)
+    amount = models.DecimalField("баллы", max_digits=10, decimal_places=2)
+    booking = models.ForeignKey(
+        "booking.Booking",
+        on_delete=models.PROTECT,
+        related_name="leg_credits",
+        verbose_name="запись",
+    )
+    source_node = models.ForeignKey(
+        ReferralNode,
+        on_delete=models.CASCADE,
+        related_name="generated_credits",
+        verbose_name="с чьего чека",
+    )
+    level = models.PositiveSmallIntegerField("линия")
+    # Снимок ставки и базы: проценты меняются в .env, история — нет.
+    percent = models.DecimalField("ставка, %", max_digits=5, decimal_places=2)
+    base_amount = models.DecimalField("база", max_digits=10, decimal_places=2)
+    settlement = models.ForeignKey(
+        BinarySettlement,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="credits",
+        verbose_name="сведено",
+    )
+
+    class Meta:
+        verbose_name = "баллы в плечо"
+        verbose_name_plural = "баллы в плечи"
+        ordering = ("-created_at",)
+        constraints = [
+            # Одна запись даёт вышестоящему ровно одно поступление: мастер
+            # может нажать «Выполнено» дважды, двойных баллов быть не должно.
+            models.UniqueConstraint(
+                fields=["booking", "node"], name="uniq_credit_per_booking_node"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["settlement", "created_at"]),
+            models.Index(fields=["node", "settlement"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.amount} → {self.node_id} ({self.side})"

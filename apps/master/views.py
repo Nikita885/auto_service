@@ -12,10 +12,10 @@ import zoneinfo
 from datetime import datetime, timedelta
 
 from django.conf import settings
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, F, Q, Sum
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -25,6 +25,7 @@ from apps.booking.constants import BookingStatus
 from apps.booking.models import Booking, BookingDraft
 from apps.booking.services import booking as booking_service
 from apps.catalog.models import ServicePoint
+from apps.catalog.services import oils as oils_service
 from apps.common.exceptions import NotFoundError, ValidationError
 from apps.common.permissions import IsAdmin, IsMaster
 from apps.master import metrics
@@ -34,9 +35,16 @@ from apps.master.serializers import (
     MasterBookingDetailSerializer,
     MasterBookingSerializer,
     MasterCancelSerializer,
+    MasterCatalogSerializer,
+    MasterCompleteSerializer,
+    MasterOilCreateSerializer,
+    MasterOilSerializer,
     MetricsSerializer,
     NoShowSerializer,
+    OilStockRowSerializer,
+    PointsQuoteSerializer,
 )
+from apps.referral.services import points as referral_points
 
 
 def _parse_date(raw: str):
@@ -163,14 +171,34 @@ class MasterBookingViewSet(
         return Response(MasterBookingSerializer(booking).data)
 
     @extend_schema(
+        request=MasterCompleteSerializer,
         responses={200: MasterBookingSerializer},
         summary="Работы выполнены",
-        description="Одновременно списывает канистру масла со склада точки.",
+        description=(
+            "Расчёт одной транзакцией: списание баллов по желанию клиента "
+            "(не больше потолка от чека), списание канистры со склада и "
+            "баллы в плечи вышестоящих клиента."
+        ),
     )
     @action(detail=True, methods=["post"])
     def complete(self, request: Request, pk=None) -> Response:
-        booking = booking_service.complete(request.user, pk)
+        payload = MasterCompleteSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        booking = booking_service.complete(
+            request.user, pk, points=payload.validated_data["points"]
+        )
         return Response(MasterBookingSerializer(booking).data)
+
+    @extend_schema(
+        responses={200: PointsQuoteSerializer},
+        summary="Баллы клиента для расчёта",
+        description="Баланс клиента и сколько из него можно списать в этот чек.",
+    )
+    @action(detail=True, methods=["get"])
+    def points(self, request: Request, pk=None) -> Response:
+        booking = booking_service.get_for_master(request.user, pk)
+        return Response(PointsQuoteSerializer(referral_points.spend_quote(booking)).data)
 
     @extend_schema(
         request=NoShowSerializer,
@@ -222,10 +250,16 @@ class MasterBookingViewSet(
                 ),
             ),
             no_show=Count("id", filter=Q(status=BookingStatus.NO_SHOW)),
-            revenue=Sum("total_price", filter=Q(status=BookingStatus.COMPLETED)),
+            # Выручка — деньгами: часть чека, закрытая баллами, в кассу не пришла.
+            revenue=Sum(
+                F("total_price") - F("points_spent"),
+                filter=Q(status=BookingStatus.COMPLETED),
+            ),
+            points_spent=Sum("points_spent", filter=Q(status=BookingStatus.COMPLETED)),
         )
         stats["date"] = day
         stats["revenue"] = stats["revenue"] or 0
+        stats["points_spent"] = stats["points_spent"] or 0
         return Response(DaySummarySerializer(stats).data)
 
 
@@ -292,3 +326,65 @@ class MetricsView(APIView):
             point,
         )
         return Response(MetricsSerializer(metrics.collect(period, point)).data)
+
+
+@extend_schema(tags=["Мастер"])
+class MasterOilViewSet(viewsets.ViewSet):
+    """Масла и остатки: мастер заводит новое масло и пересчитывает полку.
+
+    Каталог общий на сеть, остатки — только по своим точкам.
+    """
+
+    permission_classes = [IsMaster]
+
+    @extend_schema(responses={200: MasterCatalogSerializer}, summary="Масла и остатки")
+    def list(self, request: Request) -> Response:
+        points, oils = oils_service.catalog_for(request.user)
+        return Response(MasterCatalogSerializer({"points": points, "oils": oils}).data)
+
+    @extend_schema(
+        request=MasterOilCreateSerializer,
+        responses={201: MasterOilSerializer},
+        summary="Новое масло",
+        description="Сразу можно задать остатки на своих точках (`initial_stock`).",
+    )
+    def create(self, request: Request) -> Response:
+        payload = MasterOilCreateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = dict(payload.validated_data)
+        stock = {row["service_point"]: row["quantity"] for row in data.pop("initial_stock", [])}
+        oil = oils_service.create_oil(request.user, stock=stock, **data)
+        _, oils = oils_service.catalog_for(request.user)
+        oil = next(item for item in oils if item.pk == oil.pk)
+        return Response(MasterOilSerializer(oil).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        request=MasterOilSerializer,
+        responses={200: MasterOilSerializer},
+        summary="Изменить масло",
+        description="Цена, стоимость работ, «в продаже» и т. п. Уже созданные записи "
+        "не меняются — в них снимок цены.",
+    )
+    def partial_update(self, request: Request, pk=None) -> Response:
+        payload = MasterOilSerializer(data=request.data, partial=True)
+        payload.is_valid(raise_exception=True)
+        oils_service.update_oil(request.user, pk, **payload.validated_data)
+        _, oils = oils_service.catalog_for(request.user)
+        oil = next(item for item in oils if str(item.pk) == str(pk))
+        return Response(MasterOilSerializer(oil).data)
+
+    @extend_schema(
+        request=OilStockRowSerializer,
+        responses={200: OilStockRowSerializer},
+        summary="Остаток на точке",
+        description="Абсолютное число канистр после пересчёта или прихода.",
+    )
+    @action(detail=True, methods=["post"])
+    def stock(self, request: Request, pk=None) -> Response:
+        payload = OilStockRowSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        row = oils_service.set_stock(
+            request.user, pk, payload.validated_data["service_point"],
+            payload.validated_data["quantity"],
+        )
+        return Response({"service_point": str(row.service_point_id), "quantity": row.quantity})

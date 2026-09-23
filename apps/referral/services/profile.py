@@ -17,7 +17,8 @@ from django.db.models import Sum
 
 from apps.common.phone import mask_phone
 from apps.referral.constants import PointsKind
-from apps.referral.models import PointsEntry, ReferralNode
+from apps.referral.models import LegCredit, PointsEntry, ReferralNode
+from apps.referral.services import points as points_service
 from apps.referral.services import tree
 
 ZERO = Decimal("0.00")
@@ -77,8 +78,11 @@ def summary(user) -> dict:
 
     node = tree.ensure_node(user)
     levels = len(config["LEVEL_PERCENTS"])
-    earned = _sum_entries(node, PointsKind.ACCRUAL)
+    # Заработано — и выплаты по плечам, и начисления прежней схемы: это
+    # тоже баллы клиента, пропасть из «всего заработано» они не должны.
+    earned = _sum_entries(node, PointsKind.PAYOUT) + _sum_entries(node, PointsKind.ACCRUAL)
     spent = _sum_entries(node, PointsKind.SPEND)
+    left, right = points_service.pending_legs(node)
 
     return {
         "enabled": True,
@@ -94,6 +98,11 @@ def summary(user) -> dict:
         "invited_count": ReferralNode.objects.filter(sponsor=node).count(),
         "line_counts": line_counts(node, levels),
         "earned_total": earned,
+        # Плечи до ближайшего сведения: перенос плюс пришедшее за сегодня.
+        "left_leg": left,
+        "right_leg": right,
+        "next_payout_at": points_service.next_payout_at(),
+        "payout_timezone_label": config["PAYOUT_TIMEZONE_LABEL"],
         # В журнале списания лежат отрицательными — наружу отдаём модуль,
         # иначе на экране получится «потрачено −300».
         "spent_total": -spent,
@@ -130,9 +139,12 @@ def invited_card(node: ReferralNode, owner: ReferralNode) -> dict:
     отдать свой номер тому, кто дал ему код. Имя показываем — без него
     список превращается в набор безымянных строк.
     """
-    earned = PointsEntry.objects.filter(
-        node=owner, source_node=node, kind=PointsKind.ACCRUAL
-    ).aggregate(total=Sum("amount"))["total"] or ZERO
+    # Сколько баллов этот человек принёс в плечи пригласившего. Не
+    # «выплачено»: выплата считается по плечам целиком, и разложить её
+    # обратно по людям нельзя.
+    earned = LegCredit.objects.filter(node=owner, source_node=node).aggregate(
+        total=Sum("amount")
+    )["total"] or ZERO
 
     return {
         "name": node.user.full_name or "Клиент",

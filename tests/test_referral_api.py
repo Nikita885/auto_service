@@ -128,17 +128,37 @@ def test_summary_counts_lines_and_money(auth, make_user, completed_booking):
     tree_service.attach(make_user(), first.code)
 
     buyer = User.objects.get(pk=first.user_id)
-    points_service.accrue_for_booking(completed_booking(buyer))
+    points_service.credit_legs_for_booking(completed_booking(buyer))
 
     body = auth(sponsor).get(SUMMARY).json()
 
     assert body["invited_count"] == 2
     # Две на первой линии, одна на второй, третья пустая.
     assert body["line_counts"] == [2, 1, 0]
-    # 5 % от чека 4000 = 200.
-    assert body["earned_total"] == "200.00"
-    assert body["spent_total"] == "0.00"
-    assert body["balance"] == "200.00"
+    # 5 % от чека 4000 = 200 — в левом плече, до ночного сведения.
+    assert body["left_leg"] == "200.00"
+    assert body["right_leg"] == "0.00"
+    assert body["balance"] == "0.00"
+    assert body["next_payout_at"]
+    assert body["payout_timezone_label"] == "по Челябинску"
+
+
+def test_summary_after_nightly_payout(auth, make_user, completed_booking):
+    """Оба плеча по 200 — равны, выплачиваются оба: 400 на балансе."""
+    sponsor = make_user("Спонсор")
+    node = tree_service.ensure_node(sponsor)
+    for _ in range(2):
+        invited = tree_service.attach(make_user(), node.code)
+        points_service.credit_legs_for_booking(
+            completed_booking(User.objects.get(pk=invited.user_id))
+        )
+    points_service.settle_due_days(now=timezone.now() + timedelta(days=1))
+
+    body = auth(sponsor).get(SUMMARY).json()
+
+    assert body["balance"] == "400.00"
+    assert body["earned_total"] == "400.00"
+    assert (body["left_leg"], body["right_leg"]) == ("0.00", "0.00")
 
 
 def test_spent_total_is_positive_on_screen(auth, make_user, completed_booking):
@@ -146,10 +166,7 @@ def test_spent_total_is_positive_on_screen(auth, make_user, completed_booking):
     выглядело бы как ошибка."""
     sponsor = make_user("Спонсор")
     node = tree_service.ensure_node(sponsor)
-    invited = tree_service.attach(make_user(), node.code)
-    points_service.accrue_for_booking(
-        completed_booking(User.objects.get(pk=invited.user_id))
-    )
+    ReferralNode.objects.filter(pk=node.pk).update(balance=Decimal("200"))
     points_service.spend(node, Decimal("50"), comment="проверка")
 
     body = auth(sponsor).get(SUMMARY).json()
@@ -236,28 +253,27 @@ def test_attach_to_self_is_rejected(auth, make_user):
 def test_points_history(auth, make_user, completed_booking):
     sponsor = make_user("Спонсор")
     node = tree_service.ensure_node(sponsor)
-    invited = tree_service.attach(make_user(), node.code)
-    booking = completed_booking(User.objects.get(pk=invited.user_id))
-    points_service.accrue_for_booking(booking)
+    for _ in range(2):
+        invited = tree_service.attach(make_user(), node.code)
+        points_service.credit_legs_for_booking(
+            completed_booking(User.objects.get(pk=invited.user_id))
+        )
+    points_service.settle_due_days(now=timezone.now() + timedelta(days=1))
 
     body = auth(sponsor).get(POINTS).json()
 
     assert body["count"] == 1
     row = body["results"][0]
-    assert row["kind"] == PointsKind.ACCRUAL
-    assert row["amount"] == "200.00"
-    assert row["level"] == 1
-    assert row["percent"] == "5.00"
-    assert row["booking_code"] == booking.code
+    assert row["kind"] == PointsKind.PAYOUT
+    assert row["amount"] == "400.00"
+    assert "слева 200.00, справа 200.00" in row["comment"]
 
 
 def test_points_history_shows_only_my_entries(auth, make_user, completed_booking):
     stranger = make_user("Чужой")
     stranger_node = tree_service.ensure_node(stranger)
-    invited = tree_service.attach(make_user(), stranger_node.code)
-    points_service.accrue_for_booking(
-        completed_booking(User.objects.get(pk=invited.user_id))
-    )
+    ReferralNode.objects.filter(pk=stranger_node.pk).update(balance=Decimal("100"))
+    points_service.spend(stranger_node, Decimal("10"))
 
     body = auth(make_user()).get(POINTS).json()
 
@@ -288,7 +304,7 @@ def test_invited_list_counts_money_from_each(auth, make_user, completed_booking)
     sponsor = make_user("Спонсор")
     node = tree_service.ensure_node(sponsor)
     invited = tree_service.attach(make_user(), node.code)
-    points_service.accrue_for_booking(
+    points_service.credit_legs_for_booking(
         completed_booking(User.objects.get(pk=invited.user_id))
     )
 

@@ -55,7 +55,9 @@
     const t = data.totals;
     const cards = [
       { label: "Выручка", value: fmt.money(t.revenue), accent: true,
-        hint: "масло " + fmt.money(t.oil_revenue) + " + работа " + fmt.money(t.work_revenue) },
+        hint: Number(t.points_spent) > 0
+          ? "деньгами; ещё " + fmt.money(t.points_spent) + " закрыто баллами"
+          : "масло " + fmt.money(t.oil_revenue) + " + работа " + fmt.money(t.work_revenue) },
       { label: "Средний чек", value: fmt.money(t.avg_check), hint: "по выполненным записям" },
       { label: "Записей за период", value: fmt.number(t.total),
         hint: t.completed + " выполнено · " + t.pending + " ждут · " + t.in_progress + " в работе" },

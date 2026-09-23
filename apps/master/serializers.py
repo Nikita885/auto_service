@@ -1,6 +1,9 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from apps.booking.models import Booking, BookingDraft
+from apps.catalog.models import OilType
 
 
 class MasterBookingSerializer(serializers.ModelSerializer):
@@ -13,6 +16,7 @@ class MasterBookingSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     service_point_name = serializers.CharField(source="service_point.name", read_only=True)
     local_time = serializers.SerializerMethodField()
+    paid_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Booking
@@ -34,6 +38,8 @@ class MasterBookingSerializer(serializers.ModelSerializer):
             "oil_price",
             "work_price",
             "total_price",
+            "points_spent",
+            "paid_amount",
             "client_comment",
             "cancel_reason",
             "created_at",
@@ -66,6 +72,67 @@ class MasterCancelSerializer(serializers.Serializer):
     """Причина обязательна: она уходит клиенту в SMS."""
 
     reason = serializers.CharField(max_length=500, allow_blank=False)
+
+
+class MasterCompleteSerializer(serializers.Serializer):
+    """Расчёт при завершении: сколько чека клиент закрывает баллами."""
+
+    points = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal(0), required=False, default=Decimal(0),
+        help_text="Баллы к списанию по желанию клиента. 0 — не списывать.",
+    )
+
+
+class PointsQuoteSerializer(serializers.Serializer):
+    """Окно расчёта у мастера: баланс клиента и сколько можно списать."""
+
+    balance = serializers.DecimalField(max_digits=10, decimal_places=2)
+    limit = serializers.DecimalField(max_digits=10, decimal_places=2)
+    max_spend = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    max_discount_percent = serializers.IntegerField()
+
+
+# ------------------------------------------------------------------ масла
+class OilStockRowSerializer(serializers.Serializer):
+    service_point = serializers.UUIDField()
+    quantity = serializers.IntegerField(min_value=0, max_value=100000)
+
+
+class MasterOilSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    title = serializers.CharField(source="__str__", read_only=True)
+    brand = serializers.CharField(max_length=80)
+    name = serializers.CharField(max_length=120)
+    viscosity = serializers.CharField(max_length=16)
+    oil_type = serializers.ChoiceField(choices=OilType.choices)
+    oil_type_display = serializers.CharField(source="get_oil_type_display", read_only=True)
+    volume_liters = serializers.DecimalField(
+        max_digits=4, decimal_places=1, min_value=Decimal("0.1")
+    )
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal(0))
+    work_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal(0))
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    is_active = serializers.BooleanField(default=True)
+    stock = serializers.SerializerMethodField()
+
+    def get_stock(self, obj) -> dict:
+        """Остаток по id точки. Точки без строки остатка — ноль."""
+        return {str(k): v for k, v in getattr(obj, "stock_by_point", {}).items()}
+
+
+class MasterOilCreateSerializer(MasterOilSerializer):
+    initial_stock = OilStockRowSerializer(many=True, required=False, write_only=True)
+
+
+class MasterPointShortSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+
+
+class MasterCatalogSerializer(serializers.Serializer):
+    points = MasterPointShortSerializer(many=True)
+    oils = MasterOilSerializer(many=True)
 
 
 class NoShowSerializer(serializers.Serializer):
@@ -106,6 +173,7 @@ class DaySummarySerializer(serializers.Serializer):
     cancelled = serializers.IntegerField()
     no_show = serializers.IntegerField()
     revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    points_spent = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 
 # --------------------------------------------------------------- метрики
@@ -130,8 +198,10 @@ class MetricsTotalsSerializer(serializers.Serializer):
     cancelled_by_master = serializers.IntegerField()
     no_show = serializers.IntegerField()
     revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    points_spent = serializers.DecimalField(max_digits=12, decimal_places=2)
     oil_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
     work_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    points_spent = serializers.DecimalField(max_digits=12, decimal_places=2)
     avg_check = serializers.DecimalField(max_digits=12, decimal_places=2)
     cancel_rate = serializers.FloatField()
     no_show_rate = serializers.FloatField()

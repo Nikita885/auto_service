@@ -3,13 +3,13 @@
 
 {% block title %}Панель администратора — {{ company.NAME }}{% endblock %}
 
+{% block body_class %}staff{% endblock %}
+
 {% block brand_sub %}<span class="brand-sub">Администратор</span>{% endblock %}
 
 {% block nav %}
-  <a href="/">Сайт клиента</a>
-  <a href="/master/">Мастер</a>
+  <a href="/">Сайт</a>
   <a href="/admin/">Django-админка</a>
-  <a href="/api/docs/">API</a>
 {% endblock %}
 
 {% block header_actions %}
@@ -21,14 +21,7 @@
   {% include "web/_staff_auth.html" with auth_title="Вход для администратора" demo_phone="+79000000000" %}
 
   <div id="workspace" hidden>
-    <div class="tabs" role="tablist" style="margin-bottom:22px">
-      <button class="tab" type="button" role="tab" data-tab="shift" aria-selected="true">Смена</button>
-      <button class="tab" type="button" role="tab" data-tab="metrics" aria-selected="false">Метрики</button>
-    </div>
-
-    <div data-panel="shift">
-      {% include "web/_workspace.html" %}
-    </div>
+    {% include "web/_workspace.html" with with_metrics=True %}
 
     <!-- ------------------------------------------------------- метрики -->
     <div data-panel="metrics" hidden>

@@ -38,6 +38,12 @@ _CANCELLED = [
 _MONEY = DecimalField(max_digits=12, decimal_places=2)
 
 
+#: Выручка — то, что пришло деньгами: чек минус часть, закрытая баллами.
+#: Баллы — скидка, в кассу они не приходят, и считать их выручкой значило
+#: бы завышать её ровно на размер программы лояльности.
+PAID = F("total_price") - F("points_spent")
+
+
 def _zero() -> Value:
     """Ноль нужного типа: Coalesce требует совпадения типов с Sum(Decimal)."""
     return Value(Decimal("0"), output_field=_MONEY)
@@ -140,7 +146,7 @@ def _totals(bookings) -> dict:
         cancelled_by_master=Count("id", filter=Q(status=BookingStatus.CANCELLED_BY_MASTER)),
         no_show=Count("id", filter=Q(status=BookingStatus.NO_SHOW)),
         revenue=Coalesce(
-            Sum("total_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
+            Sum(PAID, filter=Q(status=BookingStatus.COMPLETED)), _zero()
         ),
         avg_check=Coalesce(
             Avg("total_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
@@ -150,6 +156,9 @@ def _totals(bookings) -> dict:
         ),
         work_revenue=Coalesce(
             Sum("work_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
+        ),
+        points_spent=Coalesce(
+            Sum("points_spent", filter=Q(status=BookingStatus.COMPLETED)), _zero()
         ),
     )
 
@@ -207,7 +216,7 @@ def _by_day(bookings, period: Period) -> list[dict]:
             completed=Count("id", filter=Q(status=BookingStatus.COMPLETED)),
             cancelled=Count("id", filter=Q(status__in=_CANCELLED)),
             revenue=Coalesce(
-                Sum("total_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
+                Sum(PAID, filter=Q(status=BookingStatus.COMPLETED)), _zero()
             ),
         )
     )
@@ -250,7 +259,7 @@ def _by_point(bookings, point: ServicePoint | None) -> list[dict]:
             completed=Count("id", filter=Q(status=BookingStatus.COMPLETED)),
             cancelled=Count("id", filter=Q(status__in=_CANCELLED)),
             revenue=Coalesce(
-                Sum("total_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
+                Sum(PAID, filter=Q(status=BookingStatus.COMPLETED)), _zero()
             ),
         )
         .order_by("-revenue")
@@ -277,7 +286,7 @@ def _top_oils(bookings, limit: int = 8) -> list[dict]:
             total=Count("id"),
             completed=Count("id", filter=Q(status=BookingStatus.COMPLETED)),
             revenue=Coalesce(
-                Sum("total_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
+                Sum(PAID, filter=Q(status=BookingStatus.COMPLETED)), _zero()
             ),
         )
         .order_by("-total")[:limit]

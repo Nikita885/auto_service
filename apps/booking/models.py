@@ -214,6 +214,11 @@ class Booking(BaseModel):
     oil_price = models.DecimalField("цена масла", max_digits=10, decimal_places=2)
     work_price = models.DecimalField("цена работ", max_digits=10, decimal_places=2)
     total_price = models.DecimalField("итого", max_digits=10, decimal_places=2)
+    # Сколько чека клиент закрыл баллами при расчёте. Решает клиент, вводит
+    # мастер при завершении; в журнале баллов этому соответствует списание.
+    points_spent = models.DecimalField(
+        "оплачено баллами", max_digits=10, decimal_places=2, default=0
+    )
 
     # --- сопровождение
     master = models.ForeignKey(
@@ -264,6 +269,11 @@ class Booking(BaseModel):
     @property
     def is_active(self) -> bool:
         return self.status in ACTIVE_BOOKING_STATUSES
+
+    @property
+    def paid_amount(self):
+        """Сколько клиент заплатил деньгами: чек минус баллы."""
+        return self.total_price - self.points_spent
 
     @property
     def is_cancellable_by_client(self) -> bool:
