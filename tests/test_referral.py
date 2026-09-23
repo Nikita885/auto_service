@@ -249,3 +249,28 @@ def test_percent_snapshot_survives_rate_change(settings, make_user, make_booking
     settings.REFERRAL = {**settings.REFERRAL, "LEVEL_PERCENTS": [Decimal("1")]}
     entry.refresh_from_db()
     assert entry.percent == Decimal("5.00")
+
+
+def test_spend_cap_applies_to_the_whole_receipt(settings, make_user, make_booking):
+    """Потолок оплаты баллами — на чек, а не на одно списание.
+
+    Два списания по половине чека проходили оба, и запись закрывалась
+    баллами целиком, хотя потолок в настройках — 50 %.
+    """
+    settings.REFERRAL = {**settings.REFERRAL, "MAX_DISCOUNT_PERCENT": 50}
+    user = make_user()
+    node = tree_service.ensure_node(user)
+    node.balance = Decimal("10000")
+    node.save(update_fields=["balance"])
+    booking = make_booking(user, work="1000", oil_price="3000")  # чек 4000, потолок 2000
+
+    points_service.spend(node, Decimal("1500"), booking=booking)
+
+    with pytest.raises(ConflictError) as exc:
+        points_service.spend(node, Decimal("1000"), booking=booking)
+    assert exc.value.code == "points_limit_exceeded"
+    assert exc.value.details["limit"] == "500.00"
+
+    points_service.spend(node, Decimal("500"), booking=booking)
+    node.refresh_from_db()
+    assert node.balance == Decimal("8000")

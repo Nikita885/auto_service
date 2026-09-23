@@ -13,7 +13,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.db.models import F
+from django.db.models import F, Sum
 
 from apps.common.exceptions import ConflictError, ValidationError
 from apps.referral.constants import PointsKind
@@ -121,12 +121,22 @@ def spend(node: ReferralNode, amount: Decimal, *, booking=None, comment: str = "
         )
 
     if booking is not None:
-        limit = max_discount(booking)
+        # Потолок — на чек целиком, а не на одно списание: иначе два
+        # списания по 50 % закрывают запись баллами полностью. Уже
+        # списанное читаем после блокировки узла — параллельное списание
+        # по той же записи ждёт на ней же и увидит наше.
+        already = -(
+            PointsEntry.objects.filter(
+                booking=booking, kind=PointsKind.SPEND
+            ).aggregate(total=Sum("amount"))["total"]
+            or Decimal(0)
+        )
+        limit = max_discount(booking) - already
         if amount > limit:
             raise ConflictError(
                 "Баллами можно закрыть только часть чека",
                 code="points_limit_exceeded",
-                details={"limit": str(limit)},
+                details={"limit": str(max(limit, Decimal(0)))},
             )
 
     entry = PointsEntry.objects.create(
