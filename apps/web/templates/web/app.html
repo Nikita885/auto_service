@@ -1,0 +1,52 @@
+{% load static %}<!doctype html>
+{% comment %}
+Веб-приложение клиента для iPhone (`/app/`).
+
+Та же тёмная неоновая тема, что у витрины и приложения под Android: токены
+переопределены на `body.pwa` в web/app/app.css. Экраны — Preact + htm без
+сборщика; модули подключаются картой импорта с адресами из `{% static %}`,
+чтобы в проде в них был хеш содержимого (см. `ClientAppView`).
+
+Для iPhone важно:
+- `apple-mobile-web-app-capable` и манифест — запуск с главного экрана без
+  рамки Safari;
+- `viewport-fit=cover` и отступы `env(safe-area-inset-*)` в CSS — нижняя
+  панель не залезает под полоску «домой»;
+- иконка PNG: Safari не берёт SVG для главного экрана.
+{% endcomment %}
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ company.NAME }}</title>
+<meta name="description" content="{{ company.NAME }}: запись на замену масла, свои записи и бонусы.">
+<meta name="theme-color" content="#030b14">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="{{ company.NAME }}">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="{% url 'web:app-manifest' %}">
+<link rel="apple-touch-icon" href="{% static 'web/app/icons/apple-touch-icon.png' %}">
+<link rel="icon" type="image/png" href="{% static 'web/app/icons/icon-192.png' %}">
+<link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+<link rel="stylesheet" href="{% static 'web/app/app.css' %}">
+<script type="importmap">{{ import_map_json|safe }}</script>
+</head>
+<body class="pwa">
+<div id="root">
+  <div class="pwa-splash" aria-busy="true">
+    <img src="{% static 'web/app/icons/icon-192.png' %}" alt="" width="96" height="96">
+  </div>
+</div>
+<noscript>
+  <p class="pwa-noscript">Для работы приложения нужен JavaScript. Записаться можно и по телефону
+    <a href="tel:{{ company.PHONE }}">{{ company.PHONE }}</a>.</p>
+</noscript>
+{{ app_config|json_script:"app-config" }}
+<script src="{% static 'web/js/core.js' %}"></script>
+<script src="{% static 'web/app/vendor/qrcode.js' %}"></script>
+<script type="module">import "app/main";</script>
+</body>
+</html>

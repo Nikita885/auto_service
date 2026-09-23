@@ -69,10 +69,11 @@
           <span><small>Загрузить в</small>App Store</span>
         </a>
       {% else %}
-        <span class="store-btn is-soon">
+        {# Код едет в ссылке: приложение подставит его при регистрации. #}
+        <a class="store-btn" href="{% url 'web:app' %}{% if found %}?invite={{ code|urlencode }}{% endif %}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
-          <span><small>Скоро в</small>App Store</span>
-        </span>
+          <span><small>Для iPhone</small>Веб-приложение</span>
+        </a>
       {% endif %}
 
       {% if company.GOOGLE_PLAY_URL %}

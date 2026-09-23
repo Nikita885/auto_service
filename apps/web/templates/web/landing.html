@@ -328,10 +328,11 @@
             <span><small>Загрузить в</small>App Store</span>
           </a>
         {% else %}
-          <span class="store-btn is-soon">
+          {% comment %} Пока приложения в App Store нет, iPhone получает веб-приложение: оно ставится на главный экран из Safari. {% endcomment %}
+          <a class="store-btn" href="{% url 'web:app' %}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
-            <span><small>Скоро в</small>App Store</span>
-          </span>
+            <span><small>Для iPhone</small>Веб-приложение</span>
+          </a>
         {% endif %}
 
         {% if company.GOOGLE_PLAY_URL %}
@@ -347,8 +348,8 @@
         {% endif %}
       </div>
 
-      {% if not company.APP_STORE_URL and not company.GOOGLE_PLAY_URL %}
-        <p class="app-note">Приложения выходят в ближайшее время. Пока записывайтесь звонком — это быстро.</p>
+      {% if not company.APP_STORE_URL %}
+        <p class="app-note">На iPhone откройте веб-приложение в Safari и нажмите «Поделиться» → «На экран „Домой“» — оно встанет рядом с остальными.</p>
       {% endif %}
     </div>
 

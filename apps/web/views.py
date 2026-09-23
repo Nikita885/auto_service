@@ -6,8 +6,14 @@
 никак — в рабочих панелях сотрудников.
 """
 
+import hashlib
+import json
+
 from django.conf import settings
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
+from django.template.loader import render_to_string
+from django.templatetags.static import static
+from django.urls import reverse
 from django.views.decorators.http import require_GET
 from django.views.generic import TemplateView
 
@@ -127,3 +133,119 @@ def android_assetlinks(request):
         ],
         safe=False,
     )
+
+
+# ------------------------------------------------------------ веб-приложение
+#: Модули и файлы веб-приложения. Одним списком для трёх мест: карта
+#: импорта на странице, предзагрузка в service worker и версия его кеша.
+APP_MODULES = {
+    "preact": "web/app/vendor/preact-htm.js",
+    "app/lib": "web/app/lib.js",
+    "app/auth": "web/app/auth.js",
+    "app/booking": "web/app/booking.js",
+    "app/bookings": "web/app/bookings.js",
+    "app/bonus": "web/app/bonus.js",
+    "app/profile": "web/app/profile.js",
+    "app/main": "web/app/main.js",
+}
+APP_ASSETS = (
+    "web/css/app.css",
+    "web/app/app.css",
+    "web/js/core.js",
+    "web/app/vendor/qrcode.js",
+    "web/app/icons/apple-touch-icon.png",
+    *APP_MODULES.values(),
+)
+
+
+def _app_urls() -> dict:
+    """Адреса модулей с хешем в имени (в проде) — для карты импорта.
+
+    Относительный `import "./lib.js"` внутри модуля ушёл бы на имя без
+    хеша, а nginx отдаёт `/static/` с годовым `immutable`: обновление
+    никогда не доехало бы до телефона, который уже открывал приложение.
+    """
+    return {name: static(path) for name, path in APP_MODULES.items()}
+
+
+class ClientAppView(CompanyMixin, TemplateView):
+    """Веб-приложение клиента для iPhone: `/app/`.
+
+    Те же экраны, что в приложении под Android, поверх того же API. Для
+    iPhone без App Store: Safari предлагает «На экран „Домой“», и дальше
+    оно запускается на весь экран с иконкой, как обычное приложение.
+    """
+
+    template_name = "web/app.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Адреса — наши собственные пути из {% static %}, экранировать в них
+        # нечего; json.dumps всё равно экранирует «</» не хуже шаблона.
+        context["import_map_json"] = json.dumps(
+            {"imports": _app_urls()}, ensure_ascii=False
+        ).replace("</", r"<\/")
+        company = settings.COMPANY
+        context["app_config"] = {
+            "company": company["NAME"],
+            "phone": company["PHONE"],
+            "siteUrl": company["SITE_URL"],
+            "swUrl": reverse("web:app-sw"),
+            "icon": static("web/app/icons/icon-192.png"),
+            "draftTtl": settings.BOOKING["DRAFT_TTL_SECONDS"],
+            "cancelDeadline": settings.BOOKING["CANCEL_DEADLINE_MINUTES"],
+            "maxDiscount": settings.REFERRAL["MAX_DISCOUNT_PERCENT"],
+        }
+        return context
+
+
+@require_GET
+def app_manifest(request):
+    """Манифест: имя, иконки и то, что приложение открывается без рамки браузера."""
+    company = settings.COMPANY
+    icons = [
+        {"src": static("web/app/icons/icon-192.png"), "sizes": "192x192", "type": "image/png"},
+        {"src": static("web/app/icons/icon-512.png"), "sizes": "512x512", "type": "image/png"},
+        {
+            "src": static("web/app/icons/maskable-512.png"),
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable",
+        },
+    ]
+    return JsonResponse(
+        {
+            "name": company["NAME"],
+            "short_name": company["NAME"],
+            "description": company["TAGLINE"],
+            "lang": "ru",
+            "start_url": "/app/",
+            "scope": "/app/",
+            "display": "standalone",
+            "orientation": "portrait",
+            "background_color": "#030b14",
+            "theme_color": "#030b14",
+            "icons": icons,
+        },
+        content_type="application/manifest+json",
+        json_dumps_params={"ensure_ascii": False},
+    )
+
+
+@require_GET
+def app_service_worker(request):
+    """Service worker веб-приложения.
+
+    Отдаётся из `/app/`, а не из `/static/`: область действия воркера — его
+    собственный путь, и из `/static/` он не видел бы страницу приложения.
+    Кешировать сам файл браузеру нельзя — иначе новая версия не установится.
+    """
+    assets = [static(path) for path in APP_ASSETS]
+    # Версия кеша меняется, когда меняется хоть один файл: в проде у них
+    # в именах хеш содержимого.
+    version = hashlib.sha256("|".join(assets).encode()).hexdigest()[:12]
+    body = render_to_string("web/app_sw.js", {"assets": assets, "version": version})
+    response = HttpResponse(body, content_type="application/javascript; charset=utf-8")
+    response["Service-Worker-Allowed"] = "/app/"
+    response["Cache-Control"] = "no-cache"
+    return response

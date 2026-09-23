@@ -1,0 +1,357 @@
+/* Веб-приложение клиента (`/app/`) — для iPhone с главного экрана.
+
+   Компоненты (кнопки, поля, карточки, значки, модалки, уведомления) — из
+   app.css, здесь только токены темы и раскладка телефона. Цвета один в
+   один с приложением под Android (res/values/colors.xml) и витриной:
+   клиент видит все три, и разное оформление читалось бы как «сделано
+   разными людьми». */
+
+.pwa {
+  color-scheme: dark;
+
+  --bg: #030b14;
+  --bg-soft: #070c16;
+  --surface: #0b1220;
+  --surface-2: #101a2c;
+  --border: #1b2c44;
+  --border-strong: #2b4569;
+
+  --text: #e6f1ff;
+  --text-soft: #97accb;
+  --text-faint: #7d92b3;
+
+  --accent: #2ea6ff;
+  --accent-hover: #63c0ff;
+  --accent-soft: #122a40;
+  --accent-text: #03121f;
+  --neon-hot: #b9e6ff;
+
+  --ok: #3ddc97;
+  --ok-soft: #0e2b22;
+  --warn: #f5c35c;
+  --warn-soft: #2e2413;
+  --danger: #ff6b6b;
+  --danger-soft: #33171c;
+  --info: #2ea6ff;
+  --info-soft: #122a40;
+
+  --shadow: none;
+  --shadow-lg: 0 18px 50px rgba(0, 0, 0, .6);
+  --ring: 0 0 0 3px rgba(46, 166, 255, .35);
+
+  --nav-h: 64px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(70% 45% at 85% -10%, rgba(10, 92, 255, .22), transparent 65%),
+    var(--bg) fixed;
+  color: var(--text);
+  /* На iPhone двойной тап и «резинка» не должны масштабировать интерфейс. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS увеличивает страницу при фокусе на поле с шрифтом меньше 16 px. */
+.pwa input, .pwa select, .pwa textarea { font-size: 16px; min-height: 44px; }
+.pwa .btn { min-height: 44px; }
+.pwa .btn-sm { min-height: 36px; }
+
+.pwa-splash {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+.pwa-splash img { border-radius: 22px; animation: pulse 1.6s ease-in-out infinite; }
+.pwa-noscript { padding: var(--space-6); text-align: center; }
+
+/* ---------------------------------------------------------------- каркас */
+.screen {
+  width: min(560px, 100%);
+  margin-inline: auto;
+  padding: calc(var(--safe-top) + var(--space-5)) var(--space-4)
+    calc(var(--nav-h) + var(--safe-bottom) + var(--space-6));
+}
+.screen-plain { padding-bottom: calc(var(--safe-bottom) + var(--space-6)); }
+
+.screen-head { margin-bottom: var(--space-4); }
+.screen-head h1 { font-size: var(--fs-h3-lg); font-weight: var(--fw-heavy); letter-spacing: -.02em; }
+.screen-head p { margin-top: var(--space-1); color: var(--text-soft); font-size: var(--fs-ui); }
+
+.stack-lg { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.card.pad { padding: var(--space-4); }
+.kicker {
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-heavy);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.muted { color: var(--text-soft); font-size: var(--fs-ui); }
+.center { text-align: center; }
+.big-number {
+  font-size: 34px;
+  font-weight: var(--fw-heavy);
+  letter-spacing: -.03em;
+  color: var(--neon-hot);
+  text-shadow: 0 0 18px rgba(46, 166, 255, .55);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------ нижняя навигация */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  height: calc(var(--nav-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: rgba(7, 12, 22, .92);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border);
+}
+.tabbar button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.tabbar button[aria-current="page"] { color: var(--accent); }
+.tabbar button[aria-current="page"] .tab-ico {
+  background: var(--accent-soft);
+  box-shadow: 0 0 18px -6px var(--accent);
+}
+.tab-ico {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  transition: background var(--dur);
+}
+.tab-ico svg { width: 22px; height: 22px; }
+
+/* ---------------------------------------------------------------- вход */
+.auth {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-5);
+}
+.auth-brand { display: flex; align-items: center; gap: var(--space-3); }
+.auth-brand img { width: 56px; height: 56px; border-radius: 16px; }
+.auth-brand b { font-size: var(--fs-h3); }
+.auth h1 { font-size: 30px; font-weight: var(--fw-heavy); line-height: 1.1; letter-spacing: -.03em; }
+.auth h1 span { color: var(--neon-hot); text-shadow: 0 0 14px var(--accent); }
+.otp-input { text-align: center; letter-spacing: .5em; font: var(--fw-bold) 26px/1 var(--mono) !important; }
+.legal { font-size: var(--fs-caption); color: var(--text-faint); text-align: center; }
+
+.install {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  font-size: var(--fs-ui);
+  color: var(--text-soft);
+}
+.install b { color: var(--text); }
+.install svg { flex: none; width: 22px; height: 22px; color: var(--accent); margin-top: 2px; }
+
+/* ------------------------------------------------------------- запись */
+.progress { display: flex; gap: 6px; margin: var(--space-2) 0 var(--space-4); }
+.progress span { flex: 1; height: 4px; border-radius: var(--radius-pill); background: var(--border); }
+.progress span.done { background: var(--accent); box-shadow: 0 0 10px -2px var(--accent); }
+
+.timer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: var(--fw-bold) var(--fs-body) var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.timer.low { background: var(--danger-soft); color: var(--danger); }
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 60px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+.choice:active { background: var(--surface-2); }
+.choice[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.choice:disabled { opacity: .5; }
+.choice-body { flex: 1; min-width: 0; }
+.choice-title { display: block; font-weight: var(--fw-semibold); }
+.choice-meta { display: block; margin-top: 2px; font-size: var(--fs-small); color: var(--text-soft); }
+.choice-side { text-align: right; font-weight: var(--fw-bold); white-space: nowrap; }
+
+.days { display: flex; gap: var(--space-2); overflow-x: auto; padding-bottom: var(--space-1); scrollbar-width: none; }
+.days::-webkit-scrollbar { display: none; }
+.day {
+  flex: none;
+  width: 58px;
+  padding: var(--space-2) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+.day small { display: block; font-size: var(--fs-caption); color: var(--text-faint); text-transform: uppercase; }
+.day b { display: block; font-size: var(--fs-h3); }
+.day[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
+.day[aria-pressed="true"] small { color: var(--accent-text); }
+
+.slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+.slot-btn {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: inherit;
+  font: var(--fw-semibold) var(--fs-body) var(--font);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.slot-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
+
+.summary-row { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+.summary-row:last-child { border-bottom: none; }
+.summary-row span:first-child { color: var(--text-soft); }
+.summary-row span:last-child { text-align: right; font-weight: var(--fw-semibold); }
+.summary-total span:last-child { font-size: var(--fs-h3); color: var(--accent); }
+
+.sticky-actions {
+  position: sticky;
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--space-2));
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.sticky-actions .btn { flex: 1; }
+
+/* ------------------------------------------------------- мои записи */
+.seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 4px;
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.seg button {
+  min-height: 36px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-soft);
+  font: var(--fw-semibold) var(--fs-ui) var(--font);
+  cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+
+.booking-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
+.booking-when { font-size: var(--fs-h3); font-weight: var(--fw-bold); }
+.booking-lines { margin-top: var(--space-2); display: grid; gap: 2px; font-size: var(--fs-ui); color: var(--text-soft); }
+.booking-foot { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-3); }
+.booking-price { font-weight: var(--fw-bold); font-size: var(--fs-lead); }
+
+/* ------------------------------------------------------------- бонусы */
+.legs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-3); }
+.leg { padding: var(--space-3); border-radius: var(--radius); background: var(--surface-2); }
+.leg b { display: block; font-size: var(--fs-h3); font-variant-numeric: tabular-nums; }
+.leg.weak b { color: var(--warn); }
+.payout-line { margin-top: var(--space-3); font-size: var(--fs-ui); }
+.payout-line b { color: var(--ok); }
+
+.invite-code {
+  font: var(--fw-bold) 30px/1.1 var(--mono);
+  letter-spacing: .22em;
+  text-indent: .22em;
+  color: var(--accent);
+  user-select: all;
+}
+.qr {
+  display: block;
+  width: 200px;
+  height: 200px;
+  margin: var(--space-3) auto;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: #fff;
+}
+.qr svg, .qr img { display: block; width: 100%; height: 100%; }
+
+.history-row { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
+.history-row:last-child { border-bottom: none; }
+.history-row .plus { color: var(--ok); font-weight: var(--fw-bold); white-space: nowrap; }
+.history-row .minus { color: var(--text-soft); font-weight: var(--fw-bold); white-space: nowrap; }
+
+/* ------------------------------------------------------------ подсказки */
+.suggest { margin-top: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.suggest button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.suggest button:last-child { border-bottom: none; }
+
+.empty-state { padding: var(--space-7) var(--space-4); text-align: center; color: var(--text-soft); }
+.empty-state b { display: block; margin-bottom: var(--space-2); color: var(--text); font-size: var(--fs-lead); }
+
+/* Уведомления и модалки над нижней панелью, а не под ней. */
+.pwa .toasts { bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--space-3)); left: var(--space-3); right: var(--space-3); }
+.pwa .modal-backdrop { align-items: end; padding: 0; }
+.pwa .modal {
+  width: 100%;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding-bottom: calc(var(--space-6) + var(--safe-bottom));
+}
+@media (min-width: 600px) {
+  .pwa .modal-backdrop { align-items: center; padding: var(--space-5); }
+  .pwa .modal { width: min(440px, 100%); border-radius: var(--radius-lg); }
+}

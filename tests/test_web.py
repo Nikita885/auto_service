@@ -107,3 +107,66 @@ def test_landing_phone_links_are_dialable(client, settings, point):
 
     assert 'href="tel:+74991234567"' in html
     assert 'href="tel:+7 (499)' not in html
+
+
+# ------------------------------------------------------ веб-приложение /app/
+def test_web_app_page_has_everything_for_iphone(client):
+    response = client.get("/app/")
+    html = response.content.decode()
+
+    assert response.status_code == 200
+    assert 'rel="manifest" href="/app/manifest.webmanifest"' in html
+    assert 'rel="apple-touch-icon"' in html
+    assert 'name="apple-mobile-web-app-capable" content="yes"' in html
+    assert "viewport-fit=cover" in html
+    # Модули подключаются картой импорта с адресами из {% static %}: в проде
+    # в них хеш содержимого, и обновление доезжает до телефона.
+    assert '<script type="importmap">' in html
+    assert '"app/main": "/static/web/app/main.js"' in html
+    assert 'id="app-config"' in html
+
+
+def test_web_app_manifest(client):
+    response = client.get("/app/manifest.webmanifest")
+    data = response.json()
+
+    assert response["Content-Type"].startswith("application/manifest+json")
+    assert data["start_url"] == "/app/"
+    assert data["scope"] == "/app/"
+    assert data["display"] == "standalone"
+    assert {icon["sizes"] for icon in data["icons"]} == {"192x192", "512x512"}
+    assert any(icon.get("purpose") == "maskable" for icon in data["icons"])
+
+
+def test_web_app_service_worker(client):
+    response = client.get("/app/sw.js")
+    body = response.content.decode()
+
+    assert response["Content-Type"].startswith("application/javascript")
+    assert response["Service-Worker-Allowed"] == "/app/"
+    # Сам воркер кешировать нельзя — иначе новая версия не установится.
+    assert response["Cache-Control"] == "no-cache"
+    assert "/static/web/app/main.js" in body
+    assert "/api/" not in body.split("const ASSETS")[1].split(";")[0]
+
+
+@pytest.mark.django_db
+def test_landing_offers_web_app_for_iphone(client, settings, point):
+    settings.COMPANY = {**settings.COMPANY, "APP_STORE_URL": ""}
+    html = _landing(client)
+
+    assert 'href="/app/"' in html
+    assert "Веб-приложение" in html
+
+
+@pytest.mark.django_db
+def test_invite_page_passes_code_to_web_app(client):
+    from apps.accounts.models import User
+    from apps.referral.services import tree as tree_service
+
+    user = User.objects.create_user(phone="+79005550000", full_name="Друг")
+    node = tree_service.ensure_node(user)
+
+    html = client.get(f"/i/{node.code}/").content.decode()
+
+    assert f'href="/app/?invite={node.code}"' in html
