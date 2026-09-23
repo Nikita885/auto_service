@@ -28,31 +28,64 @@
   --neon-deep: #0a5cff;     /* дальний ореол */
   --neon-dim: rgba(46, 166, 255, .16);
 
+  /* Линии и подложки — один голубой с шестью плотностями. Раньше их было
+     восемнадцать (.06, .07, .08, .09, .1 …): разницу между соседними глаз
+     не видит, а читать и править такое невозможно. */
+  --tint: rgba(122, 186, 255, .08);         /* подложка чипов, кнопок, слотов */
+  --tint-strong: rgba(122, 186, 255, .12);  /* приглушённая метка */
+  --line: rgba(122, 186, 255, .14);         /* обычная граница и разделитель */
+  --line-mid: rgba(122, 186, 255, .2);      /* разделитель в шапке, неактивный шаг */
+  --line-strong: rgba(122, 186, 255, .34);  /* граница кнопки, верхний край стекла */
+  --line-bright: rgba(122, 186, 255, .65);  /* кант выделенной карточки */
+
+  /* Свечение неона — пять сил вместо четырнадцати оттенков. */
+  --glow-faint: rgba(46, 166, 255, .08);    /* подсветка строки под курсором */
+  --glow: rgba(46, 166, 255, .26);          /* пятно света на выделенной карточке */
+  --glow-strong: rgba(46, 166, 255, .6);    /* ореол текста и цифр */
+  --deep-haze: rgba(10, 92, 255, .25);      /* дальний синий фон */
+  --deep-glow: rgba(10, 92, 255, .65);      /* дальний ореол свечения */
+
+  /* Стекло карточки: верх светлее низа, как у настоящего стекла на свету. */
+  --glass-top: rgba(18, 30, 52, .82);
+  --glass-bottom: rgba(8, 13, 24, .82);
+  /* Выделенная карточка — то же стекло, только плотнее и синее. */
+  --glass-accent-top: rgba(20, 38, 68, .9);
+  --glass-accent-bottom: rgba(7, 12, 22, .92);
+  /* Полосы поверх страницы: шапка, верхняя строка, подвал. */
+  --bar: rgba(4, 7, 14, .84);
+  --bar-clear: rgba(4, 7, 14, .62);
+
   /* Переопределение дизайн-системы app.css в границах лендинга. */
   --bg: var(--void);
   --bg-soft: #0a101c;
   --surface: rgba(11, 18, 32, .68);
   --surface-2: rgba(16, 26, 44, .78);
-  --border: rgba(122, 186, 255, .14);
-  --border-strong: rgba(122, 186, 255, .32);
+  --border: var(--line);
+  --border-strong: var(--line-strong);
 
   --text: #e6f1ff;
   --text-soft: #97accb;
-  --text-faint: #6a7f9f;
+  /* Светлее прежнего #6a7f9f: тот давал 4,85:1 на чистом фоне и проседал
+     ниже 4,5:1 на стеклянных карточках, где им подписаны мелкие цифры. */
+  --text-faint: #7d92b3;
 
   --accent: var(--neon);
   --accent-hover: #63c0ff;
-  --accent-soft: rgba(46, 166, 255, .13);
+  --accent-soft: var(--neon-dim);
   --accent-text: #03121f;
 
   --ok: #3ddc97;
   --ok-soft: rgba(61, 220, 151, .12);
+  --ok-line: rgba(61, 220, 151, .28);
+
+  /* Ритм страницы: расстояние между секциями и поля карточек. */
+  --section-gap: 120px;
+  --pad-card: 28px;
+  --pad-card-sm: var(--space-6);
+  --pad-panel: var(--space-8);
+  --gap-grid: var(--space-4);
 
   --ring: 0 0 0 3px rgba(46, 166, 255, .32);
-
-  /* Общая кривая движения: быстрый старт, мягкая остановка. Одна на весь
-     лендинг — разнобой в ускорениях и делает анимацию «самодельной». */
-  --ease: cubic-bezier(.22, 1, .36, 1);
 
   /* Шапка выше, чем в панелях: в неё встаёт двухстрочный фирменный знак
      целиком, а не текстовое название. Высота считается от знака: при
@@ -85,8 +118,8 @@
   background-color: var(--void);
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E"),
-    radial-gradient(70% 55% at 78% -8%, rgba(10, 92, 255, .20), transparent 62%),
-    radial-gradient(60% 50% at 6% 26%, rgba(46, 166, 255, .10), transparent 66%);
+    radial-gradient(70% 55% at 78% -8%, var(--deep-haze), transparent 62%),
+    radial-gradient(60% 50% at 6% 26%, var(--glow-faint), transparent 66%);
   background-size: 220px 220px, auto, auto;
   background-repeat: repeat, no-repeat, no-repeat;
   background-blend-mode: soft-light, normal, normal;
@@ -99,28 +132,28 @@
 
 .block {
   width: min(1180px, 100% - 44px);
-  margin: 118px auto 0;
+  margin: var(--section-gap) auto 0;
 }
 
 .block-head { max-width: 62ch; margin-bottom: 38px; }
 
 .block-head h2 {
-  font-size: clamp(28px, 3.4vw, 42px);
-  font-weight: 800;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-heavy);
   letter-spacing: -.035em;
   line-height: 1.08;
   margin-bottom: 14px;
 }
 
-.block-head p { color: var(--text-soft); font-size: 16.5px; }
+.block-head p { color: var(--text-soft); font-size: var(--fs-lead); }
 
 .kicker {
   display: inline-flex;
   align-items: center;
   gap: 9px;
   margin-bottom: 16px;
-  font-size: 11.5px;
-  font-weight: 800;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-heavy);
   letter-spacing: .18em;
   text-transform: uppercase;
   color: var(--neon);
@@ -137,7 +170,9 @@
   box-shadow: 0 0 8px var(--neon);
 }
 
-.muted { color: var(--text-soft); font-size: 15px; }
+.muted { color: var(--text-soft); font-size: var(--fs-body); }
+
+.label-short { display: none; }
 
 /* ------------------------------------------------------------- логотип */
 .logo {
@@ -159,7 +194,7 @@
     drop-shadow(0 0 2px rgba(185, 230, 255, .95))
     drop-shadow(0 0 9px var(--neon))
     drop-shadow(0 0 26px var(--neon-deep))
-    drop-shadow(0 0 54px rgba(10, 92, 255, .5));
+    drop-shadow(0 0 54px var(--deep-glow));
 }
 
 /* Толщина по умолчанию — чтобы чужой рисунок без наших классов выглядел
@@ -226,7 +261,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 0 6px rgba(46, 166, 255, .75)) drop-shadow(0 0 20px rgba(10, 92, 255, .6));
+  filter: drop-shadow(0 0 6px var(--glow-strong)) drop-shadow(0 0 20px var(--deep-glow));
 }
 
 /* На образце гарнитура заметно шире Arial Black. Растянуть по горизонтали —
@@ -236,25 +271,30 @@
 .logo-word-main { display: block; transform: scaleX(1.1); }
 
 .logo-sm { --logo-w: 210px; }
-.logo-hero { --logo-w: min(680px, 88vw); }
+/* Вывеска первого экрана. Была 680 px и занимала треть экрана ноутбука —
+   заголовок и кнопки уезжали за нижний край. */
+.logo-hero { --logo-w: min(540px, 80vw); }
 
 /* ------------------------------------------------------- верхняя полоса */
 .topbar {
   position: relative;
   z-index: 60;
-  background: rgba(3, 6, 12, .9);
-  border-bottom: 1px solid rgba(122, 186, 255, .1);
+  background: var(--bar);
+  border-bottom: 1px solid var(--tint);
   color: var(--text-soft);
-  font-size: 13px;
+  font-size: var(--fs-small);
 }
 
-.topbar-inner { display: flex; align-items: center; gap: 14px; height: 40px; }
-.topbar-sep { width: 1px; height: 14px; background: rgba(122, 186, 255, .2); }
+.topbar-inner { display: flex; align-items: center; gap: 14px; height: 44px; }
+.topbar-sep { width: 1px; height: 14px; background: var(--line-mid); }
 
 .topbar-phone {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--text);
-  font-weight: 700;
-  font-size: 14.5px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-ui);
   letter-spacing: -.01em;
   transition: color .2s, text-shadow .2s;
 }
@@ -262,7 +302,7 @@
 
 /* --------------------------------------------------------------- шапка */
 .landing .header {
-  background: rgba(4, 7, 14, .62);
+  background: var(--bar-clear);
   border-bottom: 1px solid transparent;
   transition: background .3s, border-color .3s, box-shadow .3s;
 }
@@ -270,17 +310,24 @@
 /* Шапка проявляется только когда под ней уже есть контент: на первом
    экране она мешала бы вывеске, а дальше без неё теряется навигация. */
 .landing .header.is-scrolled {
-  background: rgba(4, 7, 14, .82);
-  border-bottom-color: rgba(122, 186, 255, .16);
-  box-shadow: 0 1px 0 rgba(46, 166, 255, .1), 0 18px 40px -28px rgba(0, 0, 0, .9);
+  background: var(--bar);
+  border-bottom-color: var(--line);
+  box-shadow: 0 1px 0 var(--glow-faint), 0 18px 40px -28px rgba(0, 0, 0, .9);
 }
 
 .landing .header .wrap { gap: 22px; }
 
+/* Два знака подряд — в шапке и вывеской под ней — спорили за первый
+   взгляд. Пока вывеска на экране, знак в шапке не нужен; возвращается он,
+   когда вывеска ушла под шапку (`is-past-sign` ставит landing.js). Только
+   при JS: без него класс не ставится, и знак пропал бы навсегда. */
+.landing .header .brand { transition: opacity var(--dur) var(--ease), visibility var(--dur); }
+.has-js .landing .header:not(.is-past-sign) .brand { opacity: 0; visibility: hidden; }
+
 .landing .nav a {
   position: relative;
   color: var(--text-soft);
-  font-weight: 560;
+  font-weight: var(--fw-semibold);
   background: none;
 }
 .landing .nav a:hover { color: var(--text); background: none; }
@@ -308,7 +355,7 @@
 .landing .btn-primary {
   position: relative;
   overflow: hidden;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   box-shadow: inset 0 0 0 1px rgba(185, 230, 255, .5), 0 6px 26px -8px var(--neon);
 }
 
@@ -327,11 +374,14 @@
 .landing .btn-primary:hover { box-shadow: inset 0 0 0 1px rgba(185, 230, 255, .7), 0 10px 34px -6px var(--neon); }
 
 .landing .btn { backdrop-filter: blur(6px); }
+/* Маленькая кнопка на витрине всё равно нажимается пальцем: 40 px — нижняя
+   граница, при которой по ней не промахиваются. */
+.landing .btn-sm { min-height: 40px; padding-inline: var(--space-4); }
 
 /* --------------------------------------------------------- первый экран */
 .hero-full {
   position: relative;
-  padding: clamp(46px, 7vw, 86px) 22px 0;
+  padding: clamp(28px, 4.5vw, 56px) 22px 0;
   overflow: hidden;
 }
 
@@ -347,8 +397,8 @@
   margin-left: -130%;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(46, 166, 255, .32) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(46, 166, 255, .22) 1px, transparent 1px);
+    linear-gradient(var(--glow) 1px, transparent 1px),
+    linear-gradient(90deg, var(--glow) 1px, transparent 1px);
   background-size: 100% 46px, 78px 100%;
   transform: perspective(300px) rotateX(74deg);
   transform-origin: 50% 100%;
@@ -369,7 +419,7 @@
   aspect-ratio: 2 / 1;
   transform: translateX(-50%);
   pointer-events: none;
-  background: radial-gradient(50% 50% at 50% 50%, rgba(46, 166, 255, .26), transparent 70%);
+  background: radial-gradient(50% 50% at 50% 50%, var(--glow), transparent 70%);
   filter: blur(14px);
 }
 
@@ -379,7 +429,7 @@
   margin-inline: auto;
 }
 
-.hero-sign { display: flex; justify-content: center; margin-bottom: clamp(26px, 4vw, 48px); }
+.hero-sign { display: flex; justify-content: center; margin-bottom: clamp(20px, 3vw, 36px); }
 
 .hero-grid {
   display: grid;
@@ -389,8 +439,8 @@
 }
 
 .hero-text h1 {
-  font-size: clamp(32px, 4.6vw, 56px);
-  font-weight: 800;
+  font-size: var(--fs-display);
+  font-weight: var(--fw-heavy);
   line-height: 1.05;
   letter-spacing: -.04em;
   margin-bottom: 20px;
@@ -399,32 +449,32 @@
 /* Главное обещание — светящейся строкой, как надпись на вывеске. */
 .hero-text h1 .hl {
   color: var(--neon-hot);
-  text-shadow: 0 0 12px var(--neon), 0 0 38px rgba(10, 92, 255, .8);
+  text-shadow: 0 0 12px var(--neon), 0 0 38px var(--deep-glow);
   white-space: nowrap;
 }
 
-.hero-sub { font-size: 17.5px; line-height: 1.58; color: var(--text-soft); max-width: 46ch; }
+.hero-sub { font-size: var(--fs-lead); line-height: 1.58; color: var(--text-soft); max-width: 46ch; }
 
 .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; margin: 32px 0 28px; }
 .hero-cta .btn svg { width: 18px; height: 18px; }
 
 .btn-on-dark {
-  background: rgba(122, 186, 255, .07);
-  border-color: rgba(122, 186, 255, .3);
+  background: var(--tint);
+  border-color: var(--line-strong);
   color: var(--text);
 }
-.btn-on-dark:hover { background: rgba(122, 186, 255, .14); border-color: var(--neon); color: #fff; }
+.btn-on-dark:hover { background: var(--tint-strong); border-color: var(--neon); color: var(--neon-hot); }
 
 .hero-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
 
 .hero-list li {
   position: relative;
   padding-left: 28px;
-  font-size: 15px;
+  font-size: var(--fs-body);
   color: var(--text-soft);
 }
 
-.hero-list b { color: var(--text); font-weight: 650; }
+.hero-list b { color: var(--text); font-weight: var(--fw-semibold); }
 
 .hero-list li::before {
   content: "";
@@ -448,23 +498,23 @@
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
   margin-top: clamp(44px, 6vw, 72px);
-  border-top: 1px solid rgba(122, 186, 255, .14);
+  border-top: 1px solid var(--line);
 }
 
 .hstat { padding: 24px 8px 30px; }
-.hstat + .hstat { border-left: 1px solid rgba(122, 186, 255, .14); padding-left: 24px; }
+.hstat + .hstat { border-left: 1px solid var(--line); padding-left: 24px; }
 
 .hstat b {
   display: block;
-  font-size: clamp(28px, 3.6vw, 42px);
-  font-weight: 800;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-heavy);
   letter-spacing: -.035em;
   color: var(--neon-hot);
-  text-shadow: 0 0 20px rgba(46, 166, 255, .55);
+  text-shadow: 0 0 20px var(--glow-strong);
   font-variant-numeric: tabular-nums;
 }
 
-.hstat span { display: block; margin-top: 5px; font-size: 13px; color: var(--text-soft); }
+.hstat span { display: block; margin-top: 5px; font-size: var(--fs-small); color: var(--text-soft); }
 
 /* ---------------------------------------------------------- мокап экрана */
 /* Мокап не картинка, а короткий показ сценария: шаги заполняются, время
@@ -473,45 +523,45 @@
 .mockup {
   width: min(292px, 100%);
   height: auto;
-  filter: drop-shadow(0 34px 70px rgba(0, 0, 0, .8)) drop-shadow(0 0 42px rgba(10, 92, 255, .35));
+  filter: drop-shadow(0 34px 70px rgba(0, 0, 0, .8)) drop-shadow(0 0 42px var(--deep-haze));
 }
 
-.mk-body { fill: #0c1220; stroke: rgba(122, 186, 255, .38); stroke-width: 1.5; }
+.mk-body { fill: #0c1220; stroke: var(--line-strong); stroke-width: 1.5; }
 .mk-screen { fill: #070b14; }
 .mk-notch { fill: #050810; }
-.mk-card, .mk-slot { fill: rgba(122, 186, 255, .07); }
+.mk-card, .mk-slot { fill: var(--tint); }
 .mk-line { fill: rgba(220, 238, 255, .55); }
-.mk-line-soft { fill: rgba(122, 186, 255, .2); }
-.mk-title { fill: #e6f1ff; font: 800 19px var(--font); letter-spacing: -.02em; }
+.mk-line-soft { fill: var(--line-mid); }
+.mk-title { fill: var(--text); font: 800 19px var(--font); letter-spacing: -.02em; }
 .mk-timer { fill: var(--neon-hot); font: 700 17px var(--mono); }
 .mk-accent { fill: var(--neon); }
-.mk-dot-accent { fill: rgba(46, 166, 255, .16); stroke: var(--neon); stroke-width: 1.5; }
-.mk-cta-label { fill: #03121f; }
+.mk-dot-accent { fill: var(--neon-dim); stroke: var(--neon); stroke-width: 1.5; }
+.mk-cta-label { fill: var(--accent-text); }
 
 /* Шаги загораются по очереди — ровно так, как их проходит клиент. */
-.mk-step { fill: rgba(122, 186, 255, .2); }
+.mk-step { fill: var(--line-mid); }
 .mk-step-1, .mk-step-2, .mk-step-3 { animation: mk-step 12s linear infinite; }
 .mk-step-1 { animation-delay: .4s; }
 .mk-step-2 { animation-delay: 2.2s; }
 .mk-step-3 { animation-delay: 4.2s; }
 
 @keyframes mk-step {
-  0%, 2% { fill: rgba(122, 186, 255, .2); }
-  6%, 92% { fill: #2ea6ff; }
-  100% { fill: rgba(122, 186, 255, .2); }
+  0%, 2% { fill: var(--line-mid); }
+  6%, 92% { fill: var(--neon); }
+  100% { fill: var(--line-mid); }
 }
 
 /* Выбранный слот времени. */
 .mk-slot-active {
-  fill: rgba(122, 186, 255, .07);
+  fill: var(--tint);
   animation: mk-slot 12s linear infinite;
   animation-delay: 4.2s;
 }
 
 @keyframes mk-slot {
-  0%, 2% { fill: rgba(122, 186, 255, .07); }
-  8%, 92% { fill: #2ea6ff; }
-  100% { fill: rgba(122, 186, 255, .07); }
+  0%, 2% { fill: var(--tint); }
+  8%, 92% { fill: var(--neon); }
+  100% { fill: var(--tint); }
 }
 
 /* Полоса таймера: пять минут брони утекают на глазах. */
@@ -541,15 +591,15 @@
 .mockup.is-paused * { animation-play-state: paused; }
 
 /* --------------------------------------------------------------- плитки */
-.bento { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.bento { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap-grid); }
 
 /* Стеклянная карточка — общий вид для плиток, адресов и способов записи.
    Волосяная рамка сделана градиентом в псевдоэлементе: обычный border
    одного цвета на тёмном фоне выглядит нарисованным. */
 .glass {
   position: relative;
-  border-radius: 20px;
-  background: linear-gradient(168deg, rgba(18, 30, 52, .82), rgba(8, 13, 24, .82));
+  border-radius: var(--radius-lg);
+  background: linear-gradient(168deg, var(--glass-top), var(--glass-bottom));
   isolation: isolate;
 }
 
@@ -559,7 +609,7 @@
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(160deg, rgba(122, 186, 255, .42), rgba(122, 186, 255, .06) 42%, rgba(122, 186, 255, .22));
+  background: linear-gradient(160deg, var(--line-strong), var(--tint) 42%, var(--line-mid));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -574,7 +624,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(230px circle at var(--mx, 50%) var(--my, 0%), rgba(46, 166, 255, .16), transparent 62%);
+  background: radial-gradient(230px circle at var(--mx, 50%) var(--my, 0%), var(--neon-dim), transparent 62%);
   opacity: 0;
   transition: opacity .35s var(--ease);
   pointer-events: none;
@@ -583,9 +633,9 @@
 
 .glass:hover::after { opacity: 1; }
 
-.tile { padding: 28px; }
-.tile h3 { font-size: 19.5px; font-weight: 750; letter-spacing: -.02em; margin-bottom: 10px; }
-.tile p { color: var(--text-soft); font-size: 15px; }
+.tile { padding: var(--pad-card); }
+.tile h3 { font-size: var(--fs-h3); font-weight: var(--fw-bold); letter-spacing: -.02em; margin-bottom: 10px; }
+.tile p { color: var(--text-soft); font-size: var(--fs-body); }
 .tile-wide { grid-column: span 2; }
 
 .tile-steps {
@@ -594,39 +644,43 @@
   display: grid;
   gap: 10px;
   color: var(--text-soft);
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
-.tile-steps li::marker { color: var(--neon); font-weight: 700; }
+.tile-steps li::marker { color: var(--neon); font-weight: var(--fw-bold); }
 
-/* Одна плитка светится сильнее остальных — это якорь секции. */
-.tile-accent {
+/* Выделенное стекло: якорь секции светится сильнее соседей. Одно правило
+   на плитку-утверждение и основной способ записи — раньше это были две
+   почти одинаковые копии с разными цифрами в градиентах. */
+.tile-accent,
+.way-primary {
   background:
-    radial-gradient(120% 100% at 0% 0%, rgba(46, 166, 255, .3), transparent 62%),
-    linear-gradient(168deg, rgba(20, 40, 72, .9), rgba(8, 14, 26, .9));
+    radial-gradient(120% 100% at 0% 0%, var(--glow), transparent 62%),
+    linear-gradient(168deg, var(--glass-accent-top), var(--glass-accent-bottom));
 }
-.tile-accent::before { background: linear-gradient(160deg, rgba(122, 186, 255, .7), rgba(122, 186, 255, .12)); }
+.tile-accent::before,
+.way-primary::before { background: linear-gradient(160deg, var(--line-bright), var(--tint-strong)); }
 
 /* Селектор с .tile намеренно: правило `.tile p` выше по специфичности и
    иначе перебивает и размер, и цвет — утверждение теряет и вес, и свечение. */
 .tile .tile-claim {
-  font-size: clamp(24px, 2.6vw, 32px);
-  font-weight: 800;
+  font-size: var(--fs-h3-lg);
+  font-weight: var(--fw-heavy);
   line-height: 1.1;
   letter-spacing: -.03em;
   margin-bottom: 12px;
   color: var(--neon-hot);
-  text-shadow: 0 0 22px var(--neon), 0 0 60px rgba(10, 92, 255, .7);
+  text-shadow: 0 0 22px var(--neon), 0 0 60px var(--deep-glow);
 }
 
 /* ----------------------------------------------------------------- цены */
-.price-table-wrap { overflow-x: auto; border-radius: 20px; padding: 4px; }
+.price-table-wrap { overflow-x: auto; border-radius: var(--radius-lg); padding: 4px; }
 .price-table { width: 100%; border-collapse: collapse; min-width: 640px; }
 
 .price-table th {
   text-align: left;
   padding: 16px 20px;
-  font-size: 11.5px;
-  font-weight: 750;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-bold);
   letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -639,9 +693,9 @@
 .price-table td {
   position: relative;
   padding: 18px 20px;
-  border-bottom: 1px solid rgba(122, 186, 255, .09);
+  border-bottom: 1px solid var(--tint);
   vertical-align: middle;
-  font-size: 15px;
+  font-size: var(--fs-body);
   color: var(--text-soft);
   transition: color .2s, background .2s;
 }
@@ -663,47 +717,47 @@
   transition: transform .3s var(--ease);
 }
 
-.price-table tbody tr:hover td { background: rgba(46, 166, 255, .05); color: var(--text); }
+.price-table tbody tr:hover td { background: var(--glow-faint); color: var(--text); }
 .price-table tbody tr:hover td:first-child::before { transform: scaleY(1); }
 
 .price-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .price-table .total {
-  font-size: 19.5px;
-  font-weight: 800;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-heavy);
   letter-spacing: -.025em;
   color: var(--text);
   transition: color .2s, text-shadow .2s;
 }
-.price-table tbody tr:hover .total { color: var(--neon-hot); text-shadow: 0 0 18px rgba(46, 166, 255, .6); }
+.price-table tbody tr:hover .total { color: var(--neon-hot); text-shadow: 0 0 18px var(--glow-strong); }
 
 .oil-brand {
   display: block;
-  font-size: 11.5px;
-  font-weight: 800;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-heavy);
   letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--neon);
 }
 
-.oil-name { display: block; font-size: 16px; font-weight: 700; color: var(--text); margin-top: 2px; }
-.oil-sub { display: block; font-size: 13px; color: var(--text-faint); margin-top: 3px; }
+.oil-name { display: block; font-size: var(--fs-lead); font-weight: var(--fw-bold); color: var(--text); margin-top: 2px; }
+.oil-sub { display: block; font-size: var(--fs-small); color: var(--text-faint); margin-top: 3px; }
 
 .chip {
   display: inline-block;
   padding: 3px 11px;
-  border-radius: 100px;
-  background: rgba(122, 186, 255, .1);
-  border: 1px solid rgba(122, 186, 255, .18);
+  border-radius: var(--radius-pill);
+  background: var(--tint);
+  border: 1px solid var(--line);
   color: var(--text);
-  font-size: 13px;
-  font-weight: 650;
+  font-size: var(--fs-small);
+  font-weight: var(--fw-semibold);
   white-space: nowrap;
 }
 
-.chip-ok { background: var(--ok-soft); border-color: rgba(61, 220, 151, .28); color: var(--ok); font-size: 12px; }
+.chip-ok { background: var(--ok-soft); border-color: var(--ok-line); color: var(--ok); font-size: var(--fs-caption); }
 
-.price-foot-note { margin-top: 18px; color: var(--text-soft); font-size: 15px; }
+.price-foot-note { margin-top: 18px; color: var(--text-soft); font-size: var(--fs-body); }
 
 /* Ассортимент без цен. Карточками, а не таблицей: таблица с колонками
    «вязкость, тип, объём» и без суммы читается как прайс, у которого забыли
@@ -711,75 +765,68 @@
 .oil-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
-  gap: 14px;
+  gap: var(--gap-grid);
 }
 
-.oil-card { padding: 22px; }
+.oil-card { padding: var(--pad-card-sm); }
 .oil-card .oil-brand { margin-bottom: 4px; }
 
 .oil-title {
-  font-size: 18px;
-  font-weight: 750;
+  font-size: var(--fs-lead);
+  font-weight: var(--fw-bold);
   letter-spacing: -.02em;
   color: var(--text);
   margin-bottom: 14px;
 }
 
 .oil-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.oil-tags .chip { font-size: 12.5px; padding: 3px 9px; }
-.oil-note { margin-top: 12px; font-size: 13.5px; color: var(--text-faint); }
+.oil-tags .chip { font-size: var(--fs-caption); padding: 3px 9px; }
+.oil-note { margin-top: 12px; font-size: var(--fs-ui); color: var(--text-faint); }
 
 /* --------------------------------------------------------- как записаться */
-.ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--gap-grid); }
 
-.way { display: flex; flex-direction: column; padding: 32px; }
-
-.way-primary {
-  background:
-    radial-gradient(110% 90% at 100% 0%, rgba(46, 166, 255, .22), transparent 60%),
-    linear-gradient(168deg, rgba(20, 38, 68, .9), rgba(8, 13, 24, .9));
-}
-.way-primary::before { background: linear-gradient(160deg, rgba(122, 186, 255, .65), rgba(122, 186, 255, .1)); }
+.way { display: flex; flex-direction: column; padding: var(--pad-card); }
 
 .way-label {
   align-self: flex-start;
   padding: 5px 12px;
-  border-radius: 100px;
+  border-radius: var(--radius-pill);
   background: var(--neon);
   color: var(--accent-text);
-  font-size: 11.5px;
-  font-weight: 800;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-heavy);
   letter-spacing: .1em;
   text-transform: uppercase;
   box-shadow: 0 0 22px -4px var(--neon);
 }
 
-.way-label-muted { background: rgba(122, 186, 255, .12); color: var(--text-soft); box-shadow: none; }
+.way-label-muted { background: var(--tint-strong); color: var(--text-soft); box-shadow: none; }
 
-.way h3 { font-size: 26px; font-weight: 800; letter-spacing: -.03em; margin: 18px 0 20px; }
+.way h3 { font-size: var(--fs-h3-lg); font-weight: var(--fw-heavy); letter-spacing: -.03em; margin: 18px 0 20px; }
 
 .way-steps {
   margin: 0 0 28px;
   padding-left: 20px;
   display: grid;
   gap: 13px;
-  font-size: 15px;
+  font-size: var(--fs-body);
   color: var(--text-soft);
   flex: 1;
 }
-.way-steps b { color: var(--text); font-weight: 650; }
-.way-steps li::marker { color: var(--neon); font-weight: 800; }
+.way-steps b { color: var(--text); font-weight: var(--fw-semibold); }
+.way-steps li::marker { color: var(--neon); font-weight: var(--fw-heavy); }
 
-.btn-outline { border-color: var(--border-strong); color: var(--text); font-weight: 700; background: transparent; }
-.btn-outline:hover { border-color: var(--neon); color: var(--neon-hot); background: rgba(46, 166, 255, .08); }
+.btn-outline { border-color: var(--border-strong); color: var(--text); font-weight: var(--fw-bold); background: transparent; }
+.btn-outline:hover { border-color: var(--neon); color: var(--neon-hot); background: var(--glow-faint); }
 
 /* --------------------------------------------------------------- адреса */
-.address-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.address-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--gap-grid); }
 
-.address-card { padding: 28px; }
+.address-card { padding: var(--pad-card); }
 .address-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.address-top h3 { font-size: 21px; font-weight: 780; letter-spacing: -.02em; }
-.address-line { margin-top: 9px; color: var(--text-soft); font-size: 15.5px; }
+.address-top h3 { font-size: var(--fs-h3); font-weight: var(--fw-heavy); letter-spacing: -.02em; }
+.address-line { margin-top: 9px; color: var(--text-soft); font-size: var(--fs-body); }
 
 .address-facts {
   display: grid;
@@ -793,14 +840,14 @@
 
 .address-facts b {
   display: block;
-  font-size: 23px;
-  font-weight: 800;
+  font-size: var(--fs-h3-lg);
+  font-weight: var(--fw-heavy);
   letter-spacing: -.025em;
   color: var(--neon-hot);
   font-variant-numeric: tabular-nums;
 }
 
-.address-facts span { display: block; font-size: 12.5px; color: var(--text-faint); margin-top: 3px; }
+.address-facts span { display: block; font-size: var(--fs-caption); color: var(--text-faint); margin-top: 3px; }
 .address-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ----------------------------------------------------------- приложение */
@@ -809,16 +856,16 @@
   grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
   gap: 44px;
   align-items: center;
-  padding: 52px;
-  border-radius: 24px;
+  padding: var(--pad-panel);
+  border-radius: var(--radius-xl);
   background:
-    radial-gradient(90% 130% at 6% 0%, rgba(46, 166, 255, .22), transparent 58%),
-    linear-gradient(168deg, rgba(14, 24, 44, .92), rgba(6, 10, 20, .92));
+    radial-gradient(90% 130% at 6% 0%, var(--glow), transparent 58%),
+    linear-gradient(168deg, var(--glass-accent-top), var(--glass-accent-bottom));
 }
 
-.app-copy h2 { font-size: clamp(27px, 3.3vw, 38px); font-weight: 800; letter-spacing: -.035em; margin-bottom: 14px; }
-.app-copy p { color: var(--text-soft); font-size: 16.5px; max-width: 46ch; }
-.app-note { margin-top: 16px; font-size: 14px; color: var(--text-soft); }
+.app-copy h2 { font-size: var(--fs-h2); font-weight: var(--fw-heavy); letter-spacing: -.035em; margin-bottom: 14px; }
+.app-copy p { color: var(--text-soft); font-size: var(--fs-lead); max-width: 46ch; }
+.app-note { margin-top: 16px; font-size: var(--fs-ui); color: var(--text-soft); }
 
 .store-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
 
@@ -827,9 +874,9 @@
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
-  border-radius: 14px;
-  border: 1px solid rgba(122, 186, 255, .3);
-  background: rgba(122, 186, 255, .08);
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--tint);
   color: var(--text);
   text-decoration: none;
   transition: border-color .22s, background .22s, box-shadow .22s, transform .22s var(--ease);
@@ -838,24 +885,24 @@
 .store-btn:hover {
   text-decoration: none;
   border-color: var(--neon);
-  background: rgba(46, 166, 255, .14);
+  background: var(--neon-dim);
   box-shadow: 0 0 30px -10px var(--neon);
   transform: translateY(-2px);
 }
 
 .store-btn svg { width: 22px; height: 22px; flex: none; color: var(--neon); }
-.store-btn span { display: flex; flex-direction: column; line-height: 1.2; font-weight: 700; font-size: 16px; }
-.store-btn small { font-size: 11.5px; font-weight: 500; color: var(--text-faint); }
+.store-btn span { display: flex; flex-direction: column; line-height: 1.2; font-weight: var(--fw-bold); font-size: var(--fs-lead); }
+.store-btn small { font-size: var(--fs-caption); font-weight: var(--fw-medium); color: var(--text-faint); }
 
 /* Ссылки пока нет — кнопка честно неактивна, а не ведёт в никуда. */
 .store-btn.is-soon {
   background: transparent;
   color: var(--text-faint);
-  border-color: rgba(122, 186, 255, .16);
+  border-color: var(--line);
   border-style: dashed;
   cursor: default;
 }
-.store-btn.is-soon:hover { transform: none; box-shadow: none; border-color: rgba(122, 186, 255, .16); background: transparent; }
+.store-btn.is-soon:hover { transform: none; box-shadow: none; border-color: var(--line); background: transparent; }
 .store-btn.is-soon svg { color: var(--text-faint); }
 
 .app-features {
@@ -864,19 +911,19 @@
   padding: 0;
   display: grid;
   gap: 1px;
-  background: rgba(122, 186, 255, .14);
-  border-radius: 18px;
+  background: var(--line);
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
 .app-features li {
-  background: rgba(8, 13, 24, .92);
-  padding: 18px 22px;
+  background: var(--glass-bottom);
+  padding: var(--space-4) var(--space-5);
   transition: background .25s;
 }
-.app-features li:hover { background: rgba(20, 36, 62, .95); }
-.app-features b { display: block; font-size: 15.5px; font-weight: 700; }
-.app-features span { display: block; margin-top: 3px; font-size: 13.5px; color: var(--text-soft); }
+.app-features li:hover { background: var(--glass-accent-top); }
+.app-features b { display: block; font-size: var(--fs-body); font-weight: var(--fw-bold); }
+.app-features span { display: block; margin-top: 3px; font-size: var(--fs-ui); color: var(--text-soft); }
 
 /* ------------------------------------------------------------------ FAQ */
 .faq { border-top: 1px solid var(--border); }
@@ -884,8 +931,8 @@
 
 .faq summary {
   padding: 22px 44px 22px 0;
-  font-size: 17px;
-  font-weight: 650;
+  font-size: var(--fs-lead);
+  font-weight: var(--fw-semibold);
   cursor: pointer;
   position: relative;
   list-style: none;
@@ -924,7 +971,7 @@
 .faq-answer { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .36s var(--ease); }
 .faq-answer > div { overflow: hidden; }
 .faq details[open] .faq-answer { grid-template-rows: 1fr; }
-.faq p { padding: 0 44px 24px 0; color: var(--text-soft); font-size: 15.5px; max-width: 76ch; }
+.faq p { padding: 0 44px 24px 0; color: var(--text-soft); font-size: var(--fs-body); max-width: 76ch; }
 
 /* -------------------------------------------------------------- контакты */
 .cta-band {
@@ -933,40 +980,40 @@
   justify-content: space-between;
   gap: 34px;
   flex-wrap: wrap;
-  padding: 50px;
-  border-radius: 24px;
+  padding: var(--pad-panel);
+  border-radius: var(--radius-xl);
   background:
-    radial-gradient(80% 160% at 80% 50%, rgba(46, 166, 255, .3), transparent 62%),
-    linear-gradient(120deg, rgba(10, 92, 255, .22), rgba(6, 10, 20, .95));
+    radial-gradient(80% 160% at 80% 50%, var(--glow), transparent 62%),
+    linear-gradient(120deg, var(--deep-haze), var(--glass-accent-bottom));
 }
 
-.cta-band::before { background: linear-gradient(120deg, rgba(122, 186, 255, .6), rgba(122, 186, 255, .12)); }
-.cta-band h2 { font-size: clamp(25px, 3vw, 36px); font-weight: 800; letter-spacing: -.035em; margin-bottom: 12px; }
-.cta-band p { font-size: 16.5px; color: var(--text-soft); max-width: 52ch; }
+.cta-band::before { background: linear-gradient(120deg, var(--line-bright), var(--tint-strong)); }
+.cta-band h2 { font-size: var(--fs-h2); font-weight: var(--fw-heavy); letter-spacing: -.035em; margin-bottom: 12px; }
+.cta-band p { font-size: var(--fs-lead); color: var(--text-soft); max-width: 52ch; }
 
 .cta-side { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 
 .phone-big {
-  font-size: clamp(28px, 3.6vw, 42px);
-  font-weight: 800;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-heavy);
   letter-spacing: -.035em;
   white-space: nowrap;
   color: var(--neon-hot);
-  text-shadow: 0 0 18px var(--neon), 0 0 50px rgba(10, 92, 255, .7);
+  text-shadow: 0 0 18px var(--neon), 0 0 50px var(--deep-glow);
   text-decoration: none !important;
   transition: text-shadow .25s;
 }
 .phone-big:hover { text-shadow: 0 0 26px var(--neon-hot), 0 0 70px var(--neon); }
 
-.cta-mail { color: var(--text-soft); font-size: 15px; text-decoration: underline; text-underline-offset: 3px; }
+.cta-mail { color: var(--text-soft); font-size: var(--fs-body); text-decoration: underline; text-underline-offset: 3px; }
 .cta-mail:hover { color: var(--text); }
 
 /* --------------------------------------------------------------- подвал */
 .footer {
-  margin-top: 118px;
-  padding: 58px 0 28px;
+  margin-top: var(--section-gap);
+  padding: var(--space-9) 0 var(--space-7);
   border-top: 1px solid var(--border);
-  background: linear-gradient(180deg, transparent, rgba(6, 12, 24, .9));
+  background: linear-gradient(180deg, transparent, var(--bar));
   color: var(--text-soft);
 }
 
@@ -978,21 +1025,21 @@
   border-bottom: 1px solid var(--border);
 }
 
-.footer-col { display: flex; flex-direction: column; gap: 10px; }
+.footer-col { display: flex; flex-direction: column; gap: var(--space-1); }
 
 .footer-col h4 {
-  font-size: 11.5px;
-  font-weight: 800;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-heavy);
   letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--text);
   margin-bottom: 4px;
 }
 
-.footer-col a { color: var(--text-soft); font-size: 14.5px; transition: color .2s; }
+.footer-col a { padding-block: 6px; color: var(--text-soft); font-size: var(--fs-ui); transition: color .2s; }
 .footer-col a:hover { color: var(--neon); text-decoration: none; }
 
-.footer-brand-col p { font-size: 14.5px; max-width: 34ch; margin-top: 18px; }
+.footer-brand-col p { font-size: var(--fs-ui); max-width: 34ch; margin-top: 18px; }
 
 /* Реквизиты владельца. Оператор связи при регистрации имени отправителя SMS
    смотрит именно сюда — значит они должны читаться, а не прятаться. */
@@ -1001,8 +1048,8 @@
   flex-wrap: wrap;
   gap: 6px 18px;
   padding-top: 20px;
-  font-size: 13.5px;
-  color: var(--on-ink-soft);
+  font-size: var(--fs-ui);
+  color: var(--text-soft);
 }
 
 .footer-bottom {
@@ -1011,7 +1058,7 @@
   gap: 16px;
   flex-wrap: wrap;
   padding-top: 22px;
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--text-faint);
 }
 
@@ -1100,36 +1147,35 @@
   .mockup { width: min(220px, 56vw); }
   .hero-stats { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); }
   .hstat + .hstat { border-left: none; padding-left: 8px; }
-  .hstat:nth-child(n + 3) { border-top: 1px solid rgba(122, 186, 255, .14); }
-  .app-panel { grid-template-columns: 1fr; padding: 34px 26px; }
-  .block { margin-top: 84px; }
-  .footer { margin-top: 84px; }
+  .hstat:nth-child(n + 3) { border-top: 1px solid var(--line); }
+  .app-panel { grid-template-columns: 1fr; }
+  .landing { --section-gap: 88px; --pad-panel: var(--space-7); }
 }
 
 @media (max-width: 760px) {
-  /* Меню на телефоне не помещается и прокручивается вбок. Затухание у
-     правого края честно показывает, что за ним есть ещё пункты, — иначе
-     обрезанное слово читается как вёрстка поехала. */
-  .landing .nav {
-    mask-image: linear-gradient(90deg, #000 76%, transparent);
-    -webkit-mask-image: linear-gradient(90deg, #000 76%, transparent);
-  }
+  /* Меню не помещается, а прокрутка вбок читалась как обрезанная вёрстка.
+     На телефоне разделы и так идут подряд одной лентой — в шапке остаются
+     знак и главное действие. */
+  .landing .nav { display: none; }
+  .landing .header .spacer { flex: 1; }
 }
 
 @media (max-width: 620px) {
-  /* В шапке остаётся только знак и меню: кнопка скачивания уже есть
-     на первом экране, а телефон — в верхней полосе. */
-  .landing .header .btn-primary { display: none; }
+  /* Кнопка в шапке — короткой подписью, чтобы уместиться рядом со знаком. */
+  .label-long { display: none; }
+  .label-short { display: inline; }
   .landing { --header-h: 66px; }
   .logo-sm { --logo-w: 172px; }
   .block { width: calc(100% - 28px); }
   .bento { grid-template-columns: 1fr; }
   .tile-wide { grid-column: span 1; }
   .hero-cta .btn { width: 100%; }
+  /* Разрядка .18em на узком экране переносила надрубрику на вторую строку. */
+  .kicker { letter-spacing: .1em; }
   .hide-sm, .topbar-hide-sm { display: none; }
   .price-table { min-width: 0; }
   .price-table th, .price-table td { padding: 14px; }
-  .cta-band, .way, .tile, .address-card, .app-panel { padding: 26px 22px; }
+  .landing { --pad-card: var(--space-6); --pad-panel: var(--space-6); }
   .footer-grid { grid-template-columns: 1fr; gap: 26px; }
 }
 
@@ -1140,7 +1186,7 @@
   .logo-lines { opacity: 1; animation: none; }
   .logo-spark, .hero-road, .mockup * { animation: none; }
   .logo-spark { opacity: 0; }
-  .mk-step-1, .mk-step-2, .mk-step-3, .mk-slot-active { fill: #2ea6ff; }
+  .mk-step-1, .mk-step-2, .mk-step-3, .mk-slot-active { fill: var(--neon); }
   .mk-timer-fill { transform: scaleX(.6); }
   .has-js [data-reveal] { opacity: 1; transform: none; }
 }
@@ -1159,18 +1205,18 @@
   width: min(520px, 100%);
   text-align: center;
   padding: 36px 28px 30px;
-  border: 1px solid rgba(122, 186, 255, .16);
-  border-radius: 22px;
-  background: rgba(10, 20, 34, .5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
 }
 
-.invite-from { color: var(--text-faint); font-size: 14px; margin: 0 0 4px; }
-.invite-title { font-size: clamp(26px, 6vw, 36px); margin: 0 0 12px; }
+.invite-from { color: var(--text-faint); font-size: var(--fs-ui); margin: 0 0 4px; }
+.invite-title { font-size: var(--fs-h2); margin: 0 0 12px; }
 .invite-lead { color: var(--text-soft); margin: 0 0 26px; }
 
 .invite-label {
   margin: 0 0 6px;
-  font-size: 11.5px;
+  font-size: var(--fs-caption);
   letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -1181,8 +1227,9 @@
 .invite-code {
   margin: 0 0 14px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Исключение из шкалы: код диктуют вслух, он крупнее любого заголовка. */
   font-size: clamp(30px, 9vw, 42px);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   letter-spacing: .22em;
   text-indent: .22em;
   color: var(--neon);
@@ -1196,11 +1243,11 @@
   padding: 0 0 0 20px;
   text-align: left;
   color: var(--text-soft);
-  font-size: 14.5px;
+  font-size: var(--fs-ui);
   line-height: 1.9;
 }
 
 .invite-stores { justify-content: center; margin-bottom: 22px; }
 
-.invite-foot { margin: 0; font-size: 14px; color: var(--text-faint); }
+.invite-foot { margin: 0; font-size: var(--fs-ui); color: var(--text-faint); }
 .invite-foot a { color: var(--text-soft); }

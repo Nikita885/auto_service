@@ -221,6 +221,7 @@
   function initScroll() {
     var header = document.querySelector(".header");
     var halo = document.querySelector(".hero-halo");
+    var sign = document.querySelector(".hero-sign");
     var links = $$(".nav a[href^='#']");
     var sections = links
       .map(function (link) { return document.querySelector(link.getAttribute("href")); })
@@ -232,7 +233,14 @@
       queued = false;
       var y = window.pageYOffset;
 
-      if (header) header.classList.toggle("is-scrolled", y > 24);
+      if (header) {
+        header.classList.toggle("is-scrolled", y > 24);
+        // Знак в шапке возвращается, когда вывеска первого экрана ушла под
+        // шапку, — не раньше, иначе на экране снова два знака сразу.
+        var signGone = !sign ||
+          sign.getBoundingClientRect().bottom < header.getBoundingClientRect().bottom;
+        header.classList.toggle("is-past-sign", signGone);
+      }
 
       // Ореол отстаёт от прокрутки — глубина сцены. Ограничение нужно,
       // чтобы на длинной странице пятно не уехало из первого экрана.
