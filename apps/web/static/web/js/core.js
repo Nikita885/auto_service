@@ -299,8 +299,23 @@
     return node;
   }
 
+  /** Экранирование для строк, которые склеиваются в HTML.
+
+      Там, где разметка собирается строкой (графики и рейтинги в метриках),
+      названия точек и масел приходят из базы. Правят их через Django-админку,
+      но токены панели лежат в localStorage: одна строка с `<img onerror>` в
+      названии масла — и токен администратора уходит наружу. */
+  function esc(value) {
+    return String(value === null || value === undefined ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function empty(text, iconName) {
-    return el("div", { class: "empty", html: icon(iconName || "inbox", 30) + "<div>" + text + "</div>" });
+    return el("div", { class: "empty", html: icon(iconName || "inbox", 30) }, [el("div", { text })]);
   }
 
   /** Подтверждение в стиле сайта вместо системного confirm/prompt. */
@@ -318,10 +333,12 @@
         text: confirmLabel || "Подтвердить",
       });
 
-      const modal = el("div", { class: "modal" }, [
+      const modal = el("div", {
+        class: "modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "ask-title",
+      }, [
         el("div", { class: "modal-head" }, [
           el("div", {}, [
-            el("div", { class: "modal-title", text: title }),
+            el("div", { class: "modal-title", id: "ask-title", text: title }),
             text ? el("div", { class: "modal-sub", text: text }) : null,
           ]),
         ]),
@@ -352,5 +369,5 @@
     });
   }
 
-  global.App = { API, ApiError, createClient, toast, guard, theme, fmt, icon, $, $$, el, empty, ask };
+  global.App = { API, ApiError, createClient, toast, guard, theme, fmt, icon, esc, $, $$, el, empty, ask };
 })(window);

@@ -8,7 +8,7 @@
 (function (global) {
   "use strict";
 
-  const { fmt, $, $$, el, empty, guard } = App;
+  const { fmt, esc, $, $$, el, empty, guard } = App;
 
   let api = null;
   let range = 30;
@@ -273,7 +273,7 @@
       points
         .map((point) =>
           '<div class="rank-row">' +
-          '<div class="rank-name">' + point.name + "</div>" +
+          '<div class="rank-name">' + esc(point.name) + "</div>" +
           '<div class="rank-value">' + fmt.money(point.revenue) + " · " + point.total + " " +
           fmt.plural(point.total, "запись", "записи", "записей") + "</div>" +
           '<div class="rank-track"><div class="rank-fill" style="width:' +
@@ -301,7 +301,7 @@
       oils
         .map((oil) =>
           '<div class="rank-row">' +
-          '<div class="rank-name">' + oil.oil_title + "</div>" +
+          '<div class="rank-name">' + esc(oil.oil_title) + "</div>" +
           '<div class="rank-value">' + oil.total + " " + fmt.plural(oil.total, "запись", "записи", "записей") +
           " · " + fmt.money(oil.revenue) + "</div>" +
           '<div class="rank-track"><div class="rank-fill" style="width:' +
@@ -328,7 +328,7 @@
 
     const rows = stock.items
       .map((item) =>
-        "<tr><td>" + item.oil + '<div class="cell-sub">' + item.point + "</div></td>" +
+        "<tr><td>" + esc(item.oil) + '<div class="cell-sub">' + esc(item.point) + "</div></td>" +
         '<td class="num nowrap">' +
         (item.is_low
           ? '<span class="badge badge-danger">' + item.quantity + "</span>"
