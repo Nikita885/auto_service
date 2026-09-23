@@ -33,6 +33,7 @@ public class ReferralViewModel extends AndroidViewModel {
     private final MutableLiveData<List<Models.InvitedPerson>> invited =
             new MutableLiveData<>(Collections.emptyList());
     private final MutableLiveData<Boolean> busy = new MutableLiveData<>(false);
+    private final MutableLiveData<ApiError> loadError = new MutableLiveData<>(null);
     private final Event.Bus<ApiError> errors = new Event.Bus<>();
     private final Event.Bus<Boolean> attached = new Event.Bus<>();
 
@@ -45,6 +46,9 @@ public class ReferralViewModel extends AndroidViewModel {
     public LiveData<List<Models.PointsEntry>> points() { return points; }
     public LiveData<List<Models.InvitedPerson>> invited() { return invited; }
     public LiveData<Boolean> busy() { return busy; }
+
+    /** Сводка не загрузилась — экран показывает причину вместо пустых карточек. */
+    public LiveData<ApiError> loadError() { return loadError; }
     public LiveData<Event<ApiError>> errors() { return errors.asLiveData(); }
     public LiveData<Event<Boolean>> attached() { return attached.asLiveData(); }
 
@@ -53,10 +57,11 @@ public class ReferralViewModel extends AndroidViewModel {
         repository.summary(result -> {
             busy.setValue(false);
             if (!result.isSuccess()) {
-                errors.post(result.error());
+                loadError.setValue(result.error());
                 return;
             }
             Models.Referral value = result.value();
+            loadError.setValue(null);
             summary.setValue(value);
             // Списки грузим только когда программа включена: иначе два
             // запроса уходили бы в никуда на каждом открытии экрана.

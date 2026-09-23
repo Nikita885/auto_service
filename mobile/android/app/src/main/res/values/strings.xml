@@ -144,6 +144,7 @@
     <string name="nav_referral">Бонусы</string>
     <string name="referral_title">Приглашайте друзей</string>
     <string name="referral_sub">Друг меняет масло — вам приходят баллы. Ими оплачивается следующая замена.</string>
+    <string name="referral_load_failed">%1$s\n\nПотяните экран вниз, чтобы попробовать ещё раз.</string>
     <string name="referral_off">Программа приглашений сейчас недоступна.</string>
     <string name="referral_balance">Баллов на счету</string>
     <string name="referral_discount">Баллами можно закрыть до %1$d %% чека</string>

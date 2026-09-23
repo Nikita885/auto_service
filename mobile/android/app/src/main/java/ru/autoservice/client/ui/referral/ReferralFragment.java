@@ -99,6 +99,19 @@ public class ReferralFragment extends Fragment {
     private void observe() {
         model.summary().observe(getViewLifecycleOwner(), this::render);
 
+        model.loadError().observe(getViewLifecycleOwner(), error -> {
+            if (views == null || error == null || model.summary().getValue() != null) {
+                return;
+            }
+            // Сводки нет совсем — вместо карточек без цифр объясняем, что
+            // случилось и как повторить. Если сводка уже была, а обновление
+            // не прошло, оставляем её на экране: старые цифры лучше пустых.
+            Ui.setVisible(views.content, false);
+            Ui.setVisible(views.disabled, true);
+            views.disabled.setText(getString(R.string.referral_load_failed,
+                    Ui.message(requireContext(), error)));
+        });
+
         model.busy().observe(getViewLifecycleOwner(), busy -> {
             if (views != null) {
                 views.refresh.setRefreshing(Boolean.TRUE.equals(busy));
@@ -138,6 +151,7 @@ public class ReferralFragment extends Fragment {
             return;
         }
 
+        views.disabled.setText(R.string.referral_off);
         Ui.setVisible(views.disabled, !referral.enabled());
         Ui.setVisible(views.content, referral.enabled());
         Ui.setVisible(views.subtitle, referral.enabled());
