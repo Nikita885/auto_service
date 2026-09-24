@@ -167,6 +167,13 @@
     <string name="referral_enter_code">Введите код</string>
     <string name="referral_apply">Применить</string>
     <string name="referral_attached">Приглашение принято</string>
+    <string name="invite_attached">Вы в команде: %1$s. Ваши замены будут приносить баллы пригласившему.</string>
+    <string name="invite_pending_note">Код приглашения %1$s применится автоматически при входе.</string>
+    <string name="scan_prompt">Наведите камеру на QR-код приглашения</string>
+    <string name="scan_not_invite">Это не QR-код приглашения. Наведите камеру на код в «Бонусах» у друга.</string>
+    <string name="scan_invite_auth">Меня пригласили — сканировать QR-код</string>
+    <string name="scan_invite_friend">Сканировать QR-код друга</string>
+    <string name="scan_invite_short">Сканировать QR-код</string>
     <string name="referral_invited_count">Вы пригласили: %1$d</string>
     <string name="referral_team">В вашей структуре: %1$d</string>
     <string name="referral_tab_points">История баллов</string>

@@ -90,6 +90,10 @@ export const phoneComplete = (value) => String(value || "").replace(/\D/g, "").l
 /* ---------------------------------------------------- код приглашения */
 
 const INVITE_KEY = "client.invite";
+// Код, который уже применили или который сервер отклонил. Приложение с
+// главного экрана iPhone каждый раз стартует с `?invite=` в адресе — без
+// этой отметки оно пыталось бы привязать человека при каждом запуске.
+const INVITE_DONE_KEY = "client.invite.done";
 
 /** Код из ссылки `/app/?invite=КОД` запоминаем до регистрации.
 
@@ -98,16 +102,27 @@ const INVITE_KEY = "client.invite";
     увидит его и сможет поправить руками. */
 export const invite = {
   capture() {
-    const code = new URLSearchParams(location.search).get("invite");
-    if (code) {
-      try { localStorage.setItem(INVITE_KEY, code.trim().toUpperCase()); } catch (e) { /* приватный режим */ }
-    }
+    const code = (new URLSearchParams(location.search).get("invite") || "").trim().toUpperCase();
+    if (!code) return;
+    try {
+      if (localStorage.getItem(INVITE_DONE_KEY) === code) return;
+      localStorage.setItem(INVITE_KEY, code);
+    } catch (e) { /* приватный режим */ }
+  },
+  /** Код отсканировали в приложении — запоминаем как из ссылки. */
+  set(code) {
+    try { localStorage.setItem(INVITE_KEY, code); } catch (e) { /* приватный режим */ }
   },
   get() {
     try { return localStorage.getItem(INVITE_KEY) || ""; } catch (e) { return ""; }
   },
-  clear() {
-    try { localStorage.removeItem(INVITE_KEY); } catch (e) { /* приватный режим */ }
+  /** Код обработан (принят или отклонён) — больше не предлагаем. */
+  done() {
+    try {
+      const code = localStorage.getItem(INVITE_KEY);
+      if (code) localStorage.setItem(INVITE_DONE_KEY, code);
+      localStorage.removeItem(INVITE_KEY);
+    } catch (e) { /* приватный режим */ }
   },
 };
 

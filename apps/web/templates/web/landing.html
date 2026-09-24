@@ -49,7 +49,7 @@
 {% endblock %}
 
 {% block header_actions %}
-  <a class="btn btn-primary btn-sm" href="#app"><span class="label-long">Скачать приложение</span><span class="label-short">Приложение</span></a>
+  <a class="btn btn-primary btn-sm" href="{{ app_cta_url }}"><span class="label-long">Скачать приложение</span><span class="label-short">Приложение</span></a>
 {% endblock %}
 
 {% block content %}
@@ -76,7 +76,7 @@
         </p>
 
         <div class="hero-cta">
-          <a class="btn btn-primary btn-lg" href="#app">Записаться в приложении</a>
+          <a class="btn btn-primary btn-lg" href="{{ app_cta_url }}">Записаться в приложении</a>
           <a class="btn btn-lg btn-on-dark" href="tel:{{ company.PHONE|tel_href }}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h4l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2.2 2A17 17 0 0 1 3 5.2 2 2 0 0 1 5 3z"/></svg>
             {{ company.PHONE }}
@@ -321,34 +321,9 @@
         Вход по номеру телефона — регистрироваться отдельно не нужно.
       </p>
 
-      <div class="store-row">
-        {% if company.APP_STORE_URL %}
-          <a class="store-btn" href="{{ company.APP_STORE_URL }}" rel="noopener">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
-            <span><small>Загрузить в</small>App Store</span>
-          </a>
-        {% else %}
-          {% comment %} Пока приложения в App Store нет, iPhone получает веб-приложение: оно ставится на главный экран из Safari. {% endcomment %}
-          <a class="store-btn" href="{% url 'web:app' %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
-            <span><small>Для iPhone</small>Веб-приложение</span>
-          </a>
-        {% endif %}
+      {% include "web/_store_buttons.html" with wrapper_class="store-row" %}
 
-        {% if company.GOOGLE_PLAY_URL %}
-          <a class="store-btn" href="{{ company.GOOGLE_PLAY_URL }}" rel="noopener">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5v17a1 1 0 0 0 1.5.9l12-8.5a1 1 0 0 0 0-1.7l-12-8.5A1 1 0 0 0 5 3.5z"/></svg>
-            <span><small>Доступно в</small>Google Play</span>
-          </a>
-        {% else %}
-          <span class="store-btn is-soon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5v17a1 1 0 0 0 1.5.9l12-8.5a1 1 0 0 0 0-1.7l-12-8.5A1 1 0 0 0 5 3.5z"/></svg>
-            <span><small>Скоро в</small>Google Play</span>
-          </span>
-        {% endif %}
-      </div>
-
-      {% if not company.APP_STORE_URL %}
+      {% if not company.APP_STORE_URL and platform != "android" %}
         <p class="app-note">На iPhone откройте веб-приложение в Safari и нажмите «Поделиться» → «На экран „Домой“» — оно встанет рядом с остальными.</p>
       {% endif %}
     </div>

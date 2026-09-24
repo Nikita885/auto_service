@@ -27,7 +27,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="{{ company.NAME }}">
 <meta name="format-detection" content="telephone=no">
-<link rel="manifest" href="{% url 'web:app-manifest' %}">
+<link rel="manifest" href="{{ manifest_url }}">
 <link rel="apple-touch-icon" href="{% static 'web/app/icons/apple-touch-icon.png' %}">
 <link rel="icon" type="image/png" href="{% static 'web/app/icons/icon-192.png' %}">
 <link rel="stylesheet" href="{% static 'web/css/app.css' %}">

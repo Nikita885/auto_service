@@ -162,18 +162,6 @@
 .otp-input { text-align: center; letter-spacing: .5em; font: var(--fw-bold) 26px/1 var(--mono) !important; }
 .legal { font-size: var(--fs-caption); color: var(--text-faint); text-align: center; }
 
-.install {
-  display: flex;
-  gap: var(--space-3);
-  align-items: flex-start;
-  padding: var(--space-3) var(--space-4);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius);
-  font-size: var(--fs-ui);
-  color: var(--text-soft);
-}
-.install b { color: var(--text); }
-.install svg { flex: none; width: 22px; height: 22px; color: var(--accent); margin-top: 2px; }
 
 /* ------------------------------------------------------------- запись */
 .progress { display: flex; gap: 6px; margin: var(--space-2) 0 var(--space-4); }
@@ -355,3 +343,73 @@
   .pwa .modal-backdrop { align-items: center; padding: var(--space-5); }
   .pwa .modal { width: min(440px, 100%); border-radius: var(--radius-lg); }
 }
+
+/* ------------------------------------------------------ сканер QR-кода */
+.scanner {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+.scanner-video { flex: 1; width: 100%; object-fit: cover; }
+/* Рамка-прицел: тёмное поле вокруг и неоновый квадрат, куда наводить код. */
+.scanner-frame {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: min(68vw, 280px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 3px solid var(--accent);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .55), 0 0 24px var(--accent);
+}
+.scanner-bar {
+  position: relative;
+  padding: var(--space-4) var(--space-4) calc(var(--space-4) + var(--safe-bottom));
+  background: var(--bg);
+  text-align: center;
+}
+.scanner-bar p { margin-bottom: var(--space-3); color: var(--text-soft); font-size: var(--fs-ui); }
+
+/* ------------------------------------------------------------ установка */
+.install-btn { gap: var(--space-2); }
+.invite-note {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  font-size: var(--fs-ui);
+  color: var(--text-soft);
+}
+.invite-note b { color: var(--accent); font-family: var(--mono); letter-spacing: .08em; }
+
+.install-sheet { position: relative; }
+.install-steps { list-style: none; margin: var(--space-4) 0; padding: 0; display: grid; gap: var(--space-3); }
+.install-steps li { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-body); }
+.step-n {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: var(--fw-heavy);
+}
+.share-ico { width: 20px; height: 20px; vertical-align: -4px; color: var(--accent); }
+/* Стрелка вниз — к кнопке «Поделиться» в нижней панели Safari на iPhone. */
+.install-arrow {
+  position: absolute;
+  left: 50%;
+  bottom: -46px;
+  transform: translateX(-50%);
+  font-size: 34px;
+  color: var(--accent);
+  text-shadow: 0 0 14px var(--accent);
+  animation: install-bounce 1.2s ease-in-out infinite;
+}
+@keyframes install-bounce { 50% { transform: translate(-50%, 8px); } }
+@media (prefers-reduced-motion: reduce) { .install-arrow { animation: none; } }

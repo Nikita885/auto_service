@@ -15,6 +15,7 @@ import ru.autoservice.client.ui.auth.AuthActivity;
 import ru.autoservice.client.ui.booking.BookingFragment;
 import ru.autoservice.client.ui.bookings.BookingsFragment;
 import ru.autoservice.client.ui.profile.ProfileFragment;
+import ru.autoservice.client.ui.common.InviteFlow;
 import ru.autoservice.client.ui.referral.ReferralFragment;
 
 /**
@@ -46,6 +47,10 @@ public class MainActivity extends AppCompatActivity implements BookingFragment.O
 
         views = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(views.getRoot());
+
+        // Итог привязки при входе и отложенный код для уже вошедшего.
+        InviteFlow.showOutcome(this);
+        InviteFlow.attachPending(this);
 
         if (savedInstanceState == null) {
             addFragment(new BookingFragment(), TAG_BOOKING);

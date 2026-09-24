@@ -4,10 +4,12 @@ import { Auth, Onboarding } from "app/auth";
 import { Booking } from "app/booking";
 import { Bookings } from "app/bookings";
 import { Bonus } from "app/bonus";
+import { autoOpenFromLink } from "app/install";
 import { CONFIG, api, bus, errorText, html, invite, render, toast, useEffect, useState } from "app/lib";
 import { Profile } from "app/profile";
 
 invite.capture();
+autoOpenFromLink();
 
 if ("serviceWorker" in navigator) {
   // Ошибка регистрации не мешает работе — приложение просто не будет
@@ -46,6 +48,7 @@ function Root() {
           return;
         }
         setUser(me);
+        attachPendingInvite();
       })
       .catch((err) => {
         if (err.status === 401) { setUser(null); return; }
@@ -91,4 +94,24 @@ function Root() {
     </nav>`;
 }
 
-render(html`<${Root} />`, document.getElementById("root"));
+/** Вошедший клиент открыл ссылку-приглашение — привязываем без вопросов.
+
+    Сервер сам откажет, если приглашение уже принято: такой отказ молчит,
+    остальные объясняем. */
+async function attachPendingInvite() {
+  const code = invite.get();
+  if (!code) return;
+  try {
+    await api.post("/referral/attach/", { code });
+    toast("Вы приняли приглашение по коду " + code + ".", "ok", "Приглашение принято");
+  } catch (err) {
+    if (err.code !== "referral_already_attached") toast(errorText(err), "error");
+  }
+  invite.done();
+}
+
+// Заставка из HTML видна, пока грузятся модули. Preact рисует рядом, а не
+// поверх неё, — без очистки она оставалась внизу страницы.
+const root = document.getElementById("root");
+root.replaceChildren();
+render(html`<${Root} />`, root);

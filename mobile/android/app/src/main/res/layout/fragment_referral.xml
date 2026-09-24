@@ -298,6 +298,15 @@
                             android:layout_marginStart="@dimen/space_sm"
                             android:text="@string/referral_apply" />
                     </LinearLayout>
+
+                    <!-- Отсканировали код друга — привязка сразу, без «Применить». -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/scan_attach"
+                        style="@style/Widget.AutoService.Button.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_xs"
+                        android:text="@string/scan_invite_friend" />
                 </LinearLayout>
 
                 <!-- история и команда -->

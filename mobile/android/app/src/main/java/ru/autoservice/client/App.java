@@ -1,5 +1,7 @@
 package ru.autoservice.client;
 
+import ru.autoservice.client.util.InstallReferrer;
+
 import android.app.Application;
 
 import androidx.annotation.NonNull;
@@ -20,6 +22,8 @@ public class App extends Application {
     public void onCreate() {
         super.onCreate();
         container = new AppContainer(this);
+        // Установили из Google Play по ссылке-приглашению — забираем код.
+        InstallReferrer.check(this);
     }
 
     @NonNull

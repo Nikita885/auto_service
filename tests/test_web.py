@@ -150,23 +150,76 @@ def test_web_app_service_worker(client):
     assert "/api/" not in body.split("const ASSETS")[1].split(";")[0]
 
 
+IPHONE = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 "
+    "Version/17.5 Mobile Safari/604.1"
+)
+ANDROID = (
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/126.0 "
+    "Mobile Safari/537.36"
+)
+DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36"
+PLAY = "https://play.google.com/store/apps/details?id=ru.autoservice.client"
+
+
+@pytest.fixture
+def stores(settings):
+    settings.COMPANY = {**settings.COMPANY, "APP_STORE_URL": "", "GOOGLE_PLAY_URL": PLAY}
+
+
 @pytest.mark.django_db
-def test_landing_offers_web_app_for_iphone(client, settings, point):
-    settings.COMPANY = {**settings.COMPANY, "APP_STORE_URL": ""}
-    html = _landing(client)
+def test_iphone_sees_only_iphone_install(client, stores, point):
+    html = client.get("/", HTTP_USER_AGENT=IPHONE).content.decode()
 
-    assert 'href="/app/"' in html
-    assert "Веб-приложение" in html
+    assert 'href="/app/?install=1"' in html
+    assert "Google Play" not in html
+    # Главные кнопки на iPhone ведут туда же — к установке, а не к якорю.
+    assert html.count('href="/app/?install=1"') >= 3
 
 
 @pytest.mark.django_db
-def test_invite_page_passes_code_to_web_app(client):
+def test_android_sees_only_google_play(client, stores, point):
+    html = client.get("/", HTTP_USER_AGENT=ANDROID).content.decode()
+
+    assert PLAY in html
+    assert "/app/?install=1" not in html
+    assert "Для iPhone" not in html
+
+
+@pytest.mark.django_db
+def test_desktop_sees_both_ways(client, stores, point):
+    html = client.get("/", HTTP_USER_AGENT=DESKTOP).content.decode()
+
+    assert "/app/?install=1" in html
+    assert PLAY in html
+
+
+@pytest.mark.django_db
+def test_invite_page_passes_code_to_both_apps(client, stores):
     from apps.accounts.models import User
     from apps.referral.services import tree as tree_service
 
     user = User.objects.create_user(phone="+79005550000", full_name="Друг")
     node = tree_service.ensure_node(user)
 
-    html = client.get(f"/i/{node.code}/").content.decode()
+    iphone = client.get(f"/i/{node.code}/", HTTP_USER_AGENT=IPHONE).content.decode()
+    android = client.get(f"/i/{node.code}/", HTTP_USER_AGENT=ANDROID).content.decode()
 
-    assert f'href="/app/?invite={node.code}"' in html
+    assert f'href="/app/?install=1&amp;invite={node.code}"' in iphone
+    # Google Play получает код в referrer: приложение прочитает его после установки.
+    assert f"referrer=invite%3D{node.code}" in android
+
+
+def test_manifest_keeps_invite_in_start_url(client):
+    """iPhone запоминает start_url при «На экран „Домой“» — код доедет до
+    установленного приложения, хотя хранилище у него своё."""
+    page = client.get("/app/?invite=abc123").content.decode()
+    assert 'href="/app/manifest.webmanifest?invite=ABC123"' in page
+
+    data = client.get("/app/manifest.webmanifest?invite=ABC123").json()
+    assert data["start_url"] == "/app/?invite=ABC123"
+
+
+def test_manifest_ignores_garbage_invite(client):
+    data = client.get('/app/manifest.webmanifest?invite=<script>').json()
+    assert data["start_url"] == "/app/"

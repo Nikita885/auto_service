@@ -87,6 +87,27 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/space"
                 android:text="@string/auth_get_code" />
+
+            <!-- Код приглашения уже есть (ссылка, QR, Google Play) — показываем,
+                 что он применится сам. Нет — предлагаем отсканировать. -->
+            <TextView
+                android:id="@+id/invite_note"
+                style="@style/Text.Small"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space"
+                android:gravity="center"
+                android:visibility="gone"
+                tools:text="Код приглашения AB12CD применится автоматически при входе."
+                tools:visibility="visible" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/scan_invite"
+                style="@style/Widget.AutoService.Button.Text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_xs"
+                android:text="@string/scan_invite_auth" />
         </LinearLayout>
 
         <!-- ======================================================== шаг: код -->

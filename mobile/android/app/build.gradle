@@ -139,5 +139,14 @@ dependencies {
     // обвязки: рисуем битмап сами, камера нам не нужна.
     implementation 'com.google.zxing:core:3.5.3'
 
+    // Сканер QR приглашения: готовый экран камеры поверх того же zxing.
+    // Свой экран камеры с автофокусом и поворотами — сотни строк ради
+    // одной кнопки.
+    implementation('com.journeyapps:zxing-android-embedded:4.3.0') { transitive = false }
+
+    // Код приглашения, с которым приложение установили из Google Play
+    // (ссылка на магазин с сайта несёт referrer=invite=<код>).
+    implementation 'com.android.installreferrer:installreferrer:2.2'
+
     testImplementation 'junit:junit:4.13.2'
 }

@@ -38,7 +38,7 @@ public final class AppContainer {
         this.serverConfig = new ServerConfig(context);
         this.inviteStorage = new InviteStorage(context);
         this.api = ApiFactory.create(tokenStorage, serverConfig);
-        this.authRepository = new AuthRepository(api, tokenStorage);
+        this.authRepository = new AuthRepository(api, tokenStorage, inviteStorage);
         this.bookingRepository = new BookingRepository(api);
         this.referralRepository = new ReferralRepository(api);
         this.carsRepository = new CarsRepository(api);

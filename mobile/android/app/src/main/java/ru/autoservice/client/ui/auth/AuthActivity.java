@@ -14,6 +14,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.journeyapps.barcodescanner.ScanIntentResult;
+import com.journeyapps.barcodescanner.ScanOptions;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -24,8 +26,10 @@ import ru.autoservice.client.data.local.ServerConfig;
 import ru.autoservice.client.databinding.ActivityAuthBinding;
 import ru.autoservice.client.ui.MainActivity;
 import ru.autoservice.client.ui.onboarding.OnboardingActivity;
+import ru.autoservice.client.ui.common.InviteFlow;
 import ru.autoservice.client.ui.common.SimpleTextWatcher;
 import ru.autoservice.client.ui.common.Ui;
+import ru.autoservice.client.util.InviteCodes;
 import ru.autoservice.client.util.LoginCodeNotice;
 import ru.autoservice.client.util.PhoneFormat;
 
@@ -42,6 +46,10 @@ public class AuthActivity extends AppCompatActivity {
 
     private ActivityAuthBinding views;
     private AuthViewModel model;
+
+    /** Сканер QR приглашения: код отложится и применится при входе. */
+    private final ActivityResultLauncher<ScanOptions> inviteScanner =
+            registerForActivityResult(InviteFlow.scanContract(), this::onInviteScanned);
 
     private final ActivityResultLauncher<String> notificationPermission =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(),
@@ -66,6 +74,32 @@ public class AuthActivity extends AppCompatActivity {
         askNotificationPermission();
         bindInputs();
         observe();
+
+        views.scanInvite.setOnClickListener(v -> inviteScanner.launch(InviteFlow.scanOptions(this)));
+        renderInvite();
+    }
+
+    private void onInviteScanned(@NonNull ScanIntentResult result) {
+        if (result.getContents() == null || views == null) {
+            return;
+        }
+        String code = InviteCodes.parse(result.getContents());
+        if (code == null) {
+            Ui.showMessage(views.getRoot(), R.string.scan_not_invite);
+            return;
+        }
+        App.container(this).invites().remember(code);
+        renderInvite();
+    }
+
+    /** Код уже есть — говорим, что он применится сам; нет — предлагаем сканер. */
+    private void renderInvite() {
+        String pending = App.container(this).invites().pending();
+        Ui.setVisible(views.inviteNote, pending != null);
+        Ui.setVisible(views.scanInvite, pending == null);
+        if (pending != null) {
+            views.inviteNote.setText(getString(R.string.invite_pending_note, pending));
+        }
     }
 
     private void bindInputs() {

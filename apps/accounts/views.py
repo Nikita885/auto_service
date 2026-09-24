@@ -61,7 +61,9 @@ class OtpVerifyView(APIView):
         payload.is_valid(raise_exception=True)
 
         result = services.verify_otp(
-            payload.validated_data["phone"], payload.validated_data["code"]
+            payload.validated_data["phone"],
+            payload.validated_data["code"],
+            invite=payload.validated_data.get("invite", ""),
         )
         return Response(
             {
@@ -69,6 +71,7 @@ class OtpVerifyView(APIView):
                 "refresh": result.refresh,
                 "is_new_user": result.is_new_user,
                 "user": UserSerializer(result.user).data,
+                "invite": result.invite,
             },
             status=status.HTTP_200_OK,
         )

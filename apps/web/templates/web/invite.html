@@ -62,32 +62,7 @@
       </p>
     {% endif %}
 
-    <div class="stores invite-stores">
-      {% if company.APP_STORE_URL %}
-        <a class="store-btn" href="{{ company.APP_STORE_URL }}" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
-          <span><small>Загрузить в</small>App Store</span>
-        </a>
-      {% else %}
-        {# Код едет в ссылке: приложение подставит его при регистрации. #}
-        <a class="store-btn" href="{% url 'web:app' %}{% if found %}?invite={{ code|urlencode }}{% endif %}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
-          <span><small>Для iPhone</small>Веб-приложение</span>
-        </a>
-      {% endif %}
-
-      {% if company.GOOGLE_PLAY_URL %}
-        <a class="store-btn" href="{{ company.GOOGLE_PLAY_URL }}" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5v17a1 1 0 0 0 1.5.9l12-8.5a1 1 0 0 0 0-1.7l-12-8.5A1 1 0 0 0 5 3.5z"/></svg>
-          <span><small>Доступно в</small>Google Play</span>
-        </a>
-      {% else %}
-        <span class="store-btn is-soon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5v17a1 1 0 0 0 1.5.9l12-8.5a1 1 0 0 0 0-1.7l-12-8.5A1 1 0 0 0 5 3.5z"/></svg>
-          <span><small>Скоро в</small>Google Play</span>
-        </span>
-      {% endif %}
-    </div>
+    {% include "web/_store_buttons.html" with wrapper_class="stores invite-stores" %}
 
     <p class="invite-foot">
       Записаться можно и звонком:

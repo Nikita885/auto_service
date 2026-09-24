@@ -3,6 +3,7 @@ package ru.autoservice.client.data.repository;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import ru.autoservice.client.data.local.InviteStorage;
 import ru.autoservice.client.data.local.TokenStorage;
 import ru.autoservice.client.data.remote.ApiService;
 import ru.autoservice.client.data.remote.Calls;
@@ -21,10 +22,13 @@ import ru.autoservice.client.util.Result;
  */
 public final class AuthRepository {
 
+    private final InviteStorage invites;
+
     private final ApiService api;
     private final TokenStorage storage;
 
-    public AuthRepository(@NonNull ApiService api, @NonNull TokenStorage storage) {
+    public AuthRepository(@NonNull ApiService api, @NonNull TokenStorage storage, @NonNull InviteStorage invites) {
+        this.invites = invites;
         this.api = api;
         this.storage = storage;
     }
@@ -65,7 +69,10 @@ public final class AuthRepository {
                           @NonNull Result.Callback<Models.User> callback) {
         String phone = Formats.normalizePhone(rawPhone);
 
-        Calls.enqueue(api.verifyOtp(new Dtos.OtpVerifyBody(phone, code)), result -> {
+        // Код из ссылки, QR или Google Play уходит вместе со входом: сервер
+        // привяжет человека сам, вводить код руками не придётся.
+        String invite = invites.pending();
+        Calls.enqueue(api.verifyOtp(new Dtos.OtpVerifyBody(phone, code, invite == null ? "" : invite)), result -> {
             if (!result.isSuccess() || result.value() == null) {
                 callback.onResult(Result.failure(result.error()));
                 return;
@@ -73,6 +80,14 @@ public final class AuthRepository {
             Dtos.TokenPair pair = result.value();
             storage.saveTokens(pair.access, pair.refresh);
             storage.savePhone(phone);
+            if (pair.invite != null) {
+                invites.clear();
+                boolean attached = "attached".equals(pair.invite.status);
+                // «Уже принято» — не новость для человека, молчим.
+                if (attached || !"referral_already_attached".equals(pair.invite.code)) {
+                    invites.saveOutcome(attached, pair.invite.inviterName, pair.invite.message);
+                }
+            }
             callback.onResult(Result.success(DtoMapper.user(pair.user)));
         });
     }

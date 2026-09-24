@@ -107,6 +107,13 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/scan_invite"
+            style="@style/Widget.AutoService.Button.Text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/scan_invite_short" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/done"
             style="@style/Widget.AutoService.Button"
             android:layout_width="match_parent"

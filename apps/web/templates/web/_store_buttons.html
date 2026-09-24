@@ -1,0 +1,38 @@
+{% comment %}
+Кнопки установки — ровно под устройство посетителя (`platform` из
+`install_links`): iPhone видит только iPhone, Android — только Google Play,
+компьютер — обе, потому что по нему не угадать, какой у человека телефон.
+
+На iPhone без App Store кнопка ведёт в веб-приложение с `install=1` — оно
+само покажет инструкцию «На экран „Домой“». Ссылки уже несут код
+приглашения, если он есть (страница `/i/<код>`).
+{% endcomment %}
+<div class="{{ wrapper_class|default:'store-row' }}">
+  {% if platform != "android" %}
+    {% if company.APP_STORE_URL %}
+      <a class="store-btn" href="{{ company.APP_STORE_URL }}" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+        <span><small>Загрузить в</small>App Store</span>
+      </a>
+    {% else %}
+      <a class="store-btn" href="{{ ios_install_url }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+        <span><small>Для iPhone</small>Установить приложение</span>
+      </a>
+    {% endif %}
+  {% endif %}
+
+  {% if platform != "ios" %}
+    {% if play_url %}
+      <a class="store-btn" href="{{ play_url }}" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5v17a1 1 0 0 0 1.5.9l12-8.5a1 1 0 0 0 0-1.7l-12-8.5A1 1 0 0 0 5 3.5z"/></svg>
+        <span><small>Доступно в</small>Google Play</span>
+      </a>
+    {% else %}
+      <span class="store-btn is-soon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5v17a1 1 0 0 0 1.5.9l12-8.5a1 1 0 0 0 0-1.7l-12-8.5A1 1 0 0 0 5 3.5z"/></svg>
+        <span><small>Скоро в</small>Google Play</span>
+      </span>
+    {% endif %}
+  {% endif %}
+</div>

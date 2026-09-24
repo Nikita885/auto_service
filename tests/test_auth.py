@@ -189,3 +189,62 @@ def test_profile_update(auth, client_user):
     client_user.refresh_from_db()
     assert client_user.car_plate == "О001ОО77"
     assert client_user.phone == "+79001112233"  # телефон через профиль не меняется
+
+
+# ------------------------------------------- приглашение вместе со входом
+def _inviter():
+    from apps.referral.services import tree as tree_service
+
+    inviter = User.objects.create_user(phone="+79008887766", full_name="Друг")
+    return tree_service.ensure_node(inviter)
+
+
+def verify_with_invite(api, phone, code, invite):
+    return api.post(
+        reverse("v1:accounts:otp-verify"),
+        {"phone": phone, "code": code, "invite": invite},
+        format="json",
+    )
+
+
+def test_invite_from_link_attaches_new_client_at_login(api):
+    """Ссылка или QR — и человек уже в команде пригласившего, ничего не вводя."""
+    inviter = _inviter()
+    code = get_code(api, "+79001112233")
+
+    response = verify_with_invite(api, "+79001112233", code, inviter.code.lower())
+
+    assert response.status_code == 200
+    assert response.data["invite"] == {"status": "attached", "inviter_name": "Друг"}
+    user = User.objects.get(phone="+79001112233")
+    assert user.referral_node.sponsor_id == inviter.pk
+
+
+def test_bad_invite_does_not_break_login(api):
+    code = get_code(api, "+79001112233")
+
+    response = verify_with_invite(api, "+79001112233", code, "NOPE00")
+
+    assert response.status_code == 200
+    assert response.data["access"]
+    assert response.data["invite"]["status"] == "rejected"
+    assert response.data["invite"]["code"] == "referral_code_not_found"
+
+
+def test_invite_is_not_reapplied_to_attached_client(api, settings):
+    settings.OTP = {**settings.OTP, "RESEND_COOLDOWN_SECONDS": 0}
+    first = _inviter()
+    verify_with_invite(api, "+79001112233", get_code(api, "+79001112233"), first.code)
+
+    from apps.referral.services import tree as tree_service
+
+    second = tree_service.ensure_node(User.objects.create_user(phone="+79005554433"))
+    response = verify_with_invite(api, "+79001112233", get_code(api, "+79001112233"), second.code)
+
+    assert response.data["invite"]["code"] == "referral_already_attached"
+    assert User.objects.get(phone="+79001112233").referral_node.sponsor_id == first.pk
+
+
+def test_login_without_invite_has_no_invite_block(api):
+    code = get_code(api, "+79001112233")
+    assert verify_otp(api, "+79001112233", code).data["invite"] is None

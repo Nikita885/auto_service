@@ -3,6 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Камера — только для сканера QR-кода приглашения. Не обязательна:
+         без неё код вводится руками, и приложение ставится и на устройства
+         без камеры. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- Нужно, чтобы не дёргать сеть вхолостую при выключенном соединении. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -63,5 +68,14 @@
                 <data android:pathPrefix="/i/" />
             </intent-filter>
         </activity>
+        <!-- Экран сканера из zxing-android-embedded. По умолчанию он
+             ландшафтный; телефон держат вертикально. -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="fullSensor"
+            android:stateNotNeeded="true"
+            android:theme="@style/zxing_CaptureTheme"
+            android:windowSoftInputMode="stateAlwaysHidden"
+            tools:replace="screenOrientation" />
     </application>
 </manifest>

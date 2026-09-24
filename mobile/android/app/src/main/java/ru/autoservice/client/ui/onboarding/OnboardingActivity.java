@@ -1,5 +1,10 @@
 package ru.autoservice.client.ui.onboarding;
 
+import androidx.activity.result.ActivityResultLauncher;
+import com.journeyapps.barcodescanner.ScanIntentResult;
+import com.journeyapps.barcodescanner.ScanOptions;
+import ru.autoservice.client.ui.common.InviteFlow;
+import ru.autoservice.client.util.InviteCodes;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.EditText;
@@ -26,6 +31,23 @@ import ru.autoservice.client.ui.common.Ui;
  */
 public class OnboardingActivity extends AppCompatActivity {
 
+    /** QR друга — код подставляется в поле, применится вместе с профилем. */
+    private final ActivityResultLauncher<ScanOptions> scanner =
+            registerForActivityResult(InviteFlow.scanContract(), this::onScanned);
+
+    private void onScanned(@NonNull ScanIntentResult result) {
+        if (result.getContents() == null || views == null) {
+            return;
+        }
+        String code = InviteCodes.parse(result.getContents());
+        if (code == null) {
+            Ui.showMessage(views.getRoot(), R.string.scan_not_invite);
+        } else {
+            views.inviteInput.setText(code);
+        }
+    }
+
+
     private ActivityOnboardingBinding views;
     private OnboardingViewModel model;
 
@@ -34,6 +56,10 @@ public class OnboardingActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         views = ActivityOnboardingBinding.inflate(getLayoutInflater());
         setContentView(views.getRoot());
+
+        // Приглашение из ссылки или QR уже применено при входе — скажем об этом.
+        InviteFlow.showOutcome(this);
+        views.scanInvite.setOnClickListener(v -> scanner.launch(InviteFlow.scanOptions(this)));
 
         model = new ViewModelProvider(this).get(OnboardingViewModel.class);
 

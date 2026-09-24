@@ -38,11 +38,22 @@ public final class Dtos {
     public static final class OtpVerifyBody {
         @SerializedName("phone") public final String phone;
         @SerializedName("code") public final String code;
+        /** Код приглашения из ссылки или QR — сервер привяжет сразу при входе. */
+        @SerializedName("invite") public final String invite;
 
-        public OtpVerifyBody(String phone, String code) {
+        public OtpVerifyBody(String phone, String code, String invite) {
             this.phone = phone;
             this.code = code;
+            this.invite = invite;
         }
+    }
+
+    /** Что стало с кодом приглашения при входе. */
+    public static final class InviteResultDto {
+        @SerializedName("status") public String status;
+        @SerializedName("inviter_name") public String inviterName;
+        @SerializedName("code") public String code;
+        @SerializedName("message") public String message;
     }
 
     public static final class TokenPair {
@@ -50,6 +61,7 @@ public final class Dtos {
         @SerializedName("refresh") public String refresh;
         @SerializedName("is_new_user") public boolean isNewUser;
         @SerializedName("user") public UserDto user;
+        @SerializedName("invite") public InviteResultDto invite;
     }
 
     public static final class RefreshBody {

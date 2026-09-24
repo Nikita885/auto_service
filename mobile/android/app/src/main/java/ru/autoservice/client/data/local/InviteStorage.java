@@ -25,6 +25,9 @@ public final class InviteStorage {
 
     private static final String FILE = "invite";
     private static final String KEY_CODE = "pending_code";
+    private static final String KEY_OUTCOME = "outcome";
+    private static final String KEY_OUTCOME_NAME = "outcome_name";
+    private static final String KEY_OUTCOME_MESSAGE = "outcome_message";
 
     private final SharedPreferences prefs;
 
@@ -55,5 +58,43 @@ public final class InviteStorage {
      */
     public void clear() {
         prefs.edit().remove(KEY_CODE).apply();
+    }
+
+    /** Итог привязки при входе — показать на следующем экране один раз. */
+    public static final class Outcome {
+        public final boolean attached;
+        @Nullable public final String inviterName;
+        @Nullable public final String message;
+
+        Outcome(boolean attached, @Nullable String inviterName, @Nullable String message) {
+            this.attached = attached;
+            this.inviterName = inviterName;
+            this.message = message;
+        }
+    }
+
+    /**
+     * Запомнить, чем кончилась привязка при входе. Сам вход живёт в
+     * репозитории без доступа к строкам интерфейса, а показать итог нужно
+     * уже на экране, который откроется следом.
+     */
+    public void saveOutcome(boolean attached, @Nullable String inviterName, @Nullable String message) {
+        prefs.edit()
+                .putString(KEY_OUTCOME, attached ? "attached" : "rejected")
+                .putString(KEY_OUTCOME_NAME, inviterName)
+                .putString(KEY_OUTCOME_MESSAGE, message)
+                .apply();
+    }
+
+    @Nullable
+    public Outcome takeOutcome() {
+        String status = prefs.getString(KEY_OUTCOME, null);
+        if (status == null) {
+            return null;
+        }
+        Outcome outcome = new Outcome("attached".equals(status),
+                prefs.getString(KEY_OUTCOME_NAME, null), prefs.getString(KEY_OUTCOME_MESSAGE, null));
+        prefs.edit().remove(KEY_OUTCOME).remove(KEY_OUTCOME_NAME).remove(KEY_OUTCOME_MESSAGE).apply();
+        return outcome;
     }
 }

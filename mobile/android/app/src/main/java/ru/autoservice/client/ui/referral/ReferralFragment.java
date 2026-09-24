@@ -11,19 +11,24 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.journeyapps.barcodescanner.ScanIntentResult;
+import com.journeyapps.barcodescanner.ScanOptions;
 import com.google.android.material.tabs.TabLayout;
 
 import ru.autoservice.client.R;
 import ru.autoservice.client.databinding.FragmentReferralBinding;
 import ru.autoservice.client.domain.model.Models;
+import ru.autoservice.client.ui.common.InviteFlow;
 import ru.autoservice.client.ui.common.Ui;
 import ru.autoservice.client.util.Formats;
+import ru.autoservice.client.util.InviteCodes;
 import ru.autoservice.client.util.Qr;
 
 /**
@@ -40,6 +45,10 @@ public class ReferralFragment extends Fragment {
     private static final int TAB_POINTS = 0;
 
     private FragmentReferralBinding views;
+
+    /** Отсканировали QR друга — привязываем сразу, без кнопки «Применить». */
+    private final ActivityResultLauncher<ScanOptions> scanner =
+            registerForActivityResult(InviteFlow.scanContract(), this::onScanned);
     private ReferralViewModel model;
     private PointsAdapter pointsAdapter;
     private InvitedAdapter invitedAdapter;
@@ -81,6 +90,7 @@ public class ReferralFragment extends Fragment {
         views.refresh.setOnRefreshListener(() -> model.load());
         views.share.setOnClickListener(v -> share());
         views.copy.setOnClickListener(v -> copyCode());
+        views.scanAttach.setOnClickListener(v -> scanner.launch(InviteFlow.scanOptions(requireContext())));
         views.attach.setOnClickListener(v -> {
             Ui.hideKeyboard(v);
             model.attach(text());
@@ -256,6 +266,19 @@ public class ReferralFragment extends Fragment {
         clipboard.setPrimaryClip(ClipData.newPlainText(
                 getString(R.string.referral_code_label), referral.code()));
         Ui.showMessage(views.getRoot(), R.string.referral_copied);
+    }
+
+    private void onScanned(@NonNull ScanIntentResult result) {
+        if (result.getContents() == null || views == null) {
+            return;
+        }
+        String code = InviteCodes.parse(result.getContents());
+        if (code == null) {
+            Ui.showMessage(views.getRoot(), R.string.scan_not_invite);
+            return;
+        }
+        views.attachInput.setText(code);
+        model.attach(code);
     }
 
     @NonNull

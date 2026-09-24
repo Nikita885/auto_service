@@ -21,6 +21,17 @@ class OtpRequestResponseSerializer(serializers.Serializer):
 class OtpVerifySerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20)
     code = serializers.CharField(min_length=4, max_length=8, trim_whitespace=True)
+    invite = serializers.CharField(
+        max_length=16, required=False, allow_blank=True,
+        help_text="Код приглашения из ссылки или QR — клиент привязывается сразу при входе.",
+    )
+
+
+class InviteResultSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["attached", "rejected"])
+    inviter_name = serializers.CharField(required=False)
+    code = serializers.CharField(required=False)
+    message = serializers.CharField(required=False)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -49,3 +60,4 @@ class AuthResponseSerializer(serializers.Serializer):
     refresh = serializers.CharField()
     is_new_user = serializers.BooleanField()
     user = UserSerializer()
+    invite = InviteResultSerializer(required=False, allow_null=True)

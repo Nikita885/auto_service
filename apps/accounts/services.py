@@ -45,6 +45,8 @@ class AuthResult:
     access: str
     refresh: str
     is_new_user: bool
+    #: Что стало с кодом приглашения, пришедшим вместе с входом (см. `apply_invite`).
+    invite: dict | None = None
 
 
 def _generate_code() -> str:
@@ -151,7 +153,7 @@ def _debug_phones(conf: dict) -> set[str]:
     return normalized
 
 
-def verify_otp(raw_phone: str, code: str) -> AuthResult:
+def verify_otp(raw_phone: str, code: str, *, invite: str = "") -> AuthResult:
     """Проверить код и войти. Нет аккаунта — создаём его здесь же."""
 
     phone = normalize_phone(raw_phone)
@@ -211,7 +213,34 @@ def verify_otp(raw_phone: str, code: str) -> AuthResult:
 
     tokens = issue_tokens(user)
     logger.info("Вход %s (новый: %s)", mask_phone(phone), is_new)
-    return AuthResult(user=user, is_new_user=is_new, **tokens)
+    return AuthResult(
+        user=user, is_new_user=is_new, invite=apply_invite(user, invite), **tokens
+    )
+
+
+def apply_invite(user: User, code: str) -> dict | None:
+    """Привязать клиента по коду из ссылки или QR — без ручного ввода.
+
+    Код приходит вместе со входом: человек открыл ссылку-приглашение или
+    отсканировал QR, и дальше ему ничего вводить не нужно. Отказ (код
+    неверный, приглашение уже принято, свой код) вход не ломает — клиент
+    получает ответ и понятное сообщение, а войти он всё равно должен.
+    """
+    code = (code or "").strip().upper()
+    if not code or user.role != UserRole.CLIENT:
+        return None
+
+    from apps.common.exceptions import DomainError
+    from apps.referral.services import tree as referral_tree
+
+    try:
+        node = referral_tree.attach(user, code)
+    except DomainError as exc:
+        return {"status": "rejected", "code": exc.code, "message": exc.message}
+    return {
+        "status": "attached",
+        "inviter_name": node.sponsor.user.full_name or "Клиент",
+    }
 
 
 def _ensure_referral_node(user: User) -> None:

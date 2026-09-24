@@ -8,6 +8,8 @@
 
 import hashlib
 import json
+import re
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.http import Http404, HttpResponse, JsonResponse
@@ -21,6 +23,70 @@ from apps.catalog.models import Oil, ServicePoint
 from apps.common.exceptions import NotFoundError
 from apps.referral.services import tree as referral_tree
 
+INVITE_CODE_RE = re.compile(r"^[A-Z0-9]{4,10}$")
+
+
+def clean_invite(raw) -> str:
+    """Код приглашения из адреса — только если он похож на код.
+
+    Код попадает в манифест и ссылки; всё, что не выглядит как код, просто
+    отбрасываем — подставлять в них мусор из адресной строки незачем.
+    """
+    code = (raw or "").strip().upper()
+    return code if INVITE_CODE_RE.match(code) else ""
+
+
+def detect_platform(request) -> str:
+    """ios, android или other — по строке браузера.
+
+    Нужна, чтобы предлагать ровно один способ установки: на iPhone —
+    веб-приложение, на Android — Google Play. Компьютеру показываем оба:
+    по нему не угадать, на какой телефон человек будет ставить.
+    """
+    ua = request.META.get("HTTP_USER_AGENT", "").lower()
+    if any(device in ua for device in ("iphone", "ipad", "ipod")):
+        return "ios"
+    if "android" in ua:
+        return "android"
+    return "other"
+
+
+def install_links(request, invite: str = "") -> dict:
+    """Ссылки «установить приложение» под устройство посетителя.
+
+    На iPhone — веб-приложение с `install=1`: оно само откроет инструкцию
+    «На экран „Домой“». В ссылку Google Play код приглашения кладётся
+    стандартным параметром `referrer`: приложение прочитает его после
+    установки через Install Referrer, даже если ссылку открыли до того, как
+    приложение стояло на телефоне.
+    """
+    company = settings.COMPANY
+    platform = detect_platform(request)
+
+    ios_query = {"install": "1"}
+    if invite:
+        ios_query["invite"] = invite
+    ios_url = reverse("web:app") + "?" + urlencode(ios_query)
+
+    play_url = company["GOOGLE_PLAY_URL"]
+    if play_url and invite:
+        joiner = "&" if "?" in play_url else "?"
+        play_url += joiner + urlencode({"referrer": "invite=" + invite})
+
+    if platform == "ios":
+        cta = company["APP_STORE_URL"] or ios_url
+    elif platform == "android":
+        cta = play_url or "#app"
+    else:
+        cta = "#app"
+
+    return {
+        "platform": platform,
+        "ios_install_url": ios_url,
+        "play_url": play_url,
+        "app_cta_url": cta,
+    }
+
 
 class CompanyMixin:
     """Название и контакты компании в контекст любой страницы сайта.
@@ -33,6 +99,7 @@ class CompanyMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["company"] = settings.COMPANY
+        context.update(install_links(self.request))
         return context
 
 
@@ -102,6 +169,9 @@ class InviteView(CompanyMixin, TemplateView):
         # Наружу только имя: по коду не должно быть видно ни телефона
         # пригласившего, ни размера его ветки.
         context["inviter_name"] = node.user.full_name or "Клиент"
+        # Кнопки установки несут код: после установки приложение привяжет
+        # человека само, вводить ничего не придётся.
+        context.update(install_links(self.request, invite=node.code))
         return context
 
 
@@ -146,6 +216,8 @@ APP_MODULES = {
     "app/bookings": "web/app/bookings.js",
     "app/bonus": "web/app/bonus.js",
     "app/profile": "web/app/profile.js",
+    "app/scan": "web/app/scan.js",
+    "app/install": "web/app/install.js",
     "app/main": "web/app/main.js",
 }
 APP_ASSETS = (
@@ -185,6 +257,13 @@ class ClientAppView(CompanyMixin, TemplateView):
         context["import_map_json"] = json.dumps(
             {"imports": _app_urls()}, ensure_ascii=False
         ).replace("</", r"<\/")
+        # Код приглашения уезжает в адрес манифеста, а оттуда — в start_url:
+        # iPhone запоминает его при «На экран „Домой“», и установленное
+        # приложение откроется уже с кодом, хотя хранилище у него своё.
+        invite = clean_invite(self.request.GET.get("invite"))
+        context["manifest_url"] = reverse("web:app-manifest") + (
+            "?" + urlencode({"invite": invite}) if invite else ""
+        )
         company = settings.COMPANY
         context["app_config"] = {
             "company": company["NAME"],
@@ -195,6 +274,8 @@ class ClientAppView(CompanyMixin, TemplateView):
             "draftTtl": settings.BOOKING["DRAFT_TTL_SECONDS"],
             "cancelDeadline": settings.BOOKING["CANCEL_DEADLINE_MINUTES"],
             "maxDiscount": settings.REFERRAL["MAX_DISCOUNT_PERCENT"],
+            # Распознаватель QR грузится только при открытии сканера.
+            "qrDecoderUrl": static("web/app/vendor/jsQR.js"),
         }
         return context
 
@@ -203,6 +284,8 @@ class ClientAppView(CompanyMixin, TemplateView):
 def app_manifest(request):
     """Манифест: имя, иконки и то, что приложение открывается без рамки браузера."""
     company = settings.COMPANY
+    invite = clean_invite(request.GET.get("invite"))
+    start_url = "/app/" + ("?" + urlencode({"invite": invite}) if invite else "")
     icons = [
         {"src": static("web/app/icons/icon-192.png"), "sizes": "192x192", "type": "image/png"},
         {"src": static("web/app/icons/icon-512.png"), "sizes": "512x512", "type": "image/png"},
@@ -219,7 +302,7 @@ def app_manifest(request):
             "short_name": company["NAME"],
             "description": company["TAGLINE"],
             "lang": "ru",
-            "start_url": "/app/",
+            "start_url": start_url,
             "scope": "/app/",
             "display": "standalone",
             "orientation": "portrait",

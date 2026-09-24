@@ -1,26 +1,21 @@
 /* Вход по номеру и знакомство — те же шаги, что в приложении под Android. */
 
+import { InstallButton } from "app/install";
 import {
-  CONFIG, api, call, errorText, formatPhone, html, invite, isIos, isStandalone,
-  phoneComplete, toast, useEffect, useRef, useState,
+  CONFIG, api, call, errorText, formatPhone, html, invite, phoneComplete, toast,
+  useEffect, useRef, useState,
 } from "app/lib";
+import { canScan, scanInvite } from "app/scan";
 
-/** Подсказка «добавьте на экран „Домой“» — только Safari на iPhone.
-
-    Safari не умеет сам предлагать установку, а push-уведомления и запуск
-    без рамки браузера на iPhone работают только у установленного
-    приложения. Показываем до входа: у установленного приложения своё
-    хранилище, и вход из Safari туда не переедет. */
-export function InstallHint() {
-  if (!isIos() || isStandalone()) return null;
-  return html`<div class="install">
-    <span dangerouslySetInnerHTML=${{ __html: window.App.icon("info", 22) }}></span>
-    <div>
-      <b>Установите приложение на iPhone.</b> Нажмите «Поделиться» (квадрат
-      со стрелкой вверх) внизу Safari и выберите «На экран „Домой“».
-      Войдите уже из приложения — так уведомления будут приходить.
-    </div>
-  </div>`;
+/** Итог кода приглашения, пришедшего вместе со входом. */
+export function reportInvite(result) {
+  if (!result) return;
+  invite.done();
+  if (result.status === "attached") {
+    toast("Вы в команде: " + result.inviter_name + ". Ваши замены будут приносить баллы пригласившему.", "ok", "Приглашение принято");
+  } else if (result.code !== "referral_already_attached") {
+    toast(result.message || "Код приглашения не подошёл.", "error");
+  }
 }
 
 export function Auth({ onSignedIn }) {
@@ -30,7 +25,16 @@ export function Auth({ onSignedIn }) {
   const [hint, setHint] = useState("");
   const [busy, setBusy] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  const [pending, setPending] = useState(invite.get());
   const codeRef = useRef(null);
+
+  async function scan() {
+    const code = await scanInvite();
+    if (!code) return;
+    invite.set(code);
+    setPending(code);
+    toast("Код " + code + " сохранён — применится при входе.", "ok");
+  }
 
   useEffect(() => {
     if (resendIn <= 0) return undefined;
@@ -64,14 +68,17 @@ export function Auth({ onSignedIn }) {
     if (code.trim().length < 4 || busy) return;
     setBusy(true);
     try {
+      // Код приглашения из ссылки или QR уходит вместе со входом — сервер
+      // привяжет человека сам, вводить ничего не придётся.
       const data = await api.request("/auth/otp/verify/", {
-        method: "POST", body: { phone, code: code.trim() }, auth: false,
+        method: "POST", body: { phone, code: code.trim(), invite: invite.get() }, auth: false,
       });
       if (data.user.role !== "client") {
         toast("Этот номер принадлежит сотруднику. Рабочее место мастера — на сайте, в разделе /master/.", "error");
         return;
       }
       api.store.save(data.access, data.refresh);
+      reportInvite(data.invite);
       onSignedIn(data.user, data.is_new_user);
     } catch (err) {
       toast(errorText(err), "error");
@@ -92,7 +99,7 @@ export function Auth({ onSignedIn }) {
           <h1>Замена масла<br /><span>без очереди</span></h1>
           <p class="muted" style="margin-top:8px">Вход по номеру телефона. Пароль не нужен — пришлём код в SMS.</p>
         </div>
-        <${InstallHint} />
+        <${InstallButton} block=${true} />
         <form class="stack" onSubmit=${(e) => { e.preventDefault(); requestCode(); }}>
           <div class="field">
             <label for="phone">Телефон</label>
@@ -103,6 +110,10 @@ export function Auth({ onSignedIn }) {
             ${busy ? "Отправляем…" : "Получить код"}
           </button>
         </form>
+        ${pending
+          ? html`<p class="invite-note">Код приглашения <b>${pending}</b> применится автоматически при входе.</p>`
+          : canScan() && html`<button class="btn btn-ghost btn-block" type="button" onClick=${scan}>
+              Меня пригласили — сканировать QR-код</button>`}
       ` : html`
         <div>
           <h1>Введите код</h1>
@@ -179,6 +190,11 @@ export function Onboarding({ user, onDone }) {
   const [car, setCar] = useState(user.car_model || "");
   const [plate, setPlate] = useState(user.car_plate || "");
   const [code, setCode] = useState(invite.get());
+
+  async function scan() {
+    const found = await scanInvite();
+    if (found) setCode(found);
+  }
   const [busy, setBusy] = useState(false);
 
   async function save(skip) {
@@ -197,10 +213,13 @@ export function Onboarding({ user, onDone }) {
     if (code.trim()) {
       try {
         await api.post("/referral/attach/", { code: code.trim() });
-        invite.clear();
+        invite.done();
         toast("Приглашение принято", "ok");
       } catch (err) {
-        toast("Код приглашения не подошёл: " + errorText(err) + " Профиль сохранён.", "error");
+        invite.done();
+        if (err.code !== "referral_already_attached") {
+          toast("Код приглашения не подошёл: " + errorText(err) + " Профиль сохранён.", "error");
+        }
       }
     }
     setBusy(false);
@@ -225,8 +244,11 @@ export function Onboarding({ user, onDone }) {
       </div>
       <div class="field">
         <label for="invite">Код приглашения, если есть</label>
-        <input id="invite" autocapitalize="characters" placeholder="Код приглашения" value=${code}
-          onInput=${(e) => setCode(e.target.value.toUpperCase())} />
+        <div class="row" style="flex-wrap:nowrap">
+          <input id="invite" style="flex:1" autocapitalize="characters" placeholder="Код приглашения" value=${code}
+            onInput=${(e) => setCode(e.target.value.toUpperCase())} />
+          ${canScan() && html`<button class="btn" type="button" onClick=${scan}>QR</button>`}
+        </div>
         <span class="hint">Если вас пригласил знакомый — введите его код. Позже это можно сделать в «Бонусах».</span>
       </div>
       <button class="btn btn-primary btn-block" type="submit" disabled=${busy}>Готово</button>

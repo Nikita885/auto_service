@@ -7,6 +7,7 @@
 import {
   LoadError, api, call, errorText, fmt, html, money, toast, useEffect, useLoad, useState,
 } from "app/lib";
+import { canScan, scanInvite } from "app/scan";
 
 export function Bonus() {
   const summary = useLoad(() => api.get("/referral/"));
@@ -117,20 +118,29 @@ function InviteCard({ s }) {
 function AttachCard({ onAttached }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  async function attach() {
-    if (!code.trim()) return;
+  async function attach(value) {
+    const c = (value || code).trim();
+    if (!c) return;
     setBusy(true);
-    const ok = await call(() => api.post("/referral/attach/", { code: code.trim() }));
+    const ok = await call(() => api.post("/referral/attach/", { code: c }));
     setBusy(false);
     if (ok) { toast("Приглашение принято", "ok"); onAttached(); }
+  }
+
+  // Отсканировали — привязываем сразу, без кнопки «Применить».
+  async function scan() {
+    const found = await scanInvite();
+    if (found) { setCode(found); attach(found); }
   }
   return html`<section class="card pad stack">
     <b>У меня есть код приглашения</b>
     <div class="row" style="flex-wrap:nowrap">
       <input style="flex:1" autocapitalize="characters" placeholder="Введите код" value=${code}
         onInput=${(e) => setCode(e.target.value.toUpperCase())} aria-label="Код приглашения" />
-      <button class="btn btn-primary" type="button" disabled=${busy || !code.trim()} onClick=${attach}>Применить</button>
+      <button class="btn btn-primary" type="button" disabled=${busy || !code.trim()} onClick=${() => attach()}>Применить</button>
     </div>
+    ${canScan() && html`<button class="btn btn-block" type="button" disabled=${busy} onClick=${scan}>
+      Сканировать QR-код друга</button>`}
   </section>`;
 }
 
