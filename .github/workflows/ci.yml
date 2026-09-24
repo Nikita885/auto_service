@@ -65,4 +65,21 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
 
       - name: Тесты
-        run: pytest
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -rf 2>&1 | tee pytest.log
+
+      # Лог шага виден только тем, кто вошёл в GitHub. Имена упавших тестов
+      # выносим в аннотации — их видно на странице запуска и через API без
+      # входа, и причину падения можно понять, не открывая лог.
+      - name: Упавшие тесты — в аннотации
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "^(FAILED|ERROR) " pytest.log | head -20 | while read -r line; do
+            echo "::error title=pytest::${line}"
+          done
+          grep -E "^E  " pytest.log | head -20 | while read -r line; do
+            echo "::error title=pytest detail::${line}"
+          done
