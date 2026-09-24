@@ -276,6 +276,12 @@ class ClientAppView(CompanyMixin, TemplateView):
             "maxDiscount": settings.REFERRAL["MAX_DISCOUNT_PERCENT"],
             # Распознаватель QR грузится только при открытии сканера.
             "qrDecoderUrl": static("web/app/vendor/jsQR.js"),
+            # Android видит кнопку Google Play (с кодом приглашения в referrer).
+            "playUrl": install_links(self.request, invite=invite)["play_url"],
+            # Из браузера веб-приложением пользоваться нельзя — только с
+            # главного экрана iPhone. В разработке — можно, иначе экраны
+            # не проверить без телефона.
+            "allowBrowser": settings.DEBUG,
         }
         return context
 

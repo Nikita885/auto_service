@@ -385,7 +385,10 @@
 }
 .invite-note b { color: var(--accent); font-family: var(--mono); letter-spacing: .08em; }
 
-.install-sheet { position: relative; }
+.gate { position: relative; }
+.gate-arrow { position: static; transform: none; align-self: center; margin-top: var(--space-2); }
+@keyframes gate-bounce { 50% { transform: translateY(8px); } }
+.gate-arrow { animation-name: gate-bounce; }
 .install-steps { list-style: none; margin: var(--space-4) 0; padding: 0; display: grid; gap: var(--space-3); }
 .install-steps li { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-body); }
 .step-n {

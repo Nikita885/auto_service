@@ -1,7 +1,6 @@
 /* Профиль: имя и машина, которые видит мастер, и выход. */
 
 import { CarField } from "app/auth";
-import { InstallButton } from "app/install";
 import { CONFIG, LoadError, api, ask, bus, call, html, toast, useEffect, useLoad, useState } from "app/lib";
 
 export function Profile() {
@@ -64,7 +63,6 @@ export function Profile() {
         </div>
         <button class="btn btn-primary btn-block" type="submit" disabled=${busy || !me.data}>Сохранить</button>
       </form>
-      <${InstallButton} block=${true} />
       <a class="btn btn-block" href=${"tel:" + CONFIG.phone.replace(/[^\d+]/g, "")}>Позвонить в сервис · ${CONFIG.phone}</a>
       <button class="btn btn-ghost btn-danger btn-block" type="button" onClick=${signOut}>Выйти</button>
     </div>

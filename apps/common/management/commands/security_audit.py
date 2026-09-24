@@ -344,6 +344,35 @@ def _check_sentry() -> Finding:
     return Finding(WARN, "SENTRY_DSN", "не задан — ошибки прода видны только в логах")
 
 
+def _check_service_points() -> list[Finding]:
+    """Настройки точек, без которых запись не работает.
+
+    Неверный часовой пояс или рабочие дни не видны на сайте, пока клиент не
+    дойдёт до выбора времени, — и тогда он получает ошибку. Ловим заранее.
+    """
+    from django.core.exceptions import ValidationError as DjangoValidationError
+
+    from apps.catalog.models import ServicePoint, validate_timezone, validate_workdays
+
+    findings: list[Finding] = []
+    for point in ServicePoint.objects.filter(is_active=True):
+        problems = []
+        for validator, value, label in (
+            (validate_timezone, point.timezone, "часовой пояс"),
+            (validate_workdays, point.workdays, "рабочие дни"),
+        ):
+            try:
+                validator(value)
+            except DjangoValidationError:
+                problems.append(f"{label} {value!r}")
+        if problems:
+            detail = "неверно: " + ", ".join(problems)
+            findings.append(Finding(FAIL, f"точка «{point.name}»", detail))
+    if not findings:
+        findings.append(Finding(OK, "настройки точек", "часовые пояса и рабочие дни в порядке"))
+    return findings
+
+
 def collect_findings() -> list[Finding]:
     """Все проверки по порядку. Список плоский: команда не решает, что важнее,
     — важно всё, что помечено ПРОВАЛ."""
@@ -362,6 +391,7 @@ def collect_findings() -> list[Finding]:
     findings.append(_check_db_password())
     findings.append(_check_bootstrap_demo())
     findings += _check_demo_accounts()
+    findings += _check_service_points()
     findings.append(_check_backups())
     findings.append(_check_sentry())
     return findings

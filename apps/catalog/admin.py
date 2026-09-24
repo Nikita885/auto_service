@@ -1,6 +1,41 @@
+from django import forms
 from django.contrib import admin
 
 from apps.catalog.models import CarMake, CarModel, Oil, OilStock, ServicePoint
+
+WEEKDAYS = [(0, "Пн"), (1, "Вт"), (2, "Ср"), (3, "Чт"), (4, "Пт"), (5, "Сб"), (6, "Вс")]
+
+
+class ServicePointForm(forms.ModelForm):
+    """Рабочие дни — галочками, а не JSON руками.
+
+    В поле с JSON однажды вписали «2», и расчёт свободного времени падал на
+    каждом запросе. Галочки не дают ввести что-то кроме дней недели.
+    """
+
+    workdays = forms.TypedMultipleChoiceField(
+        label="Рабочие дни",
+        choices=WEEKDAYS,
+        coerce=int,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Ничего не отмечено — точка работает каждый день.",
+    )
+
+    class Meta:
+        model = ServicePoint
+        fields = (
+            "name", "address", "phone", "latitude", "longitude", "timezone",
+            "opens_at", "closes_at", "workdays", "slot_minutes", "posts_count", "is_active",
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        current = self.instance.workdays if self.instance else []
+        self.initial["workdays"] = current if isinstance(current, list) else []
+
+    def clean_workdays(self):
+        return sorted(set(self.cleaned_data["workdays"]))
 
 
 class OilStockInline(admin.TabularInline):
@@ -11,7 +46,8 @@ class OilStockInline(admin.TabularInline):
 
 @admin.register(ServicePoint)
 class ServicePointAdmin(admin.ModelAdmin):
-    list_display = ("name", "address", "opens_at", "closes_at", "slot_minutes",
+    form = ServicePointForm
+    list_display = ("name", "address", "timezone", "opens_at", "closes_at", "slot_minutes",
                     "posts_count", "is_active")
     list_filter = ("is_active",)
     search_fields = ("name", "address")

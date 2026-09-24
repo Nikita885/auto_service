@@ -223,3 +223,24 @@ def test_manifest_keeps_invite_in_start_url(client):
 def test_manifest_ignores_garbage_invite(client):
     data = client.get('/app/manifest.webmanifest?invite=<script>').json()
     assert data["start_url"] == "/app/"
+
+
+def _app_config(client, **extra):
+    import json
+    import re
+
+    html = client.get("/app/?invite=ABC123", **extra).content.decode()
+    pattern = r'<script id="app-config" type="application/json">(.*?)</script>'
+    raw = re.search(pattern, html).group(1)
+    return json.loads(raw)
+
+
+def test_web_app_is_not_usable_from_browser_in_production(client, settings):
+    """Только установленное на главный экран: из Safari — инструкция, без входа."""
+    settings.DEBUG = False
+    assert _app_config(client)["allowBrowser"] is False
+
+
+def test_web_app_sends_android_to_play_with_invite(client, stores):
+    config = _app_config(client, HTTP_USER_AGENT=ANDROID)
+    assert config["playUrl"] == PLAY + "&referrer=invite%3DABC123"

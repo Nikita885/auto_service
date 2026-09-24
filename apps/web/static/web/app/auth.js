@@ -1,6 +1,5 @@
 /* Вход по номеру и знакомство — те же шаги, что в приложении под Android. */
 
-import { InstallButton } from "app/install";
 import {
   CONFIG, api, call, errorText, formatPhone, html, invite, phoneComplete, toast,
   useEffect, useRef, useState,
@@ -99,7 +98,6 @@ export function Auth({ onSignedIn }) {
           <h1>Замена масла<br /><span>без очереди</span></h1>
           <p class="muted" style="margin-top:8px">Вход по номеру телефона. Пароль не нужен — пришлём код в SMS.</p>
         </div>
-        <${InstallButton} block=${true} />
         <form class="stack" onSubmit=${(e) => { e.preventDefault(); requestCode(); }}>
           <div class="field">
             <label for="phone">Телефон</label>

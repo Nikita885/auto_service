@@ -1,13 +1,82 @@
 from __future__ import annotations
 
+import logging
 import zoneinfo
 from datetime import date, datetime, time
 
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 
 from apps.common.models import BaseModel
 from apps.common.translit import search_index as build_search_index
+
+logger = logging.getLogger(__name__)
+
+#: Часовые пояса России — выбор из списка, а не свободная строка. Свободную
+#: строку однажды заполнили «Yekaterinburg Time» (так пояс зовёт Windows),
+#: и расчёт свободного времени падал с 500 на каждом запросе.
+RUSSIAN_TIMEZONES = [
+    ("Europe/Kaliningrad", "Калининград (UTC+2)"),
+    ("Europe/Moscow", "Москва, Санкт-Петербург (UTC+3)"),
+    ("Europe/Samara", "Самара, Ижевск (UTC+4)"),
+    ("Asia/Yekaterinburg", "Екатеринбург, Челябинск, Тюмень, Уфа, Пермь (UTC+5)"),
+    ("Asia/Omsk", "Омск (UTC+6)"),
+    ("Asia/Novosibirsk", "Новосибирск (UTC+7)"),
+    ("Asia/Krasnoyarsk", "Красноярск, Кемерово (UTC+7)"),
+    ("Asia/Irkutsk", "Иркутск (UTC+8)"),
+    ("Asia/Yakutsk", "Якутск, Чита (UTC+9)"),
+    ("Asia/Vladivostok", "Владивосток, Хабаровск (UTC+10)"),
+    ("Asia/Magadan", "Магадан, Сахалин (UTC+11)"),
+    ("Asia/Kamchatka", "Камчатка (UTC+12)"),
+]
+
+#: Как пояс пишут люди и Windows → имя, которое понимает система.
+_TIMEZONE_ALIASES = {
+    "yekaterinburg": "Asia/Yekaterinburg",
+    "екатеринбург": "Asia/Yekaterinburg",
+    "chelyabinsk": "Asia/Yekaterinburg",
+    "челябинск": "Asia/Yekaterinburg",
+    "moscow": "Europe/Moscow",
+    "russian standard": "Europe/Moscow",
+    "москва": "Europe/Moscow",
+}
+
+
+def normalize_timezone(value: str) -> str | None:
+    """Имя пояса, понятное системе, или None, если не удалось угадать."""
+    raw = (value or "").strip()
+    try:
+        zoneinfo.ZoneInfo(raw)
+        return raw
+    except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+        pass
+    lowered = raw.lower()
+    for key, name in _TIMEZONE_ALIASES.items():
+        if key in lowered:
+            return name
+    return None
+
+
+def validate_timezone(value: str) -> None:
+    try:
+        zoneinfo.ZoneInfo(value)
+    except (zoneinfo.ZoneInfoNotFoundError, ValueError) as exc:
+        raise ValidationError(
+            "Неизвестный часовой пояс. Для Челябинска и Екатеринбурга — Asia/Yekaterinburg."
+        ) from exc
+
+
+def validate_workdays(value) -> None:
+    """Рабочие дни — список чисел 0–6 (0 = понедельник). Пустой — каждый день."""
+    if not isinstance(value, list) or not all(
+        isinstance(day, int) and not isinstance(day, bool) and 0 <= day <= 6 for day in value
+    ):
+        raise ValidationError(
+            "Рабочие дни — список чисел от 0 (понедельник) до 6 (воскресенье), "
+            "например [0, 1, 2, 3, 4]. Пустой список — каждый день."
+        )
 
 
 class OilType(models.TextChoices):
@@ -34,12 +103,20 @@ class ServicePoint(BaseModel):
         "долгота", max_digits=9, decimal_places=6, null=True, blank=True
     )
 
-    timezone = models.CharField("часовой пояс", max_length=64, default="Europe/Moscow")
+    timezone = models.CharField(
+        "часовой пояс",
+        max_length=64,
+        default="Europe/Moscow",
+        choices=RUSSIAN_TIMEZONES,
+        validators=[validate_timezone],
+    )
     opens_at = models.TimeField("открытие", default=time(9, 0))
     closes_at = models.TimeField("закрытие", default=time(21, 0))
     workdays = models.JSONField(
         "рабочие дни",
         default=list,
+        blank=True,
+        validators=[validate_workdays],
         help_text="Дни недели, 0 = понедельник. Пустой список = работает всегда.",
     )
     slot_minutes = models.PositiveSmallIntegerField(
@@ -66,12 +143,28 @@ class ServicePoint(BaseModel):
 
     @property
     def tz(self) -> zoneinfo.ZoneInfo:
-        return zoneinfo.ZoneInfo(self.timezone)
+        """Пояс точки. Испорченное значение не должно ронять запись.
+
+        Админка и миграция не пускают неверный пояс, но данные могли
+        попасть в базу раньше. Лучше угадать пояс по названию (или взять
+        пояс сети) и написать ошибку в лог, чем отдавать 500 на выборе
+        времени, — `security_audit` покажет такую точку отдельно.
+        """
+        name = normalize_timezone(self.timezone)
+        if name != self.timezone:
+            logger.error("Точка %s: неверный часовой пояс %r", self.pk, self.timezone)
+        return zoneinfo.ZoneInfo(name or settings.BUSINESS_TIMEZONE)
 
     def is_workday(self, day: date) -> bool:
-        if not self.workdays:
+        workdays = self.workdays
+        if not isinstance(workdays, list):
+            # Испорченное значение (например, число) — считаем, что точка
+            # работает каждый день: закрыть запись целиком хуже.
+            logger.error("Точка %s: неверные рабочие дни %r", self.pk, workdays)
             return True
-        return day.weekday() in self.workdays
+        if not workdays:
+            return True
+        return day.weekday() in workdays
 
     def local_datetime(self, day: date, moment: time) -> datetime:
         """Локальное aware-время точки для указанных даты и времени."""

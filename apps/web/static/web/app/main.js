@@ -4,12 +4,11 @@ import { Auth, Onboarding } from "app/auth";
 import { Booking } from "app/booking";
 import { Bookings } from "app/bookings";
 import { Bonus } from "app/bonus";
-import { autoOpenFromLink } from "app/install";
+import { InstallGate, NotIphoneGate, gate } from "app/install";
 import { CONFIG, api, bus, errorText, html, invite, render, toast, useEffect, useState } from "app/lib";
 import { Profile } from "app/profile";
 
 invite.capture();
-autoOpenFromLink();
 
 if ("serviceWorker" in navigator) {
   // Ошибка регистрации не мешает работе — приложение просто не будет
@@ -28,6 +27,14 @@ const tabFromHash = () => {
   const name = location.hash.replace("#", "");
   return TABS.some(([key]) => key === name) ? name : "booking";
 };
+
+function App() {
+  // Не iPhone или Safari вместо установленного приложения — дальше не пускаем.
+  const blocked = gate();
+  if (blocked === "not-iphone") return html`<${NotIphoneGate} />`;
+  if (blocked === "install") return html`<${InstallGate} />`;
+  return html`<${Root} />`;
+}
 
 function Root() {
   // undefined — проверяем сессию, null — не вошли, объект — вошли.
@@ -114,4 +121,4 @@ async function attachPendingInvite() {
 // поверх неё, — без очистки она оставалась внизу страницы.
 const root = document.getElementById("root");
 root.replaceChildren();
-render(html`<${Root} />`, root);
+render(html`<${App} />`, root);

@@ -1,30 +1,23 @@
-/* Установка веб-приложения на главный экран — под устройство.
+/* Кто и как попадает в веб-приложение.
 
-   iPhone: Safari не умеет предлагать установку сам, поэтому кнопка
-   открывает пошаговую инструкцию. Android (Chrome): браузер присылает
-   событие `beforeinstallprompt`, и кнопка вызывает системное окно
-   установки. Уже установленному приложению (запущенному с главного экрана)
-   кнопка не показывается вовсе — ставить нечего. */
+   Веб-приложение — только для iPhone и только установленное на главный
+   экран. Android получает настоящее приложение из Google Play, компьютер —
+   QR-код, чтобы открыть страницу на телефоне. В Safari на iPhone вместо
+   входа — инструкция «На экран „Домой“»: из браузера приложением не
+   пользуются, потому что у него своё хранилище и вход из Safari туда не
+   переедет, а уведомления приходят только установленному.
 
-import { html, isIos, isStandalone, render, useEffect, useState } from "app/lib";
+   Код приглашения при этом не теряется: он уже лежит в start_url
+   манифеста (см. ClientAppView), и установленное приложение откроется с
+   ним. */
 
-let deferredPrompt = null;
-const waiters = new Set();
+import { CONFIG, html, isIos, isStandalone } from "app/lib";
 
-window.addEventListener("beforeinstallprompt", (event) => {
-  event.preventDefault();
-  deferredPrompt = event;
-  waiters.forEach((fn) => fn());
-});
-window.addEventListener("appinstalled", () => {
-  deferredPrompt = null;
-  waiters.forEach((fn) => fn());
-});
-
-/** Можно ли что-то предложить: iPhone в Safari или Android с готовым окном. */
-function installable() {
-  if (isStandalone()) return false;
-  return isIos() || Boolean(deferredPrompt);
+/** Что показать вместо приложения, или null — можно работать. */
+export function gate() {
+  if (!isIos()) return "not-iphone";
+  if (!isStandalone() && !CONFIG.allowBrowser) return "install";
+  return null;
 }
 
 function ShareIcon() {
@@ -34,65 +27,68 @@ function ShareIcon() {
   </svg>`;
 }
 
-function Sheet({ onClose }) {
-  return html`<div class="modal-backdrop" onClick=${(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <div class="modal install-sheet" role="dialog" aria-modal="true" aria-labelledby="install-title">
-      <div class="modal-title" id="install-title">Установите приложение на iPhone</div>
-      <p class="modal-sub">Три касания — и оно будет на главном экране, как обычное приложение.</p>
-      <ol class="install-steps">
+function Brand() {
+  return html`<div class="auth-brand"><img src=${CONFIG.icon} alt="" /><b>${CONFIG.company}</b></div>`;
+}
+
+/** iPhone, Safari: только инструкция, входа нет. */
+export function InstallGate() {
+  return html`<main class="screen screen-plain">
+    <div class="auth gate">
+      <${Brand} />
+      <div>
+        <h1>Установите приложение<br /><span>на главный экран</span></h1>
+        <p class="muted" style="margin-top:8px">Приложение работает только с главного экрана iPhone —
+          так приходят уведомления, а вход сохраняется. Это три касания.</p>
+      </div>
+      <ol class="install-steps card pad">
         <li><span class="step-n">1</span><span>Нажмите «Поделиться» <${ShareIcon} /> внизу экрана Safari</span></li>
         <li><span class="step-n">2</span><span>Прокрутите и выберите <b>«На экран „Домой“»</b></span></li>
-        <li><span class="step-n">3</span><span>Нажмите <b>«Добавить»</b> в правом верхнем углу</span></li>
+        <li><span class="step-n">3</span><span>Нажмите <b>«Добавить»</b> и откройте приложение с иконкой</span></li>
       </ol>
-      <p class="hint">Открывайте приложение с главного экрана — так приходят уведомления, а вход сохраняется.</p>
-      <div class="modal-actions"><button class="btn btn-primary" type="button" onClick=${onClose}>Понятно</button></div>
-      <div class="install-arrow" aria-hidden="true">↓</div>
+      <p class="hint center">Открыто не в Safari? Скопируйте адрес страницы и откройте его в Safari —
+        другие браузеры на iPhone не умеют ставить приложения на главный экран.</p>
+      <div class="install-arrow gate-arrow" aria-hidden="true">↓</div>
     </div>
-  </div>`;
+  </main>`;
 }
 
-/** Показать инструкцию для iPhone. */
-export function openInstallSheet() {
-  const host = document.createElement("div");
-  document.body.append(host);
-  const close = () => { render(null, host); host.remove(); };
-  render(html`<${Sheet} onClose=${close} />`, host);
+function Qr({ text }) {
+  if (!window.qrcode) return null;
+  const qr = window.qrcode(0, "M");
+  qr.addData(text);
+  qr.make();
+  // SVG строит библиотека из нашего же адреса — чужих данных в нём нет.
+  return html`<div class="qr" role="img" aria-label="QR-код для iPhone"
+    dangerouslySetInnerHTML=${{ __html: qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true }) }}></div>`;
 }
 
-/** Кнопка «Установить приложение» — только там, где установка возможна. */
-export function InstallButton({ block }) {
-  const [, force] = useState(0);
-  useEffect(() => {
-    const fn = () => force((n) => n + 1);
-    waiters.add(fn);
-    return () => waiters.delete(fn);
-  }, []);
-
-  if (!installable()) return null;
-
-  async function install() {
-    if (deferredPrompt) {
-      const prompt = deferredPrompt;
-      deferredPrompt = null;
-      prompt.prompt();
-      await prompt.userChoice.catch(() => null);
-      waiters.forEach((fn) => fn());
-      return;
-    }
-    openInstallSheet();
-  }
-
-  return html`<button class=${"btn btn-primary install-btn" + (block ? " btn-block" : "")} type="button" onClick=${install}>
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
-      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-    Установить приложение
-  </button>`;
-}
-
-/** Открыли по ссылке «Установить» с сайта — сразу показываем инструкцию. */
-export function autoOpenFromLink() {
-  const params = new URLSearchParams(location.search);
-  if (params.get("install") === "1" && isIos() && !isStandalone()) {
-    setTimeout(openInstallSheet, 400);
-  }
+/** Android и компьютер: веб-приложение не для них. */
+export function NotIphoneGate() {
+  const android = /android/i.test(navigator.userAgent);
+  const appUrl = CONFIG.siteUrl + "/app/" + location.search;
+  return html`<main class="screen screen-plain">
+    <div class="auth gate">
+      <${Brand} />
+      ${android ? html`
+        <div>
+          <h1>Для Android —<br /><span>приложение из Google Play</span></h1>
+          <p class="muted" style="margin-top:8px">Это веб-приложение сделано для iPhone. На Android
+            запись, бонусы и уведомления — в нашем приложении.</p>
+        </div>
+        ${CONFIG.playUrl
+          ? html`<a class="btn btn-primary btn-block" href=${CONFIG.playUrl}>Открыть в Google Play</a>`
+          : html`<p class="card pad muted">Приложение скоро появится в Google Play. Пока записывайтесь
+              по телефону <a href=${"tel:" + CONFIG.phone.replace(/[^\d+]/g, "")}>${CONFIG.phone}</a>.</p>`}
+      ` : html`
+        <div>
+          <h1>Откройте<br /><span>на iPhone</span></h1>
+          <p class="muted" style="margin-top:8px">Веб-приложение ставится на главный экран iPhone.
+            Наведите камеру телефона на код — страница откроется в Safari.</p>
+        </div>
+        <div class="card pad center"><${Qr} text=${appUrl} /></div>
+        <p class="hint center">На Android — приложение из Google Play, ссылка на главной странице сайта.</p>
+      `}
+    </div>
+  </main>`;
 }
