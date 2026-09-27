@@ -8,6 +8,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
+import java.util.LinkedHashMap;
+
 import ru.autoservice.client.App;
 import ru.autoservice.client.R;
 import ru.autoservice.client.databinding.ActivityMainBinding;
@@ -16,6 +18,7 @@ import ru.autoservice.client.ui.booking.BookingFragment;
 import ru.autoservice.client.ui.bookings.BookingsFragment;
 import ru.autoservice.client.ui.profile.ProfileFragment;
 import ru.autoservice.client.ui.common.InviteFlow;
+import ru.autoservice.client.ui.common.Tabs;
 import ru.autoservice.client.ui.referral.ReferralFragment;
 
 /**
@@ -31,6 +34,7 @@ public class MainActivity extends AppCompatActivity implements BookingFragment.O
     private static final String TAG_BOOKINGS = "bookings";
     private static final String TAG_REFERRAL = "referral";
     private static final String TAG_PROFILE = "profile";
+    private static final String[] TAGS = {TAG_BOOKING, TAG_BOOKINGS, TAG_REFERRAL, TAG_PROFILE};
 
     private ActivityMainBinding views;
 
@@ -52,12 +56,16 @@ public class MainActivity extends AppCompatActivity implements BookingFragment.O
         InviteFlow.showOutcome(this);
         InviteFlow.attachPending(this);
 
+        // После пересоздания (поворот, возврат из фона) фрагменты вместе с
+        // видимостью восстанавливает FragmentManager — добавлять их второй раз
+        // нельзя, получились бы дубли под одним тегом.
         if (savedInstanceState == null) {
-            addFragment(new BookingFragment(), TAG_BOOKING);
-            addFragment(new BookingsFragment(), TAG_BOOKINGS);
-            addFragment(new ReferralFragment(), TAG_REFERRAL);
-            addFragment(new ProfileFragment(), TAG_PROFILE);
-            show(TAG_BOOKING);
+            LinkedHashMap<String, Fragment> tabs = new LinkedHashMap<>();
+            tabs.put(TAG_BOOKING, new BookingFragment());
+            tabs.put(TAG_BOOKINGS, new BookingsFragment());
+            tabs.put(TAG_REFERRAL, new ReferralFragment());
+            tabs.put(TAG_PROFILE, new ProfileFragment());
+            Tabs.setUp(getSupportFragmentManager(), R.id.container, tabs, TAG_BOOKING);
         }
 
         views.bottomNav.setOnItemSelectedListener(item -> {
@@ -84,29 +92,8 @@ public class MainActivity extends AppCompatActivity implements BookingFragment.O
         }
     }
 
-    private void addFragment(@NonNull Fragment fragment, @NonNull String tag) {
-        getSupportFragmentManager().beginTransaction()
-                .add(R.id.container, fragment, tag)
-                .hide(fragment)
-                .commit();
-    }
-
     private void show(@NonNull String tag) {
-        var manager = getSupportFragmentManager();
-        var transaction = manager.beginTransaction();
-
-        for (String other : new String[]{TAG_BOOKING, TAG_BOOKINGS, TAG_REFERRAL, TAG_PROFILE}) {
-            Fragment fragment = manager.findFragmentByTag(other);
-            if (fragment == null) {
-                continue;
-            }
-            if (other.equals(tag)) {
-                transaction.show(fragment);
-            } else {
-                transaction.hide(fragment);
-            }
-        }
-        transaction.commit();
+        Tabs.show(getSupportFragmentManager(), TAGS, tag);
     }
 
     private void openAuth() {

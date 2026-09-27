@@ -98,7 +98,7 @@ export function Booking() {
     body = html`<p class="muted center">Загружаем…</p>`;
   } else if (draft === null) {
     body = html`<div class="card pad stack">
-      <p>Выберете адрес, масло и свободное время. На всю запись — ${Math.round(CONFIG.draftTtl / 60)} минут: пока вы выбираете, время и канистра держатся за вами.</p>
+      <p>Выберите адрес, масло и свободное время. На всю запись — ${Math.round(CONFIG.draftTtl / 60)} минут: пока вы выбираете, время и канистра держатся за вами.</p>
       <button class="btn btn-primary btn-block" type="button" disabled=${busy} onClick=${() => start(false)}>Начать запись</button>
     </div>`;
   } else {
