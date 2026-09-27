@@ -21,17 +21,26 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts import services as accounts_services
+from apps.accounts.constants import UserRole
 from apps.booking.constants import BookingStatus
 from apps.booking.models import Booking, BookingDraft
 from apps.booking.services import booking as booking_service
+from apps.booking.services import slots as slots_service
+from apps.booking.services import stock as stock_service
+from apps.booking.services import walk_in as walk_in_service
 from apps.catalog.models import ServicePoint
+from apps.catalog.serializers import AvailableOilSerializer, SlotSerializer
 from apps.catalog.services import oils as oils_service
 from apps.common.exceptions import NotFoundError, ValidationError
 from apps.common.permissions import IsAdmin, IsMaster
+from apps.common.phone import normalize_phone
 from apps.master import metrics
 from apps.master.serializers import (
+    ClientLookupSerializer,
     DaySummarySerializer,
     LiveDraftSerializer,
+    MasterBookingCreateSerializer,
     MasterBookingDetailSerializer,
     MasterBookingSerializer,
     MasterCancelSerializer,
@@ -144,6 +153,39 @@ class MasterBookingViewSet(
     )
     def list(self, request: Request, *args, **kwargs) -> Response:
         return super().list(request, *args, **kwargs)
+
+    @extend_schema(
+        request=MasterBookingCreateSerializer,
+        responses={201: MasterBookingDetailSerializer},
+        summary="Записать клиента",
+        description=(
+            "Мастер записывает клиента, который позвонил или приехал без записи. "
+            "Проверки те же, что у записи из приложения, кроме минимального "
+            "запаса до начала: можно записать и в слот, который уже идёт. "
+            "Нет аккаунта с таким номером — он заводится, клиент потом входит "
+            "в приложение по этому номеру и видит запись. Клиенту уходит то же "
+            "SMS, что и при записи из приложения."
+        ),
+    )
+    def create(self, request: Request) -> Response:
+        payload = MasterBookingCreateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
+        booking = walk_in_service.book(
+            request.user,
+            phone=data["phone"],
+            full_name=data["full_name"],
+            car_model=data["car_model"],
+            car_plate=data["car_plate"],
+            service_point_id=data["service_point"],
+            oil_id=data["oil"],
+            start_at=data["start_at"],
+            comment=data["comment"],
+        )
+        booking = self.get_queryset().get(pk=booking.pk)
+        return Response(
+            MasterBookingDetailSerializer(booking).data, status=status.HTTP_201_CREATED
+        )
 
     @extend_schema(
         request=MasterCancelSerializer,
@@ -261,6 +303,72 @@ class MasterBookingViewSet(
         stats["revenue"] = stats["revenue"] or 0
         stats["points_spent"] = stats["points_spent"] or 0
         return Response(DaySummarySerializer(stats).data)
+
+
+@extend_schema(tags=["Мастер"])
+class WalkInViewSet(viewsets.ViewSet):
+    """Подсказки для окна «Записать клиента»: кто по номеру, масла, время.
+
+    Масла и время — те же расчёты, что у клиента в приложении, но время без
+    минимального запаса до начала (см. slots._too_early).
+    """
+
+    permission_classes = [IsMaster]
+
+    def _point(self, request: Request):
+        point_id = request.query_params.get("service_point")
+        if not point_id:
+            raise ValidationError("Не выбрана точка", code="point_required")
+        return walk_in_service.point_for_master(request.user, point_id)
+
+    @extend_schema(
+        parameters=[OpenApiParameter("phone", str, required=True)],
+        responses={200: ClientLookupSerializer},
+        summary="Клиент по номеру",
+    )
+    @action(detail=False, methods=["get"])
+    def lookup(self, request: Request) -> Response:
+        phone = normalize_phone(request.query_params.get("phone", ""))
+        user = accounts_services.find_client(phone)
+        return Response(ClientLookupSerializer({
+            "phone": phone,
+            "found": user is not None,
+            "is_client": user is None or user.role == UserRole.CLIENT,
+            "full_name": user.full_name if user else "",
+            "car_model": user.car_model if user else "",
+            "car_plate": user.car_plate if user else "",
+        }).data)
+
+    @extend_schema(
+        parameters=[OpenApiParameter("service_point", str, required=True)],
+        responses={200: AvailableOilSerializer(many=True)},
+        summary="Масла в наличии для записи",
+    )
+    @action(detail=False, methods=["get"])
+    def oils(self, request: Request) -> Response:
+        oils = stock_service.available_oils(self._point(request))
+        return Response(AvailableOilSerializer(oils, many=True).data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("service_point", str, required=True),
+            OpenApiParameter(
+                "date", str, description="YYYY-MM-DD; без даты — дни со свободным временем"
+            ),
+        ],
+        responses={200: SlotSerializer(many=True)},
+        summary="Свободное время для записи",
+    )
+    @action(detail=False, methods=["get"])
+    def slots(self, request: Request) -> Response:
+        point = self._point(request)
+        raw_date = request.query_params.get("date")
+        if not raw_date:
+            days = slots_service.available_days(point, walk_in=True)
+            return Response({"available_days": [d.isoformat() for d in days]})
+        day = _parse_date(raw_date)
+        slots = slots_service.build_slots(point, day, walk_in=True)
+        return Response({"date": day.isoformat(), "slots": SlotSerializer(slots, many=True).data})
 
 
 @extend_schema(tags=["Мастер"])

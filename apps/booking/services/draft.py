@@ -21,11 +21,11 @@ from django.utils import timezone
 
 from apps.booking import events
 from apps.booking.constants import (
-    BookingStatus,
     DraftCloseReason,
     DraftStep,
 )
-from apps.booking.models import Booking, BookingDraft, BookingStatusLog
+from apps.booking.models import Booking, BookingDraft
+from apps.booking.services import booking as booking_service
 from apps.booking.services import slots as slots_service
 from apps.booking.services import stock as stock_service
 from apps.catalog.models import ServicePoint
@@ -229,47 +229,32 @@ def confirm(user, draft_id, *, comment: str = "") -> Booking:
             "У вас уже есть запись на это время", code="duplicate_booking"
         )
 
-    booking = Booking.objects.create(
-        user=user,
-        service_point=point,
-        oil=oil,
-        start_at=draft.slot_start,
-        end_at=end_at,
-        status=BookingStatus.PENDING,
-        client_name=user.full_name,
-        client_phone=user.phone,
-        car_model=user.car_model,
-        car_plate=user.car_plate,
-        oil_title=str(oil),
-        oil_price=oil.price,
-        work_price=oil.work_price,
-        total_price=oil.total_price,
-        client_comment=comment or "",
-    )
-    BookingStatusLog.objects.create(
-        booking=booking,
-        from_status="",
-        to_status=BookingStatus.PENDING,
-        actor=user,
-        comment="Запись создана клиентом",
-    )
-
-    draft.booking = booking
     draft.step = DraftStep.CONFIRMED
     draft.is_open = False
     draft.close_reason = DraftCloseReason.CONFIRMED
+    # Колбэк ставится до создания записи, чтобы порядок событий остался
+    # прежним: сначала «черновик закрыт», потом «запись создана».
+    transaction.on_commit(lambda: events.publish_draft(draft, events.DRAFT_CLOSED))
+
+    booking = booking_service.create_booking(
+        user=user,
+        point=point,
+        oil=oil,
+        start_at=draft.slot_start,
+        end_at=end_at,
+        client_name=user.full_name,
+        car_model=user.car_model,
+        car_plate=user.car_plate,
+        comment=comment,
+        actor=user,
+        log_comment="Запись создана клиентом",
+    )
+
+    draft.booking = booking
     draft.save(
         update_fields=["booking", "step", "is_open", "close_reason", "updated_at"]
     )
 
-    def _after_commit() -> None:
-        from apps.notifications.services import notify_booking_created
-
-        events.publish_draft(draft, events.DRAFT_CLOSED)
-        events.publish_booking(booking, events.BOOKING_CREATED)
-        notify_booking_created(booking)
-
-    transaction.on_commit(_after_commit)
     logger.info("Создана запись %s для %s", booking.code, mask_phone(user.phone))
     return booking
 

@@ -674,6 +674,10 @@ td.nowrap { white-space: nowrap; }
   box-shadow: var(--shadow-lg);
   padding: 24px;
   animation: modal-in .2s ease;
+  /* Длинная форма («Записать клиента») на телефоне выше экрана: прокручивается
+     само окно, кнопки не уезжают за край. */
+  max-height: calc(100dvh - 2 * var(--space-5));
+  overflow-y: auto;
 }
 
 .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
@@ -777,6 +781,14 @@ tr.status-in_progress td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
 .checkout-total { font-size: var(--fs-h3-lg); font-weight: var(--fw-bold); color: var(--accent); font-variant-numeric: tabular-nums; }
 
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.field-wide { grid-column: 1 / -1; }
+
+/* Окно «Записать клиента»: время — сеткой кнопок, выбранная — как основная. */
+.slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--space-9), 1fr)); gap: var(--space-2); }
+.slot-grid .btn { width: 100%; justify-content: center; font-variant-numeric: tabular-nums; }
+.slot-grid .btn[aria-pressed="true"] { --btn-bg: var(--accent); --btn-fg: var(--accent-text); --btn-bd: var(--accent); }
+.slot-grid .btn[aria-pressed="true"]:hover { background: var(--accent-hover); }
+.slot-grid .hint { grid-column: 1 / -1; }
 
 /* --------------------------------------------------------------- адаптив */
 /* Колонка «записываются сейчас» — только когда таблице хватает места. */

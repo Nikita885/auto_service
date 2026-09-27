@@ -649,6 +649,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedMasterBookingList'
           description: ''
+    post:
+      operationId: master_bookings_create
+      description: 'Мастер записывает клиента, который позвонил или приехал без записи.
+        Проверки те же, что у записи из приложения, кроме минимального запаса до начала:
+        можно записать и в слот, который уже идёт. Нет аккаунта с таким номером —
+        он заводится, клиент потом входит в приложение по этому номеру и видит запись.
+        Клиенту уходит то же SMS, что и при записи из приложения.'
+      summary: Записать клиента
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterBookingCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MasterBookingCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MasterBookingCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterBookingDetail'
+          description: ''
   /api/v1/master/bookings/{id}/:
     get:
       operationId: master_bookings_retrieve
@@ -711,7 +742,9 @@ paths:
   /api/v1/master/bookings/{id}/complete/:
     post:
       operationId: master_bookings_complete_create
-      description: Одновременно списывает канистру масла со склада точки.
+      description: 'Расчёт одной транзакцией: списание баллов по желанию клиента (не
+        больше потолка от чека), списание канистры со склада и баллы в плечи вышестоящих
+        клиента.'
       summary: Работы выполнены
       parameters:
       - in: path
@@ -727,14 +760,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/MasterBookingRequest'
+              $ref: '#/components/schemas/MasterCompleteRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/MasterBookingRequest'
+              $ref: '#/components/schemas/MasterCompleteRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/MasterBookingRequest'
-        required: true
+              $ref: '#/components/schemas/MasterCompleteRequest'
       security:
       - jwtAuth: []
       responses:
@@ -777,6 +809,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MasterBooking'
+          description: ''
+  /api/v1/master/bookings/{id}/points/:
+    get:
+      operationId: master_bookings_points_retrieve
+      description: Баланс клиента и сколько из него можно списать в этот чек.
+      summary: Баллы клиента для расчёта
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PointsQuote'
           description: ''
   /api/v1/master/bookings/{id}/start/:
     post:
@@ -890,6 +946,209 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Metrics'
+          description: ''
+  /api/v1/master/oils/:
+    get:
+      operationId: master_oils_list
+      description: |-
+        Масла и остатки: мастер заводит новое масло и пересчитывает полку.
+
+        Каталог общий на сеть, остатки — только по своим точкам.
+      summary: Масла и остатки
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MasterCatalog'
+          description: ''
+    post:
+      operationId: master_oils_create
+      description: Сразу можно задать остатки на своих точках (`initial_stock`).
+      summary: Новое масло
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterOilCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MasterOilCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MasterOilCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterOil'
+          description: ''
+  /api/v1/master/oils/{id}/:
+    patch:
+      operationId: master_oils_partial_update
+      description: Цена, стоимость работ, «в продаже» и т. п. Уже созданные записи
+        не меняются — в них снимок цены.
+      summary: Изменить масло
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMasterOilRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMasterOilRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMasterOilRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterOil'
+          description: ''
+  /api/v1/master/oils/{id}/stock/:
+    post:
+      operationId: master_oils_stock_create
+      description: Абсолютное число канистр после пересчёта или прихода.
+      summary: Остаток на точке
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OilStockRowRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OilStockRowRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OilStockRowRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OilStockRow'
+          description: ''
+  /api/v1/master/walk-in/lookup/:
+    get:
+      operationId: master_walk_in_lookup_retrieve
+      description: |-
+        Подсказки для окна «Записать клиента»: кто по номеру, масла, время.
+
+        Масла и время — те же расчёты, что у клиента в приложении, но время без
+        минимального запаса до начала (см. slots._too_early).
+      summary: Клиент по номеру
+      parameters:
+      - in: query
+        name: phone
+        schema:
+          type: string
+        required: true
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientLookup'
+          description: ''
+  /api/v1/master/walk-in/oils/:
+    get:
+      operationId: master_walk_in_oils_list
+      description: |-
+        Подсказки для окна «Записать клиента»: кто по номеру, масла, время.
+
+        Масла и время — те же расчёты, что у клиента в приложении, но время без
+        минимального запаса до начала (см. slots._too_early).
+      summary: Масла в наличии для записи
+      parameters:
+      - in: query
+        name: service_point
+        schema:
+          type: string
+        required: true
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AvailableOil'
+          description: ''
+  /api/v1/master/walk-in/slots/:
+    get:
+      operationId: master_walk_in_slots_list
+      description: |-
+        Подсказки для окна «Записать клиента»: кто по номеру, масла, время.
+
+        Масла и время — те же расчёты, что у клиента в приложении, но время без
+        минимального запаса до начала (см. slots._too_early).
+      summary: Свободное время для записи
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+        description: YYYY-MM-DD; без даты — дни со свободным временем
+      - in: query
+        name: service_point
+        schema:
+          type: string
+        required: true
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Slot'
           description: ''
   /api/v1/referral/:
     get:
@@ -1137,6 +1396,10 @@ components:
           type: boolean
         user:
           $ref: '#/components/schemas/User'
+        invite:
+          allOf:
+          - $ref: '#/components/schemas/InviteResult'
+          nullable: true
       required:
       - access
       - is_new_user
@@ -1227,7 +1490,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/StatusB4dEnum'
           title: Статус
         status_display:
           type: string
@@ -1263,6 +1526,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Итого
+        points_spent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Оплачено баллами
+        paid_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
         client_comment:
           type: string
           title: Комментарий клиента
@@ -1291,6 +1564,7 @@ components:
       - id
       - oil_price
       - oil_title
+      - paid_amount
       - service_point
       - start_at
       - status_display
@@ -1310,7 +1584,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/StatusB4dEnum'
           title: Статус
         status_display:
           type: string
@@ -1346,6 +1620,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Итого
+        points_spent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Оплачено баллами
+        paid_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
         client_comment:
           type: string
           title: Комментарий клиента
@@ -1384,6 +1668,7 @@ components:
       - oil
       - oil_price
       - oil_title
+      - paid_amount
       - service_point
       - start_at
       - status_display
@@ -1581,6 +1866,29 @@ components:
       - make_name
       - name
       - title
+    ClientLookup:
+      type: object
+      description: 'Кто стоит за номером: подставить имя и машину в окно записи.'
+      properties:
+        phone:
+          type: string
+        found:
+          type: boolean
+        is_client:
+          type: boolean
+        full_name:
+          type: string
+        car_model:
+          type: string
+        car_plate:
+          type: string
+      required:
+      - car_model
+      - car_plate
+      - found
+      - full_name
+      - is_client
+      - phone
     CloseReasonEnum:
       enum:
       - confirmed
@@ -1621,6 +1929,10 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        points_spent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
       required:
       - cancelled
       - completed
@@ -1628,6 +1940,7 @@ components:
       - in_progress
       - no_show
       - pending
+      - points_spent
       - revenue
       - total
     FunnelStep:
@@ -1647,6 +1960,27 @@ components:
       - key
       - label
       - share
+    InviteResult:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/InviteResultStatusEnum'
+        inviter_name:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+      required:
+      - status
+    InviteResultStatusEnum:
+      enum:
+      - attached
+      - rejected
+      type: string
+      description: |-
+        * `attached` - attached
+        * `rejected` - rejected
     Invited:
       type: object
       properties:
@@ -1729,7 +2063,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/StatusB4dEnum'
           title: Статус
         status_display:
           type: string
@@ -1787,6 +2121,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Итого
+        points_spent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Оплачено баллами
+        paid_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
         client_comment:
           type: string
           title: Комментарий клиента
@@ -1808,12 +2152,54 @@ components:
       - local_time
       - oil_price
       - oil_title
+      - paid_amount
       - service_point
       - service_point_name
       - start_at
       - status_display
       - total_price
       - work_price
+    MasterBookingCreateRequest:
+      type: object
+      description: Запись клиента мастером — по звонку или у стойки.
+      properties:
+        phone:
+          type: string
+          minLength: 1
+          description: 'Любая запись номера: 8 900…, +7 900…'
+          maxLength: 32
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        car_model:
+          type: string
+          default: ''
+          maxLength: 120
+        car_plate:
+          type: string
+          default: ''
+          maxLength: 16
+        service_point:
+          type: string
+          format: uuid
+        oil:
+          type: string
+          format: uuid
+        start_at:
+          type: string
+          format: date-time
+          description: start_at слота из /master/walk-in/slots/ как есть
+        comment:
+          type: string
+          default: ''
+          maxLength: 500
+      required:
+      - full_name
+      - oil
+      - phone
+      - service_point
+      - start_at
     MasterBookingDetail:
       type: object
       description: |-
@@ -1832,7 +2218,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/StatusB4dEnum'
           title: Статус
         status_display:
           type: string
@@ -1890,6 +2276,16 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Итого
+        points_spent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Оплачено баллами
+        paid_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
         client_comment:
           type: string
           title: Комментарий клиента
@@ -1917,6 +2313,7 @@ components:
       - local_time
       - oil_price
       - oil_title
+      - paid_amount
       - service_point
       - service_point_name
       - start_at
@@ -1939,7 +2336,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/StatusB4dEnum'
           title: Статус
         service_point:
           type: string
@@ -1990,6 +2387,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Итого
+        points_spent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Оплачено баллами
         client_comment:
           type: string
           title: Комментарий клиента
@@ -2017,6 +2419,148 @@ components:
           maxLength: 500
       required:
       - reason
+    MasterCatalog:
+      type: object
+      properties:
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/MasterPointShort'
+        oils:
+          type: array
+          items:
+            $ref: '#/components/schemas/MasterOil'
+      required:
+      - oils
+      - points
+    MasterCompleteRequest:
+      type: object
+      description: 'Расчёт при завершении: сколько чека клиент закрывает баллами.'
+      properties:
+        points:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          default: '0.00'
+          description: Баллы к списанию по желанию клиента. 0 — не списывать.
+    MasterOil:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        brand:
+          type: string
+          maxLength: 80
+        name:
+          type: string
+          maxLength: 120
+        viscosity:
+          type: string
+          maxLength: 16
+        oil_type:
+          $ref: '#/components/schemas/OilTypeEnum'
+        oil_type_display:
+          type: string
+          readOnly: true
+        volume_liters:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        is_active:
+          type: boolean
+          default: true
+        stock:
+          type: object
+          additionalProperties: {}
+          description: Остаток по id точки. Точки без строки остатка — ноль.
+          readOnly: true
+      required:
+      - brand
+      - id
+      - name
+      - oil_type
+      - oil_type_display
+      - price
+      - stock
+      - title
+      - total_price
+      - viscosity
+      - volume_liters
+      - work_price
+    MasterOilCreateRequest:
+      type: object
+      properties:
+        brand:
+          type: string
+          minLength: 1
+          maxLength: 80
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        viscosity:
+          type: string
+          minLength: 1
+          maxLength: 16
+        oil_type:
+          $ref: '#/components/schemas/OilTypeEnum'
+        volume_liters:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        is_active:
+          type: boolean
+          default: true
+        initial_stock:
+          type: array
+          items:
+            $ref: '#/components/schemas/OilStockRowRequest'
+          writeOnly: true
+      required:
+      - brand
+      - name
+      - oil_type
+      - price
+      - viscosity
+      - volume_liters
+      - work_price
+    MasterPointShort:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
     Metrics:
       type: object
       properties:
@@ -2279,6 +2823,10 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        points_spent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
         avg_check:
           type: string
           format: decimal
@@ -2305,6 +2853,7 @@ components:
       - no_show_rate
       - oil_revenue
       - pending
+      - points_spent
       - revenue
       - total
       - work_revenue
@@ -2424,6 +2973,32 @@ components:
       - name
       - price
       - viscosity
+    OilStockRow:
+      type: object
+      properties:
+        service_point:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          maximum: 100000
+          minimum: 0
+      required:
+      - quantity
+      - service_point
+    OilStockRowRequest:
+      type: object
+      properties:
+        service_point:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          maximum: 100000
+          minimum: 0
+      required:
+      - quantity
+      - service_point
     OilTypeEnum:
       enum:
       - synthetic
@@ -2473,6 +3048,11 @@ components:
           type: string
           minLength: 4
           maxLength: 8
+        invite:
+          type: string
+          description: Код приглашения из ссылки или QR — клиент привязывается сразу
+            при входе.
+          maxLength: 16
       required:
       - code
       - phone
@@ -2545,6 +3125,38 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PointsEntry'
+    PatchedMasterOilRequest:
+      type: object
+      properties:
+        brand:
+          type: string
+          minLength: 1
+          maxLength: 80
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        viscosity:
+          type: string
+          minLength: 1
+          maxLength: 16
+        oil_type:
+          $ref: '#/components/schemas/OilTypeEnum'
+        volume_liters:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        is_active:
+          type: boolean
+          default: true
     PatchedProfileUpdateRequest:
       type: object
       properties:
@@ -2607,6 +3219,34 @@ components:
       - kind_display
       - level
       - percent
+    PointsQuote:
+      type: object
+      description: 'Окно расчёта у мастера: баланс клиента и сколько можно списать.'
+      properties:
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        max_spend:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        max_discount_percent:
+          type: integer
+      required:
+      - balance
+      - limit
+      - max_discount_percent
+      - max_spend
+      - total_price
     ReferralSummary:
       type: object
       description: |-
@@ -2650,6 +3290,23 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        left_leg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        right_leg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        expected_payout:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        next_payout_at:
+          type: string
+          format: date-time
+        payout_timezone_label:
+          type: string
       required:
       - enabled
     RoleEnum:
@@ -2719,9 +3376,9 @@ components:
           nullable: true
           title: Долгота
         timezone:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/TimezoneEnum'
           title: Часовой пояс
-          maxLength: 64
         opens_at:
           type: string
           format: time
@@ -2735,13 +3392,15 @@ components:
           description: Дни недели, 0 = понедельник. Пустой список = работает всегда.
         slot_minutes:
           type: integer
-          maximum: 32767
+          maximum: 9223372036854775807
           minimum: 5
+          format: int64
           title: Длительность слота, мин
         posts_count:
           type: integer
-          maximum: 32767
+          maximum: 9223372036854775807
           minimum: 1
+          format: int64
           title: Постов
           description: Сколько машин обслуживается одновременно — ёмкость одного слота.
       required:
@@ -2778,10 +3437,9 @@ components:
           nullable: true
           title: Долгота
         timezone:
-          type: string
-          minLength: 1
+          allOf:
+          - $ref: '#/components/schemas/TimezoneEnum'
           title: Часовой пояс
-          maxLength: 64
         opens_at:
           type: string
           format: time
@@ -2795,13 +3453,15 @@ components:
           description: Дни недели, 0 = понедельник. Пустой список = работает всегда.
         slot_minutes:
           type: integer
-          maximum: 32767
+          maximum: 9223372036854775807
           minimum: 5
+          format: int64
           title: Длительность слота, мин
         posts_count:
           type: integer
-          maximum: 32767
+          maximum: 9223372036854775807
           minimum: 1
+          format: int64
           title: Постов
           description: Сколько машин обслуживается одновременно — ёмкость одного слота.
       required:
@@ -2832,7 +3492,7 @@ components:
           type: boolean
           default: false
           description: True — выбросить незавершённый черновик и начать заново.
-    StatusEnum:
+    StatusB4dEnum:
       enum:
       - pending
       - in_progress
@@ -2866,6 +3526,34 @@ components:
         * `confirmed` - Подтверждена
         * `expired` - Истекла
         * `cancelled` - Отменена клиентом
+    TimezoneEnum:
+      enum:
+      - Europe/Kaliningrad
+      - Europe/Moscow
+      - Europe/Samara
+      - Asia/Yekaterinburg
+      - Asia/Omsk
+      - Asia/Novosibirsk
+      - Asia/Krasnoyarsk
+      - Asia/Irkutsk
+      - Asia/Yakutsk
+      - Asia/Vladivostok
+      - Asia/Magadan
+      - Asia/Kamchatka
+      type: string
+      description: |-
+        * `Europe/Kaliningrad` - Калининград (UTC+2)
+        * `Europe/Moscow` - Москва, Санкт-Петербург (UTC+3)
+        * `Europe/Samara` - Самара, Ижевск (UTC+4)
+        * `Asia/Yekaterinburg` - Екатеринбург, Челябинск, Тюмень, Уфа, Пермь (UTC+5)
+        * `Asia/Omsk` - Омск (UTC+6)
+        * `Asia/Novosibirsk` - Новосибирск (UTC+7)
+        * `Asia/Krasnoyarsk` - Красноярск, Кемерово (UTC+7)
+        * `Asia/Irkutsk` - Иркутск (UTC+8)
+        * `Asia/Yakutsk` - Якутск, Чита (UTC+9)
+        * `Asia/Vladivostok` - Владивосток, Хабаровск (UTC+10)
+        * `Asia/Magadan` - Магадан, Сахалин (UTC+11)
+        * `Asia/Kamchatka` - Камчатка (UTC+12)
     TokenRefresh:
       type: object
       properties:

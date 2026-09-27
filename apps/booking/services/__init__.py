@@ -4,6 +4,6 @@
 запись за пределами `services/` — повод развернуть ревью.
 """
 
-from apps.booking.services import booking, draft, slots, stock  # noqa: F401
+from apps.booking.services import booking, draft, slots, stock, walk_in  # noqa: F401
 
-__all__ = ["booking", "draft", "slots", "stock"]
+__all__ = ["booking", "draft", "slots", "stock", "walk_in"]

@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.booking import events
@@ -106,6 +106,72 @@ def _transition(
         comment=", ".join(part for part in (reason, comment_suffix) if part),
     )
     logger.info("Запись %s: %s -> %s", booking.code, from_status, to_status)
+    return booking
+
+
+# ------------------------------------------------------------------ создание
+def create_booking(
+    *,
+    user,
+    point,
+    oil,
+    start_at,
+    end_at,
+    client_name: str,
+    car_model: str,
+    car_plate: str,
+    comment: str = "",
+    actor,
+    log_comment: str,
+) -> Booking:
+    """Записать клиента в уже проверенный слот — общий конец обоих путей.
+
+    Клиент приходит сюда из черновика (`draft.confirm`), мастер — из
+    записи по звонку (`walk_in.book`). Проверки слота и склада — у
+    вызывающего, под блокировкой точки: здесь только снимок, история и
+    уведомления, чтобы запись из двух мест выглядела одинаково.
+    """
+    try:
+        # Точка заблокирована, но один клиент может записываться на разные
+        # точки одновременно — дубль по времени ловит уникальный индекс.
+        with transaction.atomic():
+            booking = Booking.objects.create(
+                user=user,
+                service_point=point,
+                oil=oil,
+                start_at=start_at,
+                end_at=end_at,
+                status=BookingStatus.PENDING,
+                client_name=client_name,
+                client_phone=user.phone,
+                car_model=car_model,
+                car_plate=car_plate,
+                oil_title=str(oil),
+                oil_price=oil.price,
+                work_price=oil.work_price,
+                total_price=oil.total_price,
+                client_comment=comment or "",
+            )
+    except IntegrityError as exc:
+        raise ConflictError(
+            "У клиента уже есть запись на это время", code="duplicate_booking"
+        ) from exc
+
+    BookingStatusLog.objects.create(
+        booking=booking,
+        from_status="",
+        to_status=BookingStatus.PENDING,
+        actor=actor,
+        comment=log_comment,
+    )
+
+    def _after_commit() -> None:
+        from apps.notifications.services import notify_booking_created
+
+        events.publish_booking(booking, events.BOOKING_CREATED)
+        notify_booking_created(booking)
+
+    transaction.on_commit(_after_commit)
     return booking
 
 

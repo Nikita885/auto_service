@@ -83,6 +83,32 @@ class MasterCompleteSerializer(serializers.Serializer):
     )
 
 
+class MasterBookingCreateSerializer(serializers.Serializer):
+    """Запись клиента мастером — по звонку или у стойки."""
+
+    phone = serializers.CharField(max_length=32, help_text="Любая запись номера: 8 900…, +7 900…")
+    full_name = serializers.CharField(max_length=150)
+    car_model = serializers.CharField(max_length=120, required=False, allow_blank=True, default="")
+    car_plate = serializers.CharField(max_length=16, required=False, allow_blank=True, default="")
+    service_point = serializers.UUIDField()
+    oil = serializers.UUIDField()
+    start_at = serializers.DateTimeField(
+        help_text="start_at слота из /master/walk-in/slots/ как есть"
+    )
+    comment = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+
+
+class ClientLookupSerializer(serializers.Serializer):
+    """Кто стоит за номером: подставить имя и машину в окно записи."""
+
+    phone = serializers.CharField()
+    found = serializers.BooleanField()
+    is_client = serializers.BooleanField()
+    full_name = serializers.CharField(allow_blank=True)
+    car_model = serializers.CharField(allow_blank=True)
+    car_plate = serializers.CharField(allow_blank=True)
+
+
 class PointsQuoteSerializer(serializers.Serializer):
     """Окно расчёта у мастера: баланс клиента и сколько можно списать."""
 

@@ -133,6 +133,12 @@ API обслуживает два мобильных приложения:
   правятся текстом в `apps/catalog/data/cars.txt` и грузятся командой
   `manage.py import_cars`.
 
+- Запись клиента мастером (`/master/` → «Записать клиента»,
+  `booking/services/walk_in.py`): по звонку или у стойки, с теми же
+  проверками слота и склада, но без запаса до начала — живая очередь.
+  Нет аккаунта — заводится с узлом в рефералке, клиент потом входит по
+  своему номеру и видит запись; клиенту уходит обычное SMS о записи.
+
 - Страница-приглашение `/i/<код>` на сайте и Android App Links: ссылку из
   мессенджера открывает приложение, а у кого его нет — видят код на
   странице.
@@ -192,7 +198,8 @@ apps/
     services/cars.py поиск марок и моделей с транслитерацией
     data/cars.txt    справочник авто, правится человеком
   booking/         ЯДРО: BookingDraft, Booking, BookingStatusLog
-    services/      draft.py, booking.py, slots.py, stock.py  ← вся бизнес-логика
+    services/      draft.py, booking.py, slots.py, stock.py,
+                   walk_in.py (запись мастером)  ← вся бизнес-логика
     consumers.py   WebSocket
     events.py      публикация событий
     tasks.py       Celery
@@ -380,6 +387,8 @@ docker-compose.prod.yml   надстройка для прода: закрыва
 обязательна), `POST .../start/`, `POST .../complete/` (`points` — сколько
 баллов списать), `GET .../points/` (баланс клиента и потолок),
 `POST .../no-show/`, `GET /master/bookings/summary/?date=`,
+`POST /master/bookings/` (записать клиента по звонку или без записи),
+`GET /master/walk-in/lookup|oils|slots/` (подсказки для этого окна),
 `GET /master/live-drafts/`. Масла: `GET|POST /master/oils/`,
 `PATCH /master/oils/{id}/`, `POST /master/oils/{id}/stock/` (остаток на точке).
 

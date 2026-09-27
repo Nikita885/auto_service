@@ -262,6 +262,53 @@ def _ensure_referral_node(user: User) -> None:
     referral_tree.ensure_node(user)
 
 
+def find_client(raw_phone: str) -> User | None:
+    """Клиент по номеру в любой записи номера — для подсказки мастеру."""
+    return User.objects.filter(phone=normalize_phone(raw_phone)).first()
+
+
+def get_or_create_client(
+    raw_phone: str, *, full_name: str = "", car_model: str = "", car_plate: str = ""
+) -> tuple[User, bool]:
+    """Клиент, которого записывает мастер: по звонку или у стойки.
+
+    Нет аккаунта — заводим такой же, как при входе по SMS: без пароля и
+    сразу с местом в реферальной программе. Потом человек входит в
+    приложение по своему номеру и видит свою запись — телефон и есть его
+    логин.
+
+    Существующему клиенту профиль не переписываем, а только дополняем
+    пустые поля: имя и машину он мог поправить сам, а мастер со слов по
+    телефону легко ошибётся. В записи при этом остаётся то, что ввёл
+    мастер, — это снимок, как и у записи из приложения.
+    """
+    phone = normalize_phone(raw_phone)
+    profile = {"full_name": full_name, "car_model": car_model, "car_plate": car_plate}
+    user, created = User.objects.get_or_create(
+        phone=phone, defaults={"role": UserRole.CLIENT, **profile}
+    )
+    if created:
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+        _ensure_referral_node(user)
+        logger.info("Мастер завёл клиента %s", mask_phone(phone))
+        return user, True
+
+    if user.role != UserRole.CLIENT:
+        raise ConflictError(
+            "Этот номер принадлежит сотруднику", code="phone_is_staff"
+        )
+    if not user.is_active:
+        raise PermissionError_("Аккаунт клиента заблокирован", code="user_blocked")
+
+    empty = [key for key, value in profile.items() if value and not getattr(user, key)]
+    if empty:
+        for key in empty:
+            setattr(user, key, profile[key])
+        user.save(update_fields=empty)
+    return user, False
+
+
 def issue_tokens(user: User) -> dict[str, str]:
     refresh = RefreshToken.for_user(user)
     refresh["role"] = user.role

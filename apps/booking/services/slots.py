@@ -38,8 +38,18 @@ def _horizon_bounds() -> tuple[date, date]:
     return today, today + timedelta(days=settings.BOOKING["HORIZON_DAYS"])
 
 
-def _earliest_allowed_start() -> datetime:
-    return timezone.now() + timedelta(minutes=settings.BOOKING["MIN_LEAD_MINUTES"])
+def _too_early(start: datetime, step: timedelta, *, walk_in: bool) -> bool:
+    """Слот уже нельзя занять по времени.
+
+    Клиенту из приложения — минимальный запас до начала: пост готовят под
+    него, «через минуту» не успеть. Мастеру, который записывает человека у
+    стойки или по звонку, запаса нет: годится и слот, который уже идёт,
+    лишь бы он не закончился, — это живая очередь.
+    """
+    now = timezone.now()
+    if walk_in:
+        return start + step <= now
+    return start < now + timedelta(minutes=settings.BOOKING["MIN_LEAD_MINUTES"])
 
 
 def _grid(point: ServicePoint, day: date) -> list[datetime]:
@@ -102,14 +112,16 @@ def occupancy(
 
 
 def build_slots(
-    point: ServicePoint, day: date, *, exclude_draft_id=None
+    point: ServicePoint, day: date, *, exclude_draft_id=None, walk_in: bool = False
 ) -> list[Slot]:
-    """Свободные слоты точки на день. Занятые и прошедшие не возвращаются."""
+    """Свободные слоты точки на день. Занятые и прошедшие не возвращаются.
+
+    `walk_in` — запись мастером: без минимального запаса, см. `_too_early`.
+    """
     starts = _grid(point, day)
     if not starts:
         return []
 
-    min_start = _earliest_allowed_start()
     step = timedelta(minutes=point.slot_minutes)
     taken = occupancy(
         point, starts[0], starts[-1] + step, exclude_draft_id=exclude_draft_id
@@ -117,7 +129,7 @@ def build_slots(
 
     slots: list[Slot] = []
     for start in starts:
-        if start < min_start:
+        if _too_early(start, step, walk_in=walk_in):
             continue
         free = point.posts_count - taken.get(start, 0)
         if free <= 0:
@@ -133,25 +145,26 @@ def build_slots(
     return slots
 
 
-def available_days(point: ServicePoint) -> list[date]:
+def available_days(point: ServicePoint, *, walk_in: bool = False) -> list[date]:
     """Дни в пределах горизонта, где есть хотя бы один свободный слот."""
     start, end = _horizon_bounds()
     days: list[date] = []
     cursor = start
     while cursor <= end:
-        if build_slots(point, cursor):
+        if build_slots(point, cursor, walk_in=walk_in):
             days.append(cursor)
         cursor += timedelta(days=1)
     return days
 
 
 def validate_slot(
-    point: ServicePoint, start_at: datetime, *, exclude_draft_id=None
+    point: ServicePoint, start_at: datetime, *, exclude_draft_id=None, walk_in: bool = False
 ) -> tuple[datetime, datetime]:
     """Проверить, что в слот можно записаться. Вернуть (начало, конец) в UTC.
 
     Вызывается дважды: при выборе времени и повторно при подтверждении,
-    потому что между этими шагами слот мог занять кто-то другой.
+    потому что между этими шагами слот мог занять кто-то другой. Запись
+    мастером (`walk_in`) проходит те же проверки, кроме запаса до начала.
     """
     if timezone.is_naive(start_at):
         raise ValidationError("Время слота должно быть с часовым поясом",
@@ -160,7 +173,9 @@ def validate_slot(
     start_at = start_at.astimezone(UTC)
     step = timedelta(minutes=point.slot_minutes)
 
-    if start_at < _earliest_allowed_start():
+    if _too_early(start_at, step, walk_in=walk_in):
+        if walk_in:
+            raise ValidationError("Это время уже прошло", code="slot_too_soon")
         raise ValidationError(
             "Слишком поздно: записаться можно минимум за "
             f"{settings.BOOKING['MIN_LEAD_MINUTES']} минут",

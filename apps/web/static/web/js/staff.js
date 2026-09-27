@@ -389,6 +389,186 @@
     refresh();
   }
 
+  /* ------------------------------------------------- записать клиента */
+
+  /** Окно «Записать клиента»: позвонил или приехал без записи.
+
+      Проверки — на сервере, те же, что у записи из приложения; окно только
+      показывает то, что реально можно выбрать: масла в наличии и свободное
+      время точки. Время — без запаса до начала: мастер ставит и в слот,
+      который уже идёт, если пост свободен. */
+  async function openWalkIn() {
+    if (!state.catalog) {
+      // Свои точки сотрудника приходят вместе с каталогом масел: список
+      // /service-points/ публичный и отдаёт все адреса сети.
+      const data = await guard(() => api.get("/master/oils/"));
+      if (!data) return;
+      state.catalog = data;
+    }
+    const points = state.catalog.points;
+    if (!points.length) { toast("У вас нет доступных точек.", "error"); return; }
+
+    const form = { slot: null, filled: {} };
+    const input = (id, attrs) => el("input", Object.assign({ id }, attrs));
+    const field = (label, control, extra) =>
+      el("div", { class: "field" + (extra ? " " + extra : "") }, [
+        el("label", { for: control.id, text: label }), control,
+      ]);
+
+    const phone = input("wi-phone", { type: "tel", inputmode: "tel", placeholder: "+7 900 000-00-00", autocomplete: "off" });
+    const phoneHint = el("span", { class: "hint", text: "Есть в базе — имя и машина подставятся." });
+    const name = input("wi-name", { placeholder: "Как обращаться", autocomplete: "off" });
+    const car = input("wi-car", { placeholder: "Марка и модель", autocomplete: "off" });
+    const plate = input("wi-plate", { placeholder: "Необязательно", autocomplete: "off" });
+    const point = el("select", { id: "wi-point" },
+      points.map((p) => el("option", { value: p.id, text: p.name })));
+    const oil = el("select", { id: "wi-oil" });
+    const date = input("wi-date", { type: "date", value: fmt.isoDate(), min: fmt.isoDate() });
+    const slotBox = el("div", { class: "slot-grid", role: "group", "aria-label": "Свободное время" });
+    const comment = input("wi-comment", { placeholder: "Необязательно", maxlength: "500" });
+
+    /* Клиент по номеру: подставляем, но не затираем то, что мастер уже ввёл. */
+    let lookedUp = "";
+    async function lookup() {
+      const raw = phone.value.trim();
+      if (raw.replace(/\D/g, "").length < 10 || raw === lookedUp) return;
+      lookedUp = raw;
+      let found;
+      try {
+        found = await api.get("/master/walk-in/lookup/?phone=" + encodeURIComponent(raw));
+      } catch (err) {
+        phoneHint.textContent = err.message;
+        phoneHint.classList.add("hint-error");
+        return;
+      }
+      phoneHint.classList.toggle("hint-error", !found.is_client);
+      if (!found.is_client) {
+        phoneHint.textContent = "Это номер сотрудника — записать на него нельзя.";
+        return;
+      }
+      phoneHint.textContent = found.found
+        ? "Клиент есть в базе — данные подставлены."
+        : "Новый клиент: заведём по этому номеру, в приложение он войдёт по нему же.";
+      [[name, found.full_name], [car, found.car_model], [plate, found.car_plate]].forEach(([box, value]) => {
+        if (value && (!box.value || form.filled[box.id] === box.value)) {
+          box.value = value;
+          form.filled[box.id] = value;
+        }
+      });
+    }
+    phone.onblur = lookup;
+    phone.oninput = () => { if (phone.value.replace(/\D/g, "").length >= 11) lookup(); };
+
+    async function loadOils() {
+      oil.innerHTML = "";
+      oil.append(el("option", { value: "", text: "Загружаем…" }));
+      const rows = await guard(() => api.get("/master/walk-in/oils/?service_point=" + point.value));
+      oil.innerHTML = "";
+      if (!rows || !rows.length) {
+        oil.append(el("option", { value: "", text: "Нет масла в наличии" }));
+        return;
+      }
+      rows.forEach((row) => oil.append(el("option", {
+        value: row.id,
+        text: row.title + " · " + fmt.money(row.total_price) + " · " + row.available_quantity + " шт.",
+      })));
+    }
+
+    async function loadSlots() {
+      form.slot = null;
+      slotBox.innerHTML = "";
+      const data = await guard(() => api.get(
+        "/master/walk-in/slots/?service_point=" + point.value + "&date=" + (date.value || fmt.isoDate())));
+      if (!data) return;
+      if (!data.slots.length) {
+        slotBox.append(el("p", { class: "hint", text: "На этот день свободного времени нет." }));
+        return;
+      }
+      data.slots.forEach((slot) => {
+        const btn = el("button", {
+          class: "btn btn-sm", type: "button", text: slot.local_time, "aria-pressed": "false",
+          title: slot.free_posts > 1 ? "Свободно постов: " + slot.free_posts : "Последний свободный пост",
+        });
+        btn.onclick = () => {
+          form.slot = slot.start_at;
+          $$("button", slotBox).forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+        };
+        slotBox.append(btn);
+      });
+    }
+
+    /* Первый день, где у точки есть свободное время: вечером «сегодня» уже
+       пусто, и мастер не должен листать календарь, чтобы это понять. */
+    async function pickFirstDay() {
+      const data = await guard(() => api.get("/master/walk-in/slots/?service_point=" + point.value));
+      if (data && data.available_days.length) date.value = data.available_days[0];
+      await loadSlots();
+    }
+
+    point.onchange = () => { loadOils(); pickFirstDay(); };
+    date.onchange = loadSlots;
+
+    const body = el("div", { class: "form-grid" }, [
+      el("div", { class: "field" }, [el("label", { for: "wi-phone", text: "Телефон" }), phone, phoneHint]),
+      field("Имя", name),
+      field("Машина", car),
+      field("Госномер", plate),
+      field("Адрес", point),
+      field("Масло", oil),
+      el("div", { class: "field field-wide" }, [
+        el("label", { for: "wi-date", text: "День и время" }),
+        el("div", { class: "stack-sm" }, [date, slotBox]),
+      ]),
+      field("Комментарий", comment, "field-wide"),
+    ]);
+
+    const save = el("button", { class: "btn btn-primary", type: "button", text: "Записать" });
+    const cancel = el("button", { class: "btn", type: "button", text: "Отмена" });
+    const dlg = App.dialog({
+      title: "Записать клиента",
+      sub: "По звонку или без записи. Клиенту уйдёт SMS о записи.",
+      body, actions: [cancel, save], wide: true,
+    });
+    cancel.onclick = dlg.close;
+
+    save.onclick = async () => {
+      const missing = [
+        [!phone.value.trim(), "телефон"], [!name.value.trim(), "имя"],
+        [!oil.value, "масло"], [!form.slot, "время"],
+      ].filter(([bad]) => bad).map(([, label]) => label);
+      if (missing.length) { toast("Укажите: " + missing.join(", ") + ".", "error"); return; }
+
+      save.disabled = true;
+      try {
+        const booking = await api.post("/master/bookings/", {
+          phone: phone.value.trim(), full_name: name.value.trim(),
+          car_model: car.value.trim(), car_plate: plate.value.trim().toUpperCase(),
+          service_point: point.value, oil: oil.value, start_at: form.slot,
+          comment: comment.value.trim(),
+        });
+        dlg.close();
+        toast(booking.client_name + " · " + booking.local_time + " · код " + booking.code, "ok", "Клиент записан");
+        // Показываем день новой записи: записывают часто на завтра, и
+        // мастер должен увидеть её в списке, а не гадать, куда она делась.
+        const [d, m, y] = booking.local_time.split(" ")[0].split(".");
+        $("#f-date").value = y + "-" + m + "-" + d;
+        await reload();
+      } catch (err) {
+        toast(err.message || "Что-то пошло не так. Попробуйте ещё раз.", "error", "Не получилось");
+        // Пока мастер заполнял окно, время или последнюю канистру могли
+        // занять из приложения — показываем то, что осталось.
+        if (err.code === "slot_taken" || err.code === "slot_too_soon") loadSlots();
+        if (err.code === "oil_out_of_stock") loadOils();
+      } finally {
+        save.disabled = false;
+      }
+    };
+
+    phone.focus();
+    loadOils();
+    pickFirstDay();
+  }
+
   /* ------------------------------------------------------- масла и склад */
 
   const OIL_TYPES = [
@@ -716,6 +896,7 @@
     $("#day-today").onclick = () => { $("#f-date").value = fmt.isoDate(); reload(); };
 
     $("#btn-add-oil").onclick = () => openOilForm(null);
+    $("#btn-walk-in").onclick = openWalkIn;
     $("#o-search").oninput = renderOils;
     $("#o-inactive").onchange = renderOils;
 
