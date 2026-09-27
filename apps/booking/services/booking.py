@@ -19,9 +19,14 @@ from apps.booking.constants import (
     FINAL_BOOKING_STATUSES,
     BookingStatus,
 )
-from apps.booking.models import Booking, BookingStatusLog
+from apps.booking.models import Booking, BookingPriceChange, BookingStatusLog
 from apps.booking.services import stock as stock_service
-from apps.common.exceptions import ConflictError, NotFoundError, PermissionError_
+from apps.common.exceptions import (
+    ConflictError,
+    NotFoundError,
+    PermissionError_,
+    ValidationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -254,12 +259,22 @@ def start_work(master, booking_id) -> Booking:
 
 
 @transaction.atomic
-def complete(master, booking_id, *, points: Decimal = Decimal(0)) -> Booking:
+def complete(
+    master,
+    booking_id,
+    *,
+    points: Decimal = Decimal(0),
+    final_price: Decimal | None = None,
+    reason: str = "",
+) -> Booking:
     """Работы выполнены: расчёт, статус, склад и баллы — одной транзакцией.
 
-    `points` — сколько чека клиент решил закрыть баллами (решает клиент,
-    вводит мастер). Списание, списание канистры и баллы в плечи вышестоящих
-    либо происходят вместе, либо не происходят вовсе: это деньги.
+    `final_price` — итог, если мастер его поправил: долил масла, добавил
+    работу или уступил. Ставится первым: потолок оплаты баллами и баллы в
+    плечи считаются уже от него. `points` — сколько чека клиент решил
+    закрыть баллами (решает клиент, вводит мастер). Правка итога, списание
+    баллов, канистры и баллы в плечи вышестоящих либо происходят вместе,
+    либо не происходят вовсе: это деньги.
     Импорт рефералки локальный — иначе apps.booking и apps.referral
     замкнулись бы друг на друга, как это уже сделано с уведомлениями.
     """
@@ -269,31 +284,53 @@ def complete(master, booking_id, *, points: Decimal = Decimal(0)) -> Booking:
     booking = Booking.objects.select_for_update().get(
         pk=get_for_master(master, booking_id).pk
     )
+    # Статус проверяем до денег: у завершённой записи поменять итог или
+    # списать баллы и потом упасть на переходе значило бы откатывать чужой
+    # баланс. Сам переход проверит его ещё раз.
+    if booking.status in FINAL_BOOKING_STATUSES:
+        raise ConflictError(
+            "Запись уже завершена, изменить статус нельзя",
+            code="booking_final",
+            details={"status": booking.status},
+        )
+
+    extra = {"master": booking.master or master}
+    notes = []
+
+    old_price = booking.charged_price
+    if final_price is not None and Decimal(final_price) != old_price:
+        final_price = Decimal(final_price)
+        if final_price <= 0:
+            raise ValidationError("Итог должен быть больше нуля", code="invalid_price")
+        booking.final_price = final_price
+        extra["final_price"] = final_price
+        notes.append(f"итог {final_price:.2f} вместо {old_price:.2f}")
 
     points = Decimal(points or 0)
-    extra = {"master": booking.master or master}
     if points > 0:
-        # Статус проверяем до списания: у завершённой записи списать баллы
-        # и потом упасть на переходе значило бы откатывать чужой баланс.
-        if booking.status in FINAL_BOOKING_STATUSES:
-            raise ConflictError(
-                "Запись уже завершена, изменить статус нельзя",
-                code="booking_final",
-                details={"status": booking.status},
-            )
         node = referral_tree.get_node(booking.user)
         if node is None:
             raise ConflictError("У клиента нет баллов", code="not_enough_points")
         entry = referral_points.spend(node, points, booking=booking)
         extra["points_spent"] = booking.points_spent - entry.amount
+        notes.append(f"баллами {extra['points_spent']}")
 
     _transition(
         booking,
         BookingStatus.COMPLETED,
         actor=master,
-        comment_suffix=f"баллами {extra['points_spent']}" if points > 0 else "",
+        reason=reason if "final_price" in extra else "",
+        comment_suffix=", ".join(notes),
         extra_fields=extra,
     )
+    if "final_price" in extra:
+        BookingPriceChange.objects.create(
+            booking=booking,
+            old_price=old_price,
+            new_price=booking.final_price,
+            reason=reason,
+            actor=master,
+        )
     stock_service.write_off(booking)
     referral_points.credit_legs_for_booking(booking)
 

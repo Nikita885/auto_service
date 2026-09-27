@@ -243,7 +243,12 @@
           state.points.length > 1 ? el("div", { class: "cell-sub", text: booking.service_point_name }) : null,
         ]),
         el("td", { class: "num nowrap", "data-label": "Сумма" }, [
-          el("div", { class: "cell-main", text: fmt.money(booking.total_price) }),
+          // Итог к оплате: если мастер поправил его при расчёте, рядом —
+          // цена записи, чтобы разница была видна без открытия истории.
+          el("div", { class: "cell-main", text: fmt.money(booking.final_price) }),
+          booking.final_price !== booking.total_price
+            ? el("div", { class: "cell-sub", text: "по записи " + fmt.money(booking.total_price) })
+            : null,
           paidWithPoints
             ? el("div", { class: "cell-sub", text: "баллами " + fmt.money(booking.points_spent) })
             : null,
@@ -315,53 +320,97 @@
     const quote = await guard(() => api.get("/master/bookings/" + booking.id + "/points/"));
     if (!quote) return;
 
-    const total = Number(booking.total_price);
-    const maxSpend = Math.floor(Number(quote.max_spend));
-    const input = el("input", {
-      type: "number", min: "0", max: String(maxSpend), step: "1", value: "0",
-      inputmode: "numeric", id: "checkout-points", disabled: maxSpend <= 0,
-    });
-    const toPay = el("span", { class: "checkout-total", text: fmt.money(total) });
-    const confirm = el("button", { class: "btn btn-ok", type: "button", text: "Завершить" });
+    const bookedPrice = Number(booking.total_price);
+    const balance = Math.floor(Number(quote.balance));
+    const percent = Number(quote.max_discount_percent);
+    const alreadySpent = Number(booking.points_spent) || 0;
 
-    const points = () => Math.min(Math.max(Math.floor(Number(input.value) || 0), 0), maxSpend);
+    // Итог мастер правит, если долил масла, добавил работу или уступил.
+    // Сервер считает потолок баллов от итога — окно считает так же, чтобы
+    // мастер видел лимит до нажатия, а не из ошибки.
+    const finalInput = el("input", {
+      type: "number", min: "1", step: "1", value: String(Math.round(bookedPrice)),
+      inputmode: "numeric", id: "checkout-final",
+    });
+    const reasonInput = el("input", {
+      id: "checkout-reason", maxlength: "500", placeholder: "Например: долили 1 л",
+    });
+    const reasonField = el("div", { class: "field" }, [
+      el("label", { for: "checkout-reason", text: "Почему изменили" }), reasonInput,
+    ]);
+    const pointsInput = el("input", {
+      type: "number", min: "0", step: "1", value: "0", inputmode: "numeric", id: "checkout-points",
+    });
+    const toPay = el("span", { class: "checkout-total" });
+    const capText = el("span", { class: "cell-sub" });
+    const changeText = el("span", { class: "cell-sub" });
+    const confirm = el("button", { class: "btn btn-ok", type: "button" });
+
+    const finalPrice = () => {
+      const value = Math.round(Number(finalInput.value));
+      return value > 0 ? value : null;
+    };
+    const maxSpend = () => {
+      const final = finalPrice() || 0;
+      return Math.max(Math.min(balance, Math.floor(final * percent / 100) - alreadySpent), 0);
+    };
+    const points = () => Math.min(Math.max(Math.floor(Number(pointsInput.value) || 0), 0), maxSpend());
+
     const refresh = () => {
+      const final = finalPrice();
+      const changed = final !== null && final !== Math.round(bookedPrice);
+      reasonField.hidden = !changed;
+      changeText.textContent = changed
+        ? (final > bookedPrice ? "+" : "−") + fmt.money(Math.abs(final - bookedPrice)) + " к цене записи"
+        : "как при записи";
+
+      const limit = maxSpend();
+      pointsInput.max = String(limit);
+      pointsInput.disabled = limit <= 0;
+      if (Number(pointsInput.value) > limit) pointsInput.value = String(limit);
+      capText.textContent = "можно списать до " + fmt.number(limit) + " (" + percent + "% итога)";
+
       const p = points();
-      toPay.textContent = fmt.money(total - p);
+      toPay.textContent = final === null ? "—" : fmt.money(final - p);
+      confirm.disabled = final === null;
       confirm.textContent = p > 0 ? "Завершить, списать " + fmt.number(p) + " баллов" : "Завершить без баллов";
     };
-    input.oninput = refresh;
+    finalInput.oninput = refresh;
+    pointsInput.oninput = refresh;
 
     const line = (label, value, cls) =>
       el("div", { class: "checkout-line" + (cls ? " " + cls : "") }, [
         el("span", { text: label }), el("span", { class: "num", text: value }),
       ]);
 
-    const pointsBlock = maxSpend > 0
+    const pointsBlock = balance > 0
       ? el("div", { class: "checkout-points" }, [
         el("div", { class: "checkout-points-head" }, [
           el("span", { class: "cell-main", text: "Баллы клиента: " + fmt.number(quote.balance) }),
-          el("span", { class: "cell-sub",
-            text: "можно списать до " + fmt.number(maxSpend) + " (" + quote.max_discount_percent + "% чека)" }),
+          capText,
         ]),
         el("label", { class: "label", for: "checkout-points", text: "Сколько баллов списать — решает клиент" }),
         el("div", { class: "row" }, [
-          el("div", { style: "flex:1;min-width:120px" }, [input]),
+          el("div", { style: "flex:1;min-width:120px" }, [pointsInput]),
           el("button", { class: "btn", type: "button", text: "Максимум",
-            onClick: () => { input.value = String(maxSpend); refresh(); } }),
+            onClick: () => { pointsInput.value = String(maxSpend()); refresh(); } }),
           el("button", { class: "btn btn-ghost", type: "button", text: "Не списывать",
-            onClick: () => { input.value = "0"; refresh(); } }),
+            onClick: () => { pointsInput.value = "0"; refresh(); } }),
         ]),
       ])
-      : el("p", { class: "hint", text: Number(quote.balance) > 0
-        ? "Баллы есть, но в этот чек списать нельзя."
-        : "У клиента нет баллов — списывать нечего." });
+      : el("p", { class: "hint", text: "У клиента нет баллов — списывать нечего." });
 
     const body = el("div", { class: "stack" }, [
       el("div", { class: "checkout-lines" }, [
         line("Масло · " + booking.oil_title, fmt.money(booking.oil_price)),
         line("Работа", fmt.money(booking.work_price)),
-        line("Итого", fmt.money(total), "checkout-sum"),
+        line("По записи", fmt.money(bookedPrice), "checkout-sum"),
+      ]),
+      el("div", { class: "form-grid" }, [
+        el("div", { class: "field" }, [
+          el("label", { for: "checkout-final", text: "Итог, ₽" }), finalInput, changeText,
+        ]),
+        reasonField,
       ]),
       pointsBlock,
       el("div", { class: "checkout-line checkout-pay" }, [el("span", { text: "К оплате" }), toPay]),
@@ -376,14 +425,21 @@
     });
     cancel.onclick = dlg.close;
     confirm.onclick = async () => {
+      const final = finalPrice();
+      if (final === null) return;
       confirm.disabled = true;
       const p = points();
-      const ok = await guard(() => api.post("/master/bookings/" + booking.id + "/complete/", { points: String(p) }));
+      const payload = { points: String(p) };
+      if (final !== Math.round(bookedPrice)) {
+        payload.final_price = String(final);
+        payload.reason = reasonInput.value.trim();
+      }
+      const ok = await guard(() => api.post("/master/bookings/" + booking.id + "/complete/", payload));
       confirm.disabled = false;
       if (!ok) return;
       dlg.close();
-      toast(p > 0 ? "Списано " + fmt.number(p) + " баллов, к оплате " + fmt.money(total - p)
-        : "К оплате " + fmt.money(total), "ok", "Запись выполнена");
+      toast(p > 0 ? "Списано " + fmt.number(p) + " баллов, к оплате " + fmt.money(final - p)
+        : "К оплате " + fmt.money(final), "ok", "Запись выполнена");
       await reload();
     };
     refresh();

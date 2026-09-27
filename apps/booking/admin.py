@@ -1,12 +1,22 @@
 from django.contrib import admin
 
-from apps.booking.models import Booking, BookingDraft, BookingStatusLog
+from apps.booking.models import Booking, BookingDraft, BookingPriceChange, BookingStatusLog
 
 
 class BookingStatusLogInline(admin.TabularInline):
     model = BookingStatusLog
     extra = 0
     readonly_fields = ("from_status", "to_status", "actor", "comment", "created_at")
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None) -> bool:
+        return False
+
+
+class BookingPriceChangeInline(admin.TabularInline):
+    model = BookingPriceChange
+    extra = 0
+    readonly_fields = ("old_price", "new_price", "reason", "actor", "created_at")
     can_delete = False
 
     def has_add_permission(self, request, obj=None) -> bool:
@@ -27,9 +37,11 @@ class BookingAdmin(admin.ModelAdmin):
     list_filter = ("status", "service_point", "start_at")
     search_fields = ("code", "client_phone", "client_name", "car_plate", "oil_title")
     date_hierarchy = "start_at"
-    readonly_fields = ("id", "code", "created_at", "updated_at", "total_price")
+    readonly_fields = (
+        "id", "code", "created_at", "updated_at", "total_price", "final_price",
+    )
     autocomplete_fields = ("user", "master", "service_point", "oil")
-    inlines = [BookingStatusLogInline]
+    inlines = [BookingStatusLogInline, BookingPriceChangeInline]
 
 
 @admin.register(BookingDraft)

@@ -43,5 +43,5 @@ def booking_cancelled_by_master(booking) -> str:
 def booking_completed(booking) -> str:
     return (
         f"Замена масла выполнена. Спасибо, что выбрали нас! "
-        f"Сумма: {booking.total_price:.0f} ₽."
+        f"Сумма: {booking.charged_price:.0f} ₽."
     )

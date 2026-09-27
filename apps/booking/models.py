@@ -219,6 +219,13 @@ class Booking(BaseModel):
     points_spent = models.DecimalField(
         "оплачено баллами", max_digits=10, decimal_places=2, default=0
     )
+    # Итог, если мастер поправил его при расчёте: долил масла, добавил
+    # работу или уступил. Цены выше не трогаем — это то, о чём договорились
+    # при записи, и по ним видно, откуда взялась разница. Пусто — итог равен
+    # снимку; кто и почему менял — в `BookingPriceChange`.
+    final_price = models.DecimalField(
+        "итог при расчёте", max_digits=10, decimal_places=2, null=True, blank=True
+    )
 
     # --- сопровождение
     master = models.ForeignKey(
@@ -271,9 +278,14 @@ class Booking(BaseModel):
         return self.status in ACTIVE_BOOKING_STATUSES
 
     @property
+    def charged_price(self):
+        """Чек к оплате: итог мастера, а если его не правили — цена брони."""
+        return self.total_price if self.final_price is None else self.final_price
+
+    @property
     def paid_amount(self):
         """Сколько клиент заплатил деньгами: чек минус баллы."""
-        return self.total_price - self.points_spent
+        return self.charged_price - self.points_spent
 
     @property
     def is_cancellable_by_client(self) -> bool:
@@ -316,3 +328,35 @@ class BookingStatusLog(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.booking_id}: {self.from_status} -> {self.to_status}"
+
+
+class BookingPriceChange(BaseModel):
+    """Мастер изменил итог при расчёте: кто, когда, с чего на что и почему.
+
+    Отдельной таблицей, а не строкой в истории статусов: сумма — это деньги,
+    и спорить о ней будут по числам, а не по тексту комментария.
+    """
+
+    booking = models.ForeignKey(
+        Booking, on_delete=models.CASCADE, related_name="price_changes",
+        verbose_name="запись",
+    )
+    old_price = models.DecimalField("было", max_digits=10, decimal_places=2)
+    new_price = models.DecimalField("стало", max_digits=10, decimal_places=2)
+    reason = models.CharField("причина", max_length=500, blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="booking_price_changes",
+        verbose_name="кто изменил",
+    )
+
+    class Meta:
+        verbose_name = "изменение итога"
+        verbose_name_plural = "изменения итога"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.booking_id}: {self.old_price} -> {self.new_price}"

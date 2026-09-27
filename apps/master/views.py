@@ -12,7 +12,7 @@ import zoneinfo
 from datetime import datetime, timedelta
 
 from django.conf import settings
-from django.db.models import Count, F, Q, Sum
+from django.db.models import Count, Q, Sum
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
@@ -217,8 +217,9 @@ class MasterBookingViewSet(
         responses={200: MasterBookingSerializer},
         summary="Работы выполнены",
         description=(
-            "Расчёт одной транзакцией: списание баллов по желанию клиента "
-            "(не больше потолка от чека), списание канистры со склада и "
+            "Расчёт одной транзакцией: итог, если мастер его поправил "
+            "(final_price, reason), списание баллов по желанию клиента "
+            "(не больше потолка от итога), списание канистры со склада и "
             "баллы в плечи вышестоящих клиента."
         ),
     )
@@ -227,8 +228,10 @@ class MasterBookingViewSet(
         payload = MasterCompleteSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
 
+        data = payload.validated_data
         booking = booking_service.complete(
-            request.user, pk, points=payload.validated_data["points"]
+            request.user, pk, points=data["points"],
+            final_price=data["final_price"], reason=data["reason"],
         )
         return Response(MasterBookingSerializer(booking).data)
 
@@ -293,10 +296,7 @@ class MasterBookingViewSet(
             ),
             no_show=Count("id", filter=Q(status=BookingStatus.NO_SHOW)),
             # Выручка — деньгами: часть чека, закрытая баллами, в кассу не пришла.
-            revenue=Sum(
-                F("total_price") - F("points_spent"),
-                filter=Q(status=BookingStatus.COMPLETED),
-            ),
+            revenue=Sum(metrics.PAID, filter=Q(status=BookingStatus.COMPLETED)),
             points_spent=Sum("points_spent", filter=Q(status=BookingStatus.COMPLETED)),
         )
         stats["date"] = day

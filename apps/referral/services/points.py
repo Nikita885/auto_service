@@ -53,15 +53,17 @@ def _round(value: Decimal) -> Decimal:
 def base_amount(booking) -> Decimal:
     """С какой суммы считать баллы.
 
-    `total` — сколько клиент заплатил деньгами: часть чека, закрытая
-    баллами, новых баллов не рождает, иначе баллы воспроизводили бы сами
-    себя. `work` — только работа: масло перепродаётся с почти постоянной
+    `total` — сколько клиент заплатил деньгами, от итога к оплате (мастер
+    мог поправить его при расчёте): часть чека, закрытая баллами, новых
+    баллов не рождает, иначе баллы воспроизводили бы сами себя. `work` —
+    только работа по цене брони: масло перепродаётся с почти постоянной
     наценкой, и дорогая канистра увеличивала бы выплату, не увеличивая
-    заработок сервиса.
+    заработок сервиса. Правку итога мастером при расчёте ни к маслу, ни к
+    работе не отнести, поэтому в режиме `work` она не учитывается.
     """
     if settings.REFERRAL["BASE"] == "work":
         return Decimal(booking.work_price)
-    return Decimal(booking.total_price) - Decimal(booking.points_spent or 0)
+    return Decimal(booking.charged_price) - Decimal(booking.points_spent or 0)
 
 
 @transaction.atomic
@@ -258,10 +260,11 @@ def max_discount(booking) -> Decimal:
     """Потолок оплаты баллами для этого чека.
 
     Баллы — скидка, а не вторая касса: работа мастера и масло по
-    себестоимости должны быть оплачены деньгами.
+    себестоимости должны быть оплачены деньгами. Считается от итога к
+    оплате: мастер мог поправить его при расчёте.
     """
     percent = Decimal(settings.REFERRAL["MAX_DISCOUNT_PERCENT"])
-    return _round(Decimal(booking.total_price) * percent / Decimal(100))
+    return _round(Decimal(booking.charged_price) * percent / Decimal(100))
 
 
 def _already_spent(booking) -> Decimal:
@@ -280,7 +283,7 @@ def spend_quote(booking) -> dict:
         "balance": balance,
         "limit": limit,
         "max_spend": min(balance, limit),
-        "total_price": booking.total_price,
+        "total_price": booking.charged_price,
         "max_discount_percent": settings.REFERRAL["MAX_DISCOUNT_PERCENT"],
     }
 

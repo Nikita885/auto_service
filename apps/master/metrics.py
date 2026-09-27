@@ -38,10 +38,14 @@ _CANCELLED = [
 _MONEY = DecimalField(max_digits=12, decimal_places=2)
 
 
+#: Чек к оплате: итог мастера при расчёте, а если его не правили — цена
+#: брони. Та же формула, что `Booking.charged_price`, только в SQL.
+CHARGED = Coalesce(F("final_price"), F("total_price"))
+
 #: Выручка — то, что пришло деньгами: чек минус часть, закрытая баллами.
 #: Баллы — скидка, в кассу они не приходят, и считать их выручкой значило
 #: бы завышать её ровно на размер программы лояльности.
-PAID = F("total_price") - F("points_spent")
+PAID = CHARGED - F("points_spent")
 
 
 def _zero() -> Value:
@@ -149,13 +153,20 @@ def _totals(bookings) -> dict:
             Sum(PAID, filter=Q(status=BookingStatus.COMPLETED)), _zero()
         ),
         avg_check=Coalesce(
-            Avg("total_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
+            Avg(CHARGED, filter=Q(status=BookingStatus.COMPLETED)), _zero()
         ),
         oil_revenue=Coalesce(
             Sum("oil_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
         ),
         work_revenue=Coalesce(
             Sum("work_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
+        ),
+        # Масло и работа — по ценам брони; правки мастера при расчёте
+        # (долил, добавил работу, уступил) ни к тому, ни к другому не
+        # отнести, поэтому они отдельной строкой.
+        adjustments=Coalesce(
+            Sum(CHARGED - F("total_price"), filter=Q(status=BookingStatus.COMPLETED)),
+            _zero(),
         ),
         points_spent=Coalesce(
             Sum("points_spent", filter=Q(status=BookingStatus.COMPLETED)), _zero()

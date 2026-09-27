@@ -158,6 +158,8 @@ public final class DtoMapper {
                 money(dto.oilPrice),
                 money(dto.workPrice),
                 money(dto.totalPrice),
+                dto.finalPrice == null ? money(dto.totalPrice) : money(dto.finalPrice),
+                dto.priceChanged,
                 money(dto.pointsSpent),
                 dto.cancelReason,
                 dto.canCancel);

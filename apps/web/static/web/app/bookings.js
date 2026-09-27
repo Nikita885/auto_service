@@ -55,6 +55,13 @@ export function Bookings() {
 function BookingCard({ booking, onCancel }) {
   const [cls, label] = STATUS[booking.status] || ["badge", booking.status_display];
   const withPoints = Number(booking.points_spent) > 0;
+  // Итог к оплате: мастер мог поправить его при расчёте (долили масла,
+  // добавили работу). Тогда рядом — цена, с которой записывались.
+  const price = booking.final_price || booking.total_price;
+  const note = [
+    booking.price_changed ? "по записи " + money(booking.total_price) : "",
+    withPoints ? money(booking.paid_amount) + " деньгами + " + money(booking.points_spent) + " баллами" : "",
+  ].filter(Boolean).join(" · ");
   const zone = booking.service_point && booking.service_point.timezone;
   return html`<article class="card pad">
     <div class="booking-head">
@@ -68,8 +75,8 @@ function BookingCard({ booking, onCancel }) {
       ${booking.cancel_reason && html`<span>Причина: ${booking.cancel_reason}</span>`}
     </div>
     <div class="booking-foot">
-      <span class="muted">${withPoints ? money(booking.paid_amount) + " деньгами + " + money(booking.points_spent) + " баллами" : ""}</span>
-      <span class="booking-price">${money(booking.total_price)}</span>
+      <span class="muted">${note}</span>
+      <span class="booking-price">${money(price)}</span>
     </div>
     ${booking.can_cancel && html`<button class="btn btn-danger btn-block" type="button" style="margin-top:12px"
       onClick=${() => onCancel(booking)}>Отменить запись</button>`}

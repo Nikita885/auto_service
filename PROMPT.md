@@ -357,6 +357,10 @@ docker-compose.prod.yml   надстройка для прода: закрыва
   Статусы: `pending`, `in_progress`, `completed`, `cancelled_by_client`,
   `cancelled_by_master`, `no_show`.
 - **`BookingStatusLog`** — история смены статусов: кто, когда, комментарий.
+- **`BookingPriceChange`** — мастер изменил итог при расчёте: было, стало,
+  причина, кто, когда. Сам итог — `Booking.final_price` (пусто — равен
+  `total_price`); потолок баллов, баллы в плечи, выручка и метрики — от
+  итога (`Booking.charged_price`, в SQL — `metrics.CHARGED`).
 - **`Notification`** — журнал SMS: получатель, тип, текст, статус, id у провайдера.
 - **`ReferralNode`** — место клиента в дереве: `user`, `code` (код приглашения),
   `sponsor`, `parent`, `position` (left/right), `depth`, `balance` в баллах,
@@ -387,6 +391,8 @@ docker-compose.prod.yml   надстройка для прода: закрыва
 обязательна), `POST .../start/`, `POST .../complete/` (`points` — сколько
 баллов списать), `GET .../points/` (баланс клиента и потолок),
 `POST .../no-show/`, `GET /master/bookings/summary/?date=`,
+`POST .../complete/` принимает ещё `final_price` и `reason` — итог при
+расчёте, если он отличается от цены записи,
 `POST /master/bookings/` (записать клиента по звонку или без записи),
 `GET /master/walk-in/lookup|oils|slots/` (подсказки для этого окна),
 `GET /master/live-drafts/`. Масла: `GET|POST /master/oils/`,

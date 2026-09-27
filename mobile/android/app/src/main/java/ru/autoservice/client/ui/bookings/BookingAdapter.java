@@ -34,9 +34,13 @@ public class BookingAdapter extends ListAdapter<Models.Booking, BookingAdapter.H
 
             @Override
             public boolean areContentsTheSame(@NonNull Models.Booking a, @NonNull Models.Booking b) {
-                return a.status() == b.status()
+                // Суммы тоже: итог и баллы появляются при расчёте у мастера,
+                // и карточка без них осталась бы со старой ценой.
+                return a.status().equals(b.status())
                         && a.canCancel() == b.canCancel()
-                        && a.cancelReason().equals(b.cancelReason());
+                        && a.cancelReason().equals(b.cancelReason())
+                        && a.finalPrice() == b.finalPrice()
+                        && a.pointsSpent() == b.pointsSpent();
             }
         });
         this.onCancel = onCancel;
@@ -77,15 +81,22 @@ public class BookingAdapter extends ListAdapter<Models.Booking, BookingAdapter.H
             views.oil.setText(booking.oilTitle());
             views.address.setText(booking.servicePoint() == null
                     ? "" : booking.servicePoint().address());
-            views.price.setText(Formats.money(booking.totalPrice()));
-            boolean withPoints = booking.pointsSpent() > 0;
-            Ui.setVisible(views.paid, withPoints);
-            if (withPoints) {
-                views.paid.setText(views.getRoot().getContext().getString(
-                        R.string.booking_paid_points,
+            // Итог к оплате; если мастер поправил его при расчёте — рядом
+            // цена, с которой записывались, чтобы разница не была сюрпризом.
+            views.price.setText(Formats.money(booking.finalPrice()));
+            var context = views.getRoot().getContext();
+            var notes = new java.util.ArrayList<String>();
+            if (booking.priceChanged()) {
+                notes.add(context.getString(R.string.booking_price_was,
+                        Formats.money(booking.totalPrice())));
+            }
+            if (booking.pointsSpent() > 0) {
+                notes.add(context.getString(R.string.booking_paid_points,
                         Formats.money(booking.paidAmount()),
                         Formats.money(booking.pointsSpent())));
             }
+            Ui.setVisible(views.paid, !notes.isEmpty());
+            views.paid.setText(android.text.TextUtils.join(" · ", notes));
 
             views.status.setText(booking.statusDisplay());
             views.status.setBackgroundResource(R.drawable.bg_chip);

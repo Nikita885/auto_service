@@ -742,9 +742,9 @@ paths:
   /api/v1/master/bookings/{id}/complete/:
     post:
       operationId: master_bookings_complete_create
-      description: 'Расчёт одной транзакцией: списание баллов по желанию клиента (не
-        больше потолка от чека), списание канистры со склада и баллы в плечи вышестоящих
-        клиента.'
+      description: 'Расчёт одной транзакцией: итог, если мастер его поправил (final_price,
+        reason), списание баллов по желанию клиента (не больше потолка от итога),
+        списание канистры со склада и баллы в плечи вышестоящих клиента.'
       summary: Работы выполнены
       parameters:
       - in: path
@@ -1526,6 +1526,14 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Итого
+        final_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        price_changed:
+          type: boolean
+          readOnly: true
         points_spent:
           type: string
           format: decimal
@@ -1561,10 +1569,12 @@ components:
       - can_cancel
       - created_at
       - end_at
+      - final_price
       - id
       - oil_price
       - oil_title
       - paid_amount
+      - price_changed
       - service_point
       - start_at
       - status_display
@@ -1620,6 +1630,14 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Итого
+        final_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        price_changed:
+          type: boolean
+          readOnly: true
         points_spent:
           type: string
           format: decimal
@@ -1664,11 +1682,13 @@ components:
       - can_cancel
       - created_at
       - end_at
+      - final_price
       - id
       - oil
       - oil_price
       - oil_title
       - paid_amount
+      - price_changed
       - service_point
       - start_at
       - status_display
@@ -2121,6 +2141,12 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Итого
+        final_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          description: 'Итог к оплате: правка мастера при расчёте или цена брони'
         points_spent:
           type: string
           format: decimal
@@ -2148,6 +2174,7 @@ components:
       - client_phone
       - created_at
       - end_at
+      - final_price
       - id
       - local_time
       - oil_price
@@ -2276,6 +2303,12 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Итого
+        final_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          description: 'Итог к оплате: правка мастера при расчёте или цена брони'
         points_spent:
           type: string
           format: decimal
@@ -2305,15 +2338,24 @@ components:
             type: object
             additionalProperties: {}
           readOnly: true
+        price_changes:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: Кто, когда и почему менял итог при расчёте.
+          readOnly: true
       required:
       - client_phone
       - created_at
       - end_at
+      - final_price
       - id
       - local_time
       - oil_price
       - oil_title
       - paid_amount
+      - price_changes
       - service_point
       - service_point_name
       - start_at
@@ -2435,7 +2477,8 @@ components:
       - points
     MasterCompleteRequest:
       type: object
-      description: 'Расчёт при завершении: сколько чека клиент закрывает баллами.'
+      description: 'Расчёт при завершении: итог к оплате и сколько из него закрыть
+        баллами.'
       properties:
         points:
           type: string
@@ -2443,6 +2486,18 @@ components:
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           default: '0.00'
           description: Баллы к списанию по желанию клиента. 0 — не списывать.
+        final_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          description: 'Итог, если он отличается от цены брони: долили масла, добавили
+            работу, уступили. Не передан — платят цену брони.'
+        reason:
+          type: string
+          default: ''
+          description: Почему изменён итог. Необязательно.
+          maxLength: 500
     MasterOil:
       type: object
       properties:
@@ -2823,6 +2878,12 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        adjustments:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          description: 'Правки итога мастером при расчёте: плюс — доплаты, минус —
+            уступки'
         points_spent:
           type: string
           format: decimal
@@ -2841,6 +2902,7 @@ components:
           type: number
           format: double
       required:
+      - adjustments
       - avg_check
       - cancel_rate
       - cancelled

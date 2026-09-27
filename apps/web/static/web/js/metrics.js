@@ -57,7 +57,10 @@
       { label: "Выручка", value: fmt.money(t.revenue), accent: true,
         hint: Number(t.points_spent) > 0
           ? "деньгами; ещё " + fmt.money(t.points_spent) + " закрыто баллами"
-          : "масло " + fmt.money(t.oil_revenue) + " + работа " + fmt.money(t.work_revenue) },
+          : "масло " + fmt.money(t.oil_revenue) + " + работа " + fmt.money(t.work_revenue) +
+            // Правки итога мастером при расчёте: доплаты минус уступки.
+            (Number(t.adjustments) ? (Number(t.adjustments) > 0 ? " + " : " − ") +
+              "правки " + fmt.money(Math.abs(Number(t.adjustments))) : "") },
       { label: "Средний чек", value: fmt.money(t.avg_check), hint: "по выполненным записям" },
       { label: "Записей за период", value: fmt.number(t.total),
         hint: t.completed + " выполнено · " + t.pending + " ждут · " + t.in_progress + " в работе" },

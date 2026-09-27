@@ -289,6 +289,8 @@ public final class Models {
         private final double oilPrice;
         private final double workPrice;
         private final double totalPrice;
+        private final double finalPrice;
+        private final boolean priceChanged;
         private final double pointsSpent;
         private final String cancelReason;
         private final boolean canCancel;
@@ -296,6 +298,7 @@ public final class Models {
         public Booking(String id, String code, BookingStatus status, String statusDisplay,
                        ServicePoint servicePoint, String oilTitle, Date startAt,
                        double oilPrice, double workPrice, double totalPrice,
+                       double finalPrice, boolean priceChanged,
                        double pointsSpent, String cancelReason, boolean canCancel) {
             this.id = id;
             this.code = code;
@@ -307,6 +310,8 @@ public final class Models {
             this.oilPrice = oilPrice;
             this.workPrice = workPrice;
             this.totalPrice = totalPrice;
+            this.finalPrice = finalPrice;
+            this.priceChanged = priceChanged;
             this.pointsSpent = pointsSpent;
             this.cancelReason = orEmpty(cancelReason);
             this.canCancel = canCancel;
@@ -321,13 +326,20 @@ public final class Models {
         @Nullable public Date startAt() { return startAt; }
         public double oilPrice() { return oilPrice; }
         public double workPrice() { return workPrice; }
+        /** Цена на момент записи. */
         public double totalPrice() { return totalPrice; }
+
+        /** Итог к оплате: мастер мог поправить его при расчёте (долили масла, добавили работу). */
+        public double finalPrice() { return finalPrice; }
+
+        /** Итог отличается от цены на момент записи. */
+        public boolean priceChanged() { return priceChanged; }
 
         /** Сколько чека закрыто баллами при расчёте у мастера. */
         public double pointsSpent() { return pointsSpent; }
 
-        /** Заплачено деньгами: чек минус баллы. */
-        public double paidAmount() { return totalPrice - pointsSpent; }
+        /** Заплачено деньгами: итог минус баллы. */
+        public double paidAmount() { return finalPrice - pointsSpent; }
 
         public String cancelReason() { return cancelReason; }
 

@@ -35,7 +35,7 @@
     <string name="booking_start">Начать запись</string>
     <string name="booking_restart">Начать заново</string>
     <string name="booking_drop">Прервать</string>
-    <string name="booking_idle">Нажмите «Начать запись»: выберете адрес, масло и время. На всю запись — пять минут.</string>
+    <string name="booking_idle">Нажмите «Начать запись»: выберите адрес, масло и время. На всю запись — пять минут.</string>
     <string name="booking_expired">Пять минут вышли, запись не сохранилась. Начните заново — это быстро.</string>
     <string name="booking_timer_hint">до конца записи</string>
 
@@ -155,6 +155,7 @@
     <string name="referral_payout_wait">Выплата будет, когда баллы появятся в обоих плечах. Пока они копятся.</string>
     <string name="referral_rule">Каждую ночь выплачивается меньшее плечо, а если плечи равны — оба. Остаток переносится.</string>
     <string name="booking_paid_points">%1$s деньгами + %2$s баллами</string>
+    <string name="booking_price_was">по записи %1$s</string>
     <string name="referral_spent">Потрачено</string>
     <string name="referral_code_label">Ваш код приглашения</string>
     <string name="referral_qr_hint">Дайте отсканировать этот код</string>

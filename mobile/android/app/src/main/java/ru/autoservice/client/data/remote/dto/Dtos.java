@@ -230,6 +230,10 @@ public final class Dtos {
         @SerializedName("oil_price") public String oilPrice;
         @SerializedName("work_price") public String workPrice;
         @SerializedName("total_price") public String totalPrice;
+        // Итог к оплате: мастер мог поправить его при расчёте. Сервер
+        // постарше поле не присылает — тогда итог равен цене записи.
+        @SerializedName("final_price") public String finalPrice;
+        @SerializedName("price_changed") public boolean priceChanged;
         @SerializedName("points_spent") public String pointsSpent;
         @SerializedName("paid_amount") public String paidAmount;
         @SerializedName("client_comment") public String clientComment;

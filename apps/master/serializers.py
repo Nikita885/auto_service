@@ -17,6 +17,10 @@ class MasterBookingSerializer(serializers.ModelSerializer):
     service_point_name = serializers.CharField(source="service_point.name", read_only=True)
     local_time = serializers.SerializerMethodField()
     paid_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    final_price = serializers.DecimalField(
+        source="charged_price", max_digits=10, decimal_places=2, read_only=True,
+        help_text="Итог к оплате: правка мастера при расчёте или цена брони",
+    )
 
     class Meta:
         model = Booking
@@ -38,6 +42,7 @@ class MasterBookingSerializer(serializers.ModelSerializer):
             "oil_price",
             "work_price",
             "total_price",
+            "final_price",
             "points_spent",
             "paid_amount",
             "client_comment",
@@ -51,9 +56,23 @@ class MasterBookingSerializer(serializers.ModelSerializer):
 
 class MasterBookingDetailSerializer(MasterBookingSerializer):
     status_logs = serializers.SerializerMethodField()
+    price_changes = serializers.SerializerMethodField()
 
     class Meta(MasterBookingSerializer.Meta):
-        fields = MasterBookingSerializer.Meta.fields + ("status_logs",)
+        fields = MasterBookingSerializer.Meta.fields + ("status_logs", "price_changes")
+
+    def get_price_changes(self, obj: Booking) -> list[dict]:
+        """Кто, когда и почему менял итог при расчёте."""
+        return [
+            {
+                "old_price": str(change.old_price),
+                "new_price": str(change.new_price),
+                "reason": change.reason,
+                "actor": change.actor.display_name if change.actor_id else None,
+                "created_at": change.created_at,
+            }
+            for change in obj.price_changes.all()
+        ]
 
     def get_status_logs(self, obj: Booking) -> list[dict]:
         return [
@@ -75,11 +94,21 @@ class MasterCancelSerializer(serializers.Serializer):
 
 
 class MasterCompleteSerializer(serializers.Serializer):
-    """Расчёт при завершении: сколько чека клиент закрывает баллами."""
+    """Расчёт при завершении: итог к оплате и сколько из него закрыть баллами."""
 
     points = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=Decimal(0), required=False, default=Decimal(0),
         help_text="Баллы к списанию по желанию клиента. 0 — не списывать.",
+    )
+    final_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal("0.01"), required=False,
+        allow_null=True, default=None,
+        help_text="Итог, если он отличается от цены брони: долили масла, добавили "
+        "работу, уступили. Не передан — платят цену брони.",
+    )
+    reason = serializers.CharField(
+        max_length=500, required=False, allow_blank=True, default="",
+        help_text="Почему изменён итог. Необязательно.",
     )
 
 
@@ -227,6 +256,10 @@ class MetricsTotalsSerializer(serializers.Serializer):
     points_spent = serializers.DecimalField(max_digits=12, decimal_places=2)
     oil_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
     work_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    adjustments = serializers.DecimalField(
+        max_digits=12, decimal_places=2,
+        help_text="Правки итога мастером при расчёте: плюс — доплаты, минус — уступки",
+    )
     points_spent = serializers.DecimalField(max_digits=12, decimal_places=2)
     avg_check = serializers.DecimalField(max_digits=12, decimal_places=2)
     cancel_rate = serializers.FloatField()

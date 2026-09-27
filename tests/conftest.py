@@ -10,6 +10,8 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.booking.services import draft as draft_service
 from apps.catalog.models import Oil, OilStock, OilType, ServicePoint
+from apps.referral.models import ReferralNode
+from apps.referral.services import tree as tree_service
 
 
 @pytest.fixture
@@ -144,3 +146,36 @@ def _no_real_sms(settings):
     get_sms_provider.cache_clear()
     yield
     get_sms_provider.cache_clear()
+
+
+# ------------------------------------------------ расчёт у мастера
+@pytest.fixture
+def booking(client_user, point, stock, free_slot):
+    """Запись на Shell за 3900 + 900 = 4800 ₽. Потолок баллов — 2400."""
+    draft = draft_service.start_draft(client_user)
+    draft_service.select_point(client_user, draft.pk, point.pk)
+    draft_service.select_oil(client_user, draft.pk, stock.oil_id)
+    draft_service.select_slot(client_user, draft.pk, free_slot.start_at)
+    return draft_service.confirm(client_user, draft.pk)
+
+
+@pytest.fixture
+def client_points(client_user):
+    def _give(amount: str) -> ReferralNode:
+        node = tree_service.ensure_node(client_user)
+        ReferralNode.objects.filter(pk=node.pk).update(balance=Decimal(amount))
+        node.refresh_from_db()
+        return node
+
+    return _give
+
+
+@pytest.fixture
+def make_sponsor(db):
+    def _make(client):
+        sponsor_user = User.objects.create_user(phone="+79009990000", full_name="Спонсор")
+        sponsor = tree_service.ensure_node(sponsor_user)
+        tree_service.attach(client, sponsor.code)
+        return sponsor
+
+    return _make

@@ -104,6 +104,12 @@ class BookingSerializer(serializers.ModelSerializer):
         source="is_cancellable_by_client", read_only=True
     )
     paid_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    # Итог к оплате. Совпадает с `total_price`, пока мастер не поправил его
+    # при расчёте; `total_price` остаётся ценой на момент брони.
+    final_price = serializers.DecimalField(
+        source="charged_price", max_digits=10, decimal_places=2, read_only=True
+    )
+    price_changed = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -119,6 +125,8 @@ class BookingSerializer(serializers.ModelSerializer):
             "oil_price",
             "work_price",
             "total_price",
+            "final_price",
+            "price_changed",
             "points_spent",
             "paid_amount",
             "client_comment",
@@ -127,6 +135,10 @@ class BookingSerializer(serializers.ModelSerializer):
             "can_cancel",
             "created_at",
         )
+
+
+    def get_price_changed(self, obj: Booking) -> bool:
+        return obj.final_price is not None and obj.final_price != obj.total_price
 
 
 class BookingDetailSerializer(BookingSerializer):
