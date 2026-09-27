@@ -9,13 +9,15 @@ public class InviteCodesTest {
 
     @Test
     public void linkFromQr() {
+        assertEquals("AB12CD", InviteCodes.parse("https://moi-servis.ru/i/ab12cd"));
+        // Старые QR и ссылки с прежнего домена разосланы и продолжают работать.
         assertEquals("AB12CD", InviteCodes.parse("https://moiservis.pro/i/ab12cd"));
-        assertEquals("AB12CD", InviteCodes.parse("https://moiservis.pro/i/AB12CD/"));
+        assertEquals("AB12CD", InviteCodes.parse("https://moi-servis.ru/i/AB12CD/"));
     }
 
     @Test
     public void webAppLinkWithInvite() {
-        assertEquals("XY9Z01", InviteCodes.parse("https://moiservis.pro/app/?install=1&invite=XY9Z01"));
+        assertEquals("XY9Z01", InviteCodes.parse("https://moi-servis.ru/app/?install=1&invite=XY9Z01"));
     }
 
     @Test

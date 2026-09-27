@@ -356,7 +356,7 @@ COMPANY = {
     # подставить Host из запроса нельзя: приглашение уезжает в чужой
     # мессенджер и должно вести на канонический домен, а не на тот, с
     # которого его случайно открыли.
-    "SITE_URL": env("COMPANY_SITE_URL", default="https://moiservis.pro").rstrip("/"),
+    "SITE_URL": env("COMPANY_SITE_URL", default="https://moi-servis.ru").rstrip("/"),
     "TAGLINE": env("COMPANY_TAGLINE", default="Замена масла по записи"),
     "PHONE": env("COMPANY_PHONE", default="+7 (499) 123-45-67"),
     "EMAIL": env("COMPANY_EMAIL", default="hello@example.com"),

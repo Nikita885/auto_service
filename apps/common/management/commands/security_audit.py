@@ -151,6 +151,36 @@ def _check_hosts() -> list[Finding]:
     return found
 
 
+def _check_site_url() -> Finding:
+    """Адрес сайта, из которого строятся ссылки-приглашения и QR.
+
+    При смене домена его легко поправить в одном месте и забыть в другом:
+    `COMPANY_SITE_URL` уже новый, а `ALLOWED_HOSTS` старый — и каждая
+    разосланная с этой минуты ссылка отвечает 400. Или наоборот: хосты
+    новые, а QR-коды продолжают печататься на старый домен.
+    """
+    from urllib.parse import urlsplit
+
+    from django.http.request import validate_host
+
+    url = settings.COMPANY.get("SITE_URL", "")
+    parts = urlsplit(url)
+    if parts.scheme != "https" or not parts.hostname:
+        return Finding(FAIL, "COMPANY_SITE_URL", f"{url or 'пуст'} — нужен адрес на https")
+    if not validate_host(parts.hostname, settings.ALLOWED_HOSTS):
+        return Finding(
+            FAIL, "COMPANY_SITE_URL",
+            f"{parts.hostname} нет в ALLOWED_HOSTS — ссылки-приглашения отвечают 400",
+        )
+    origin = f"https://{parts.netloc}"
+    if origin not in settings.CSRF_TRUSTED_ORIGINS:
+        return Finding(
+            FAIL, "COMPANY_SITE_URL",
+            f"{origin} нет в CSRF_TRUSTED_ORIGINS — вход в панели на этом домене отдаёт 403",
+        )
+    return Finding(OK, "COMPANY_SITE_URL", url)
+
+
 def _check_transport() -> list[Finding]:
     """Настройки, делающие HTTPS обязательным, а cookie — недоступными по
     HTTP. По отдельности каждая выглядит мелочью, вместе они и есть защита
@@ -384,6 +414,7 @@ def collect_findings() -> list[Finding]:
         _check_debug_phones(),
     ]
     findings += _check_hosts()
+    findings.append(_check_site_url())
     findings += _check_transport()
     findings.append(_check_proxy_count())
     findings += _check_throttling()

@@ -96,14 +96,14 @@ def test_master_does_not_get_a_node(master_user):
 
 
 def test_summary_gives_code_and_link(auth, make_user, settings):
-    settings.COMPANY = {**settings.COMPANY, "SITE_URL": "https://moiservis.pro"}
+    settings.COMPANY = {**settings.COMPANY, "SITE_URL": "https://moi-servis.ru"}
     user = make_user()
 
     body = auth(user).get(SUMMARY).json()
 
     assert body["enabled"] is True
     assert body["code"]
-    assert body["invite_url"] == f"https://moiservis.pro/i/{body['code']}"
+    assert body["invite_url"] == f"https://moi-servis.ru/i/{body['code']}"
     assert body["attached"] is False
     assert body["balance"] == "0.00"
 

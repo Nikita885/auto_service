@@ -65,6 +65,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="@string/invite_host" />
+                <data android:host="@string/invite_host_legacy" />
                 <data android:pathPrefix="/i/" />
             </intent-filter>
         </activity>

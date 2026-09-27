@@ -81,8 +81,8 @@ android {
             // Боевой домен. Только https и wss: по открытому каналу уходит JWT.
             // Здесь нужен именно основной домен, а не один из редиректящих:
             // браузер редирект отработает, а OkHttp с JWT в заголовке — нет.
-            buildConfigField "String", "API_BASE_URL", '"https://moiservis.pro/"'
-            buildConfigField "String", "WS_BASE_URL", '"wss://moiservis.pro/"'
+            buildConfigField "String", "API_BASE_URL", '"https://moi-servis.ru/"'
+            buildConfigField "String", "WS_BASE_URL", '"wss://moi-servis.ru/"'
         }
     }
 

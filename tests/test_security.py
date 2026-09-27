@@ -156,10 +156,11 @@ def prod_like(settings, tmp_path, monkeypatch):
     settings.DEBUG = False
     settings.SECRET_KEY = "z9" * 30
     settings.OTP = {**settings.OTP, "DEBUG_EXPOSE_CODE": False}
-    settings.ALLOWED_HOSTS = ["moiservis.pro"]
-    settings.CSRF_TRUSTED_ORIGINS = ["https://moiservis.pro"]
+    settings.ALLOWED_HOSTS = ["moi-servis.ru", "www.moi-servis.ru", "moiservis.pro"]
+    settings.CSRF_TRUSTED_ORIGINS = ["https://moi-servis.ru", "https://www.moi-servis.ru"]
     settings.CORS_ALLOW_ALL_ORIGINS = False
-    settings.CORS_ALLOWED_ORIGINS = ["https://moiservis.pro"]
+    settings.CORS_ALLOWED_ORIGINS = ["https://moi-servis.ru"]
+    settings.COMPANY = {**settings.COMPANY, "SITE_URL": "https://moi-servis.ru"}
     settings.SECURE_SSL_REDIRECT = True
     settings.SESSION_COOKIE_SECURE = True
     settings.CSRF_COOKIE_SECURE = True
@@ -195,6 +196,33 @@ def test_audit_passes_on_healthy_production(prod_like):
     findings = security_audit.collect_findings()
     bad = [f for f in findings if f.level != security_audit.OK]
     assert bad == [], bad
+
+
+@pytest.mark.django_db
+def test_audit_catches_site_url_missing_from_hosts(prod_like, settings):
+    """Переезд: адрес приглашений уже новый, а ALLOWED_HOSTS — старые."""
+    settings.ALLOWED_HOSTS = ["moiservis.pro"]
+    finding = next(
+        f for f in security_audit.collect_findings() if f.title == "COMPANY_SITE_URL"
+    )
+    assert finding.level == security_audit.FAIL
+    assert "ALLOWED_HOSTS" in finding.detail
+
+
+@pytest.mark.django_db
+def test_audit_catches_site_url_missing_from_csrf_origins(prod_like, settings):
+    settings.CSRF_TRUSTED_ORIGINS = ["https://moiservis.pro"]
+    assert _levels(security_audit.collect_findings())["COMPANY_SITE_URL"] == (
+        security_audit.FAIL
+    )
+
+
+@pytest.mark.django_db
+def test_audit_catches_site_url_without_https(prod_like, settings):
+    settings.COMPANY = {**settings.COMPANY, "SITE_URL": "http://moi-servis.ru"}
+    assert _levels(security_audit.collect_findings())["COMPANY_SITE_URL"] == (
+        security_audit.FAIL
+    )
 
 
 @pytest.mark.django_db
