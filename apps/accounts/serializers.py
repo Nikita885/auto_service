@@ -16,17 +16,38 @@ class OtpRequestResponseSerializer(serializers.Serializer):
     expires_at = serializers.DateTimeField()
     resend_after_seconds = serializers.IntegerField()
     channel = serializers.ChoiceField(
-        choices=["call", "sms"],
-        help_text="call — позвоним, код — последние 4 цифры входящего номера; sms — код в SMS",
+        choices=["call", "reverse_call", "sms"],
+        help_text=(
+            "call — позвоним, код — последние 4 цифры входящего номера; "
+            "reverse_call — клиент сам звонит на number_to_call, код не нужен, "
+            "статус — POST /auth/otp/call-status/ с session; sms — код в SMS"
+        ),
     )
     sms_available = serializers.BooleanField(
         help_text="Следующий код можно попросить в SMS: звонки не помогли",
+    )
+    number_to_call = serializers.CharField(
+        allow_null=True, help_text="reverse_call: номер, на который звонит клиент",
+    )
+    session = serializers.CharField(
+        allow_null=True,
+        help_text="reverse_call: секрет для опроса статуса звонка, храните до входа",
     )
     debug_code = serializers.CharField(
         required=False,
         allow_null=True,
         help_text="Только при OTP_DEBUG_EXPOSE_CODE=True. В проде не приходит.",
     )
+
+
+class CallStatusSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=20)
+    session = serializers.CharField(max_length=64)
+    invite = serializers.CharField(max_length=16, required=False, allow_blank=True)
+
+
+class CallPendingSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["pending"])
 
 
 class StaffLoginSerializer(serializers.Serializer):

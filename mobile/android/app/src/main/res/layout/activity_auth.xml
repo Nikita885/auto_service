@@ -120,6 +120,26 @@
             android:visibility="gone"
             tools:visibility="visible">
 
+            <!-- Обратный звонок: клиент звонит сам, кода нет. -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/call_number"
+                style="@style/Widget.AutoService.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                tools:text="Позвонить на +7 (909) 000-00-00" />
+
+            <TextView
+                android:id="@+id/call_wait"
+                style="@style/Text.Small"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space"
+                android:gravity="center"
+                android:text="@string/auth_call_wait"
+                android:textColor="@color/accent"
+                android:visibility="gone" />
+
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/code_layout"
                 style="@style/Widget.AutoService.TextInput"

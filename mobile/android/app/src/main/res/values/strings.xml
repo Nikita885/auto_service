@@ -5,7 +5,7 @@
 
     <!-- вход -->
     <string name="auth_title">Замена масла\nбез очереди</string>
-    <string name="auth_sub">Вход по номеру телефона. Пароль придумывать не нужно — мы позвоним, код — последние 4 цифры номера.</string>
+    <string name="auth_sub">Вход по номеру телефона, без пароля — подтвердим номер звонком.</string>
     <string name="auth_phone_hint">Телефон</string>
     <string name="auth_get_code">Получить код</string>
     <string name="auth_code_title">Введите код</string>
@@ -21,6 +21,14 @@
     <string name="auth_recall_in">Позвонить ещё раз через %1$d с</string>
     <string name="auth_sms">Звонок не приходит — получить код в SMS</string>
     <string name="auth_sms_in">Код в SMS — через %1$d с</string>
+    <string name="auth_call_title">Позвоните нам</string>
+    <string name="auth_call_sub">С номера %1$s позвоните на номер ниже. Звонок бесплатный — можно сбросить сразу, как пойдут гудки. Код вводить не нужно: мы узнаем вас по номеру.</string>
+    <string name="auth_call_button">Позвонить на %1$s</string>
+    <string name="auth_call_wait">Ждём ваш звонок…</string>
+    <string name="auth_call_failed">Не удалось подтвердить звонок. Получите новый номер и позвоните ещё раз.</string>
+    <string name="auth_new_number">Получить новый номер для звонка</string>
+    <string name="auth_new_number_in">Новый номер для звонка через %1$d с</string>
+    <string name="auth_sms_reverse">Не получается позвонить — код в SMS</string>
     <string name="auth_legal">Продолжая, вы соглашаетесь с обработкой персональных данных.</string>
     <string name="auth_debug_code">Код разработки: %1$s</string>
 

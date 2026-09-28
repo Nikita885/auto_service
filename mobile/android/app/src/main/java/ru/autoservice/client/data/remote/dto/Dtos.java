@@ -38,8 +38,25 @@ public final class Dtos {
         @SerializedName("channel") public String channel;
         /** Звонки не помогли — следующий код можно попросить в SMS. */
         @SerializedName("sms_available") public boolean smsAvailable;
+        /** reverse_call: номер, на который клиент звонит сам. */
+        @SerializedName("number_to_call") public String numberToCall;
+        /** reverse_call: секрет для опроса статуса звонка. */
+        @SerializedName("session") public String session;
         /** Приходит только при OTP_DEBUG_EXPOSE_CODE=True на сервере разработки. */
         @SerializedName("debug_code") public String debugCode;
+    }
+
+    /** Опрос обратного звонка. Ответ — TokenPair; пока ждём, access пуст (202). */
+    public static final class CallStatusBody {
+        @SerializedName("phone") public final String phone;
+        @SerializedName("session") public final String session;
+        @SerializedName("invite") public final String invite;
+
+        public CallStatusBody(String phone, String session, String invite) {
+            this.phone = phone;
+            this.session = session;
+            this.invite = invite;
+        }
     }
 
     public static final class OtpVerifyBody {

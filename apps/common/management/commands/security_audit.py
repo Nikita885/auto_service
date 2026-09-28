@@ -242,7 +242,7 @@ def _check_proxy_count() -> Finding:
 def _check_throttling() -> list[Finding]:
     rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
     found = []
-    for scope in ("otp_request", "otp_verify", "staff_login"):
+    for scope in ("otp_request", "otp_verify", "otp_poll", "staff_login"):
         rate = rates.get(scope)
         if rate:
             found.append(Finding(OK, f"throttle {scope}", rate))
@@ -299,7 +299,21 @@ def _check_sms() -> list[Finding]:
 
 
 def _check_calls() -> Finding:
-    """Код входа звонком — основной способ войти в приложение."""
+    """Вход звонком — основной способ войти в приложение."""
+    if settings.OTP["MODE"] == "verificahub":
+        conf = settings.VERIFICAHUB
+        if conf["API_KEY"] and conf["API_SECRET"]:
+            return Finding(
+                OK, "OTP_MODE", "verificahub — обратный звонок, запасное SMS у VerificaHub"
+            )
+        return Finding(
+            FAIL, "OTP_MODE",
+            "verificahub без VERIFICAHUB_API_KEY/SECRET — работает заглушка, "
+            "вход в приложение закрыт",
+        )
+    if settings.OTP["MODE"] != "smsru":
+        return Finding(FAIL, "OTP_MODE", f"неизвестный режим {settings.OTP['MODE']!r}")
+
     provider = settings.OTP["CALL_PROVIDER"]
     if provider == "console":
         return Finding(

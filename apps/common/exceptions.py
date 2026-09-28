@@ -83,6 +83,14 @@ class GoneError(DomainError):
     http_status = status.HTTP_410_GONE
 
 
+class UnavailableError(DomainError):
+    """Внешний шлюз не ответил или отказал: наша сторона исправна."""
+
+    code = "unavailable"
+    message = "Сервис временно недоступен"
+    http_status = status.HTTP_503_SERVICE_UNAVAILABLE
+
+
 class RateLimitError(DomainError):
     code = "rate_limited"
     message = "Слишком много запросов"

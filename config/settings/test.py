@@ -18,6 +18,7 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     "otp_request": "100000/hour",
     "otp_verify": "100000/hour",
     "staff_login": "100000/hour",
+    "otp_poll": "100000/hour",
     "booking_write": "100000/min",
     # Словарь заменяется целиком: забытая область роняет свою вьюху с
     # ImproperlyConfigured — так уже падала проверка кода приглашения.

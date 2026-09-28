@@ -1,6 +1,7 @@
 package ru.autoservice.client.ui.auth;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -144,6 +145,14 @@ public class AuthActivity extends AppCompatActivity {
 
         views.resend.setOnClickListener(v -> model.resend());
         views.requestSms.setOnClickListener(v -> model.requestSms());
+        // Набор номера, а не звонок: разрешение CALL_PHONE не нужно, и
+        // человек видит, куда звонит, прежде чем нажать «вызов».
+        views.callNumber.setOnClickListener(v -> {
+            String number = model.numberToCall().getValue();
+            if (number != null) {
+                startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + number)));
+            }
+        });
         views.changePhone.setOnClickListener(v -> model.editPhone());
 
         bindServerSettings();
@@ -213,7 +222,6 @@ public class AuthActivity extends AppCompatActivity {
             Ui.setVisible(views.stepPhone, !codeStep);
             Ui.setVisible(views.stepCode, codeStep);
 
-            views.title.setText(codeStep ? R.string.auth_code_title : R.string.auth_title);
             renderChannel();
 
             if (codeStep) {
@@ -222,6 +230,8 @@ public class AuthActivity extends AppCompatActivity {
         });
         model.byCall().observe(this, byCall -> renderChannel());
         model.smsAvailable().observe(this, available -> renderChannel());
+        model.numberToCall().observe(this, number -> renderChannel());
+        model.callEnded().observe(this, text -> renderChannel());
 
         model.busy().observe(this, busy -> {
             Ui.setVisible(views.progress, busy);
@@ -290,6 +300,17 @@ public class AuthActivity extends AppCompatActivity {
         boolean smsAvailable = Boolean.TRUE.equals(model.smsAvailable().getValue());
         Integer left = model.resendIn().getValue();
         boolean waiting = left != null && left > 0;
+        String number = model.numberToCall().getValue();
+
+        if (codeStep && number != null) {
+            renderReverseCall(number, smsAvailable, waiting, left);
+            return;
+        }
+        views.title.setText(codeStep ? R.string.auth_code_title : R.string.auth_title);
+        Ui.setVisible(views.codeLayout, true);
+        Ui.setVisible(views.signIn, true);
+        Ui.setVisible(views.callNumber, false);
+        Ui.setVisible(views.callWait, false);
 
         views.subtitle.setText(!codeStep
                 ? getString(R.string.auth_sub)
@@ -309,6 +330,50 @@ public class AuthActivity extends AppCompatActivity {
         views.requestSms.setEnabled(!waiting);
         views.requestSms.setText(waiting
                 ? getString(R.string.auth_sms_in, left) : getString(R.string.auth_sms));
+    }
+
+    /**
+     * Обратный звонок: кода нет — клиент звонит на показанный номер, а
+     * приложение само ждёт подтверждения (опрос во ViewModel).
+     */
+    private void renderReverseCall(@NonNull String number, boolean smsAvailable,
+                                   boolean waiting, @Nullable Integer left) {
+        views.title.setText(R.string.auth_call_title);
+        views.subtitle.setText(getString(R.string.auth_call_sub, model.phone()));
+        Ui.setVisible(views.codeLayout, false);
+        Ui.setVisible(views.signIn, false);
+        Ui.setVisible(views.debugCode, false);
+        Ui.setVisible(views.callNumber, true);
+        views.callNumber.setText(getString(R.string.auth_call_button, PhoneFormat.format(PhoneFormat.digitsOf(number))));
+
+        String ended = model.callEnded().getValue();
+        Ui.setVisible(views.callWait, true);
+        views.callWait.setText(ended != null ? ended : getString(R.string.auth_call_wait));
+        views.callWait.setTextColor(getColor(ended != null ? R.color.danger : R.color.accent));
+
+        views.resend.setEnabled(!waiting);
+        views.resend.setText(waiting
+                ? getString(R.string.auth_new_number_in, left) : getString(R.string.auth_new_number));
+        Ui.setVisible(views.requestSms, smsAvailable);
+        views.requestSms.setEnabled(!waiting);
+        views.requestSms.setText(waiting
+                ? getString(R.string.auth_sms_in, left) : getString(R.string.auth_sms_reverse));
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (model != null) {
+            model.onScreenVisible();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (model != null) {
+            model.onScreenHidden();
+        }
     }
 
     private void openOnboarding() {

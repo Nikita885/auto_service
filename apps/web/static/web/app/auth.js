@@ -28,6 +28,12 @@ export function Auth({ onSignedIn }) {
   // номера; sms — после двух неудачных звонков сервер разрешает SMS.
   const [channel, setChannel] = useState("call");
   const [smsAvailable, setSmsAvailable] = useState(false);
+  // Обратный звонок (OTP_MODE=verificahub): клиент сам звонит на этот
+  // номер, а мы спрашиваем сервер, дошёл ли звонок. `session` — секрет,
+  // без которого сервер статус не отдаст.
+  const [numberToCall, setNumberToCall] = useState("");
+  const [session, setSession] = useState("");
+  const [callEnded, setCallEnded] = useState("");
   const [pending, setPending] = useState(invite.get());
   const codeRef = useRef(null);
 
@@ -59,6 +65,9 @@ export function Auth({ onSignedIn }) {
     setCode("");
     setChannel(data.channel || "sms");
     setSmsAvailable(Boolean(data.sms_available));
+    setNumberToCall(data.number_to_call || "");
+    setSession(data.session || "");
+    setCallEnded("");
     setResendIn(data.resend_after_seconds || 60);
     // Код в ответе приходит только номерам из OTP_DEBUG_PHONES — это
     // временная замена SMS, пока шлюз не заработал.
@@ -70,6 +79,52 @@ export function Auth({ onSignedIn }) {
     }
   }
 
+  function signedIn(data) {
+    if (data.user.role !== "client") {
+      toast("Этот номер принадлежит сотруднику. Рабочее место мастера — на сайте, в разделе /master/.", "error");
+      return;
+    }
+    api.store.save(data.access, data.refresh);
+    reportInvite(data.invite);
+    onSignedIn(data.user, data.is_new_user);
+  }
+
+  /* Обратный звонок: раз в 2 секунды спрашиваем, дошёл ли звонок, и сразу
+     — когда приложение вернулось на экран из «Телефона». Сбой шлюза не
+     останавливает ожидание: следующий опрос спросит снова. */
+  useEffect(() => {
+    if (step !== "code" || channel !== "reverse_call" || !session || callEnded) return undefined;
+    let stopped = false;
+    let inFlight = false;
+
+    async function poll() {
+      if (stopped || inFlight) return;
+      inFlight = true;
+      try {
+        const data = await api.request("/auth/otp/call-status/", {
+          method: "POST", body: { phone, session, invite: invite.get() }, auth: false,
+        });
+        if (!stopped && data && data.access) { stopped = true; signedIn(data); }
+      } catch (err) {
+        if (err.code !== "otp_unavailable" && !stopped) {
+          stopped = true;
+          setCallEnded(errorText(err));
+        }
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    const timer = setInterval(poll, 2000);
+    const onVisible = () => { if (!document.hidden) poll(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [step, channel, session, callEnded]);
+
   async function verify() {
     if (code.trim().length < 4 || busy) return;
     setBusy("verify");
@@ -79,13 +134,7 @@ export function Auth({ onSignedIn }) {
       const data = await api.request("/auth/otp/verify/", {
         method: "POST", body: { phone, code: code.trim(), invite: invite.get() }, auth: false,
       });
-      if (data.user.role !== "client") {
-        toast("Этот номер принадлежит сотруднику. Рабочее место мастера — на сайте, в разделе /master/.", "error");
-        return;
-      }
-      api.store.save(data.access, data.refresh);
-      reportInvite(data.invite);
-      onSignedIn(data.user, data.is_new_user);
+      signedIn(data);
     } catch (err) {
       toast(errorText(err), "error");
     } finally {
@@ -103,7 +152,7 @@ export function Auth({ onSignedIn }) {
       ${step === "phone" ? html`
         <div>
           <h1>Замена масла<br /><span>без очереди</span></h1>
-          <p class="muted" style="margin-top:8px">Вход по номеру телефона. Пароль не нужен — мы позвоним, код — последние 4 цифры номера.</p>
+          <p class="muted" style="margin-top:8px">Вход по номеру телефона, без пароля — подтвердим номер звонком.</p>
         </div>
         <form class="stack" onSubmit=${(e) => { e.preventDefault(); requestCode(null); }}>
           <div class="field">
@@ -112,13 +161,38 @@ export function Auth({ onSignedIn }) {
               onInput=${(e) => setPhone(formatPhone(e.target.value))} />
           </div>
           <button class="btn btn-primary btn-block" type="submit" disabled=${!phoneComplete(phone) || busy}>
-            ${busy === "send" ? "Звоним…" : "Получить код"}
+            ${busy === "send" ? "Подождите…" : "Войти по номеру"}
           </button>
         </form>
         ${pending
           ? html`<p class="invite-note">Код приглашения <b>${pending}</b> применится автоматически при входе.</p>`
           : canScan() && html`<button class="btn btn-ghost btn-block" type="button" onClick=${scan}>
               Меня пригласили — сканировать QR-код</button>`}
+      ` : channel === "reverse_call" ? html`
+        <div>
+          <h1>Позвоните нам</h1>
+          <p class="muted" style="margin-top:8px">С номера ${phone} позвоните на номер ниже. Звонок бесплатный — можно сбросить сразу, как пойдут гудки. Код вводить не нужно: мы узнаем вас по номеру.</p>
+        </div>
+        <div class="stack">
+          <a class="btn btn-primary btn-block btn-lg" href=${"tel:" + numberToCall}>
+            Позвонить на ${formatPhone(numberToCall)}
+          </a>
+          ${callEnded
+            ? html`<p class="hint hint-error">${callEnded}</p>`
+            : html`<p class="hint call-wait" aria-live="polite"><span class="dot pulse"></span> Ждём ваш звонок…</p>`}
+          ${hint && html`<p class="hint">${hint}</p>`}
+          ${smsAvailable && html`
+            <button class="btn btn-block" type="button" disabled=${resendIn > 0 || busy} onClick=${() => requestCode("sms")}>
+              ${resendIn > 0 ? "Код в SMS — через " + resendIn + " с" : "Не получается позвонить — код в SMS"}
+            </button>`}
+          <button class="btn btn-ghost btn-block" type="button" disabled=${resendIn > 0 || busy}
+            onClick=${() => requestCode(null)}>
+            ${resendIn > 0 ? "Новый номер для звонка через " + resendIn + " с" : "Получить новый номер для звонка"}
+          </button>
+          <button class="btn btn-ghost btn-block" type="button" onClick=${() => { setStep("phone"); setSession(""); }}>
+            Изменить номер
+          </button>
+        </div>
       ` : html`
         <div>
           <h1>Введите код</h1>

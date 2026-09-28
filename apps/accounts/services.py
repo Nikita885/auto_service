@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import secrets
 from dataclasses import dataclass
@@ -23,8 +24,10 @@ from apps.accounts.constants import OtpChannel, UserRole
 from apps.accounts.models import OtpCode, User
 from apps.common.exceptions import (
     ConflictError,
+    GoneError,
     PermissionError_,
     RateLimitError,
+    UnavailableError,
     ValidationError,
 )
 from apps.common.phone import mask_phone, normalize_phone
@@ -41,6 +44,10 @@ class OtpChallenge:
     channel: str = "call"
     #: Можно ли следующий код попросить в SMS: звонки не помогли.
     sms_available: bool = False
+    #: Обратный звонок: номер, на который клиент звонит сам.
+    number_to_call: str | None = None
+    #: Обратный звонок: секрет для опроса статуса (см. `check_call`).
+    session: str | None = None
     debug_code: str | None = None
 
 
@@ -124,36 +131,39 @@ def request_otp(
             details={"retry_after": conf["RESEND_COOLDOWN_SECONDS"]},
         )
     try:
-        code = None
-        if channel == OtpChannel.CALL:
-            code = _place_call(phone, ip)
-            if code is None:
-                channel = OtpChannel.SMS
-        if code is None:
-            code = _generate_code()
+        if conf["MODE"] == "verificahub":
+            started = _start_verificahub(phone, channel)
+        else:
+            started = _start_smsru(phone, ip, channel)
+        channel = started["channel"]
 
+        session = secrets.token_urlsafe(24) if channel == OtpChannel.REVERSE_CALL else None
         expires_at = timezone.now() + timedelta(seconds=conf["TTL_SECONDS"])
         with transaction.atomic():
             # Предыдущие коды гасим: рабочим остаётся только последний.
             OtpCode.objects.for_phone(phone).active().update(expires_at=timezone.now())
             OtpCode.objects.create(
                 phone=phone,
-                code_hash=make_password(code),
+                # Код, который знает только шлюз, у нас не хранится вовсе:
+                # хеш «ничего» не совпадёт ни с одним введённым кодом.
+                code_hash=make_password(started["code"]),
                 expires_at=expires_at,
                 request_ip=ip,
                 channel=channel,
+                provider_request_id=started["request_id"],
+                session_hash=_session_hash(session) if session else "",
             )
-            if channel == OtpChannel.SMS:
+            if channel == OtpChannel.SMS and started["request_id"] == "":
                 from apps.notifications.services import send_otp_sms
 
-                send_otp_sms(phone=phone, code=code)
+                send_otp_sms(phone=phone, code=started["code"])
     finally:
         cache.delete(lock)
 
     # Телефон в логах маскируем: это персональные данные, а лог живёт
     # дольше и доступен шире, чем база.
     logger.info("OTP выдан для %s: %s", mask_phone(phone), channel)
-    if channel == OtpChannel.CALL:
+    if channel in CALL_CHANNELS:
         calls += 1
 
     return OtpChallenge(
@@ -162,8 +172,86 @@ def request_otp(
         resend_after_seconds=conf["RESEND_COOLDOWN_SECONDS"],
         channel=channel,
         sms_available=calls >= conf["CALLS_BEFORE_SMS"],
-        debug_code=code if _may_expose_code(phone, conf) else None,
+        number_to_call=started.get("number_to_call"),
+        session=session,
+        debug_code=started["debug_code"] if _may_expose_code(phone, conf) else None,
     )
+
+
+#: Попытки звонком — после скольких из них без входа предлагается SMS.
+CALL_CHANNELS = (OtpChannel.CALL, OtpChannel.REVERSE_CALL)
+
+
+def _start_smsru(phone: str, ip: str | None, channel: str) -> dict:
+    """Режим smsru: звонок с кодом, запасное SMS — через SMS.RU."""
+    code = None
+    if channel == OtpChannel.CALL:
+        code = _place_call(phone, ip)
+        if code is None:
+            channel = OtpChannel.SMS
+    if code is None:
+        code = _generate_code()
+    return {"channel": channel, "code": code, "request_id": "", "debug_code": code}
+
+
+def _start_verificahub(phone: str, channel: str) -> dict:
+    """Режим verificahub: клиент сам звонит на выданный номер, запасное SMS
+    — тоже у VerificaHub. Кода мы не знаем ни в том, ни в другом случае.
+
+    Шлюз не принял обратный звонок — сразу SMS, как и в режиме smsru.
+    Не принял и SMS — вход сейчас невозможен, и честнее так и сказать.
+    """
+    from apps.notifications.providers import SmsDeliveryError, SmsRejectedError
+    from apps.notifications.providers import verificahub as vh
+    from apps.notifications.services import journal_verification
+
+    gateway = vh.get_verificahub()
+    ttl = settings.OTP["TTL_SECONDS"]
+
+    if channel != OtpChannel.SMS:
+        try:
+            started = gateway.start(phone, vh.REVERSE_CALL, ttl)
+        except (SmsDeliveryError, SmsRejectedError) as exc:
+            journal_verification(phone=phone, channel="call", error=str(exc))
+            logger.warning(
+                "Обратный звонок для %s не создан (%s) — отправляем SMS", mask_phone(phone), exc
+            )
+        else:
+            journal_verification(
+                phone=phone, channel="call", request_id=started.request_id,
+                text=f"Обратный звонок на {started.number_to_call}, {started.cost}",
+            )
+            return {
+                "channel": OtpChannel.REVERSE_CALL, "code": None,
+                "request_id": started.request_id, "number_to_call": started.number_to_call,
+                "debug_code": None,
+            }
+
+    try:
+        started = gateway.start(phone, vh.SMS, ttl)
+    except (SmsDeliveryError, SmsRejectedError) as exc:
+        journal_verification(phone=phone, channel="sms", error=str(exc))
+        raise UnavailableError(
+            "Не получилось отправить код. Попробуйте через минуту.", code="otp_unavailable"
+        ) from exc
+    journal_verification(
+        phone=phone, channel="sms", request_id=started.request_id,
+        text=f"SMS с кодом входа ****, {started.cost}",
+    )
+    debug = getattr(gateway, "console_code", None)
+    return {
+        "channel": OtpChannel.SMS, "code": None, "request_id": started.request_id,
+        "debug_code": debug(started.request_id) if debug else None,
+    }
+
+
+def _session_hash(session: str) -> str:
+    """Сессия — 24 случайных байта, перебирать её незачем: хватает sha256.
+
+    Медленный хеш, как у кодов, тут только мешал бы — приложение опрашивает
+    статус раз в две секунды.
+    """
+    return hashlib.sha256(session.encode()).hexdigest()
 
 
 def _place_call(phone: str, ip: str | None) -> str | None:
@@ -199,7 +287,7 @@ def _unsuccessful_calls(phone: str, now) -> int:
         since = last_login
     return (
         OtpCode.objects.for_phone(phone)
-        .filter(channel=OtpChannel.CALL, created_at__gt=since)
+        .filter(channel__in=CALL_CHANNELS, created_at__gt=since)
         .count()
     )
 
@@ -267,6 +355,11 @@ def verify_otp(raw_phone: str, code: str, *, invite: str = "") -> AuthResult:
         raise ValidationError(
             "Код не найден или истёк. Запросите новый.", code="otp_not_found"
         )
+    if otp.channel == OtpChannel.REVERSE_CALL:
+        raise ValidationError(
+            "Код вводить не нужно — позвоните на номер, который показан на экране",
+            code="otp_call_required",
+        )
 
     # Попытку занимаем до сверки кода, одним условным UPDATE. Прочитать
     # счётчик и потом увеличить его нельзя: параллельные запросы видят один
@@ -285,7 +378,7 @@ def verify_otp(raw_phone: str, code: str, *, invite: str = "") -> AuthResult:
             code="otp_attempts_exceeded",
         )
 
-    if not check_password(code, otp.code_hash):
+    if not _code_matches(otp, code):
         used = OtpCode.objects.filter(pk=otp.pk).values_list("attempts", flat=True).get()
         attempts_left = max(conf["MAX_VERIFY_ATTEMPTS"] - used, 0)
         raise ValidationError(
@@ -294,6 +387,76 @@ def verify_otp(raw_phone: str, code: str, *, invite: str = "") -> AuthResult:
             details={"attempts_left": attempts_left},
         )
 
+    return _sign_in(otp, phone, invite)
+
+
+def _code_matches(otp: OtpCode, code: str) -> bool:
+    """Сверить код: свой — по хешу, код шлюза — у самого шлюза."""
+    if not otp.provider_request_id:
+        return check_password(code, otp.code_hash)
+
+    from apps.notifications.providers import SmsDeliveryError, SmsRejectedError
+    from apps.notifications.providers.verificahub import get_verificahub
+
+    try:
+        return get_verificahub().check(otp.provider_request_id, code)
+    except (SmsDeliveryError, SmsRejectedError) as exc:
+        logger.warning("VerificaHub не проверил код для %s: %s", mask_phone(otp.phone), exc)
+        raise UnavailableError(
+            "Не получилось проверить код. Попробуйте ещё раз.", code="otp_unavailable"
+        ) from exc
+
+
+def check_call(raw_phone: str, session: str, *, invite: str = "") -> AuthResult | None:
+    """Обратный звонок: позвонил ли клиент. None — ещё ждём звонка.
+
+    Приложение спрашивает раз в пару секунд, пока клиент звонит. Спросить
+    может только тот, кто запрашивал вход: без сессии из ответа на запрос
+    кода статус не отдаётся — иначе чужой, знающий номер, вошёл бы в
+    аккаунт в тот момент, когда звонит его хозяин.
+    """
+    from apps.notifications.providers import SmsDeliveryError, SmsRejectedError
+    from apps.notifications.providers import verificahub as vh
+
+    phone = normalize_phone(raw_phone)
+    _refuse_staff(phone)
+
+    otp = (
+        OtpCode.objects.for_phone(phone).active()
+        .filter(channel=OtpChannel.REVERSE_CALL)
+        .order_by("-created_at").first()
+    )
+    if otp is None or not secrets.compare_digest(otp.session_hash, _session_hash(session or "")):
+        raise ValidationError(
+            "Звонок не найден или время вышло. Запросите вход заново.", code="otp_not_found"
+        )
+
+    try:
+        status = vh.get_verificahub().status(otp.provider_request_id)
+    except (SmsDeliveryError, SmsRejectedError) as exc:
+        logger.warning("VerificaHub не отдал статус для %s: %s", mask_phone(phone), exc)
+        raise UnavailableError(
+            "Не получилось проверить звонок. Попробуем ещё раз.", code="otp_unavailable"
+        ) from exc
+
+    if status.status == vh.VERIFIED:
+        return _sign_in(otp, phone, invite)
+    if status.status in vh.PENDING:
+        return None
+
+    # Сессия у шлюза закончилась — гасим и у себя, дальше только новый запрос.
+    OtpCode.objects.filter(pk=otp.pk).update(expires_at=timezone.now())
+    if status.status == "expired":
+        raise GoneError("Время на звонок вышло. Запросите вход заново.", code="otp_expired")
+    raise ValidationError(
+        "Не удалось подтвердить звонок. Запросите вход заново.",
+        code="otp_call_failed",
+        details={"reason": status.failure_reason or status.status},
+    )
+
+
+def _sign_in(otp: OtpCode, phone: str, invite: str) -> AuthResult:
+    """Код подтверждён — погасить его и войти. Нет аккаунта — создать."""
     with transaction.atomic():
         updated = OtpCode.objects.filter(pk=otp.pk, used_at__isnull=True).update(
             used_at=timezone.now()

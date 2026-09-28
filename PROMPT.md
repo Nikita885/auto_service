@@ -75,7 +75,10 @@ API обслуживает два мобильных приложения:
 
 - Вход по телефону без пароля: код звонком через SMS.RU `/code/call`
   (`OTP_CALL_PROVIDER`), после `OTP_CALLS_BEFORE_SMS` звонков — SMS;
-  шлюз звонков отказал — SMS сразу. Сотрудники — по паролю
+  шлюз звонков отказал — SMS сразу. Второй режим `OTP_MODE=verificahub`:
+  клиент сам звонит на показанный номер (обратный flash-call VerificaHub),
+  приложение опрашивает `/auth/otp/call-status/` по секретной сессии,
+  запасное SMS — тоже VerificaHub. Сотрудники — по паролю
   (`/auth/staff/login/`), вход кодом на их номера закрыт, иначе пароль
   обходился бы звонком. Нормализация телефона в E.164.
   Код хранится только хешем. Лимиты: пауза 60 сек между отправками, 5 кодов на
@@ -451,6 +454,9 @@ OTP_MAX_VERIFY_ATTEMPTS=5
 OTP_MAX_PER_PHONE_PER_HOUR=5
 OTP_DEBUG_EXPOSE_CODE=True           # в проде принудительно False
 OTP_DEBUG_PHONES=                    # ВРЕМЕННО: кому отдавать код в ответе API
+OTP_MODE=smsru                       # verificahub — клиент сам звонит (обратный flash-call)
+VERIFICAHUB_API_KEY=                 # ключи VerificaHub для OTP_MODE=verificahub
+VERIFICAHUB_API_SECRET=
 OTP_CALL_PROVIDER=console            # smsru — звонок с кодом, ключ SMS_API_KEY
 OTP_CALLS_BEFORE_SMS=2               # звонков без входа до предложения SMS
 STAFF_LOGIN_MAX_FAILURES=5           # неверных паролей сотрудника до блокировки

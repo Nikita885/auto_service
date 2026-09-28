@@ -100,6 +100,28 @@ def call_otp(*, phone: str, ip: str | None) -> str:
     return placed.code
 
 
+def journal_verification(
+    *, phone: str, channel: str, request_id: str = "", text: str = "", error: str = ""
+) -> Notification:
+    """Запись в журнал о подтверждении номера через внешний шлюз (VerificaHub).
+
+    Код знает только шлюз, поэтому в журнале его нет и быть не может;
+    строка нужна, чтобы расходы на вход считались по журналу, как у SMS.
+    """
+    from django.utils import timezone
+
+    return Notification.objects.create(
+        phone=phone,
+        kind=NotificationKind.OTP,
+        channel=NotificationChannel.CALL if channel == "call" else NotificationChannel.SMS,
+        text=text or ("Подтверждение номера" if not error else "Подтверждение номера не создано"),
+        status=NotificationStatus.FAILED if error else NotificationStatus.SENT,
+        provider_message_id=request_id,
+        error=error[:1000],
+        sent_at=None if error else timezone.now(),
+    )
+
+
 def _booking_notification(booking, kind: str, text: str) -> Notification:
     notification = Notification.objects.create(
         user=booking.user,

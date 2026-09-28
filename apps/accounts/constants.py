@@ -12,5 +12,7 @@ class OtpChannel(models.TextChoices):
 
     #: Звонок, код — последние цифры номера, с которого звонят. По умолчанию.
     CALL = "call", "Звонок"
+    #: Клиент сам звонит на выданный номер (VerificaHub), кода нет.
+    REVERSE_CALL = "reverse_call", "Обратный звонок"
     #: SMS — когда звонки не помогли (см. OTP_CALLS_BEFORE_SMS).
     SMS = "sms", "SMS"

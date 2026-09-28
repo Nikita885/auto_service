@@ -97,8 +97,16 @@ class OtpCode(UUIDModel, TimeStampedModel):
     attempts = models.PositiveSmallIntegerField("попыток ввода", default=0)
     request_ip = models.GenericIPAddressField("IP запроса", null=True, blank=True)
     channel = models.CharField(
-        "канал", max_length=8, choices=OtpChannel.choices, default=OtpChannel.SMS
+        "канал", max_length=16, choices=OtpChannel.choices, default=OtpChannel.SMS
     )
+    # Сессия у внешнего шлюза (VerificaHub): код знает только он, мы храним
+    # ссылку на проверку. Пусто — код наш, его хеш в code_hash.
+    provider_request_id = models.CharField("id у шлюза", max_length=64, blank=True)
+    # Обратный звонок кода не имеет — секретом служит сессия, выданная
+    # приложению при запросе. Без неё статус звонка мог бы опросить кто
+    # угодно, знающий номер, и войти в момент, когда звонит хозяин номера.
+    # Храним хеш, как и код.
+    session_hash = models.CharField("хеш сессии", max_length=64, blank=True)
 
     objects = OtpCodeQuerySet.as_manager()
 

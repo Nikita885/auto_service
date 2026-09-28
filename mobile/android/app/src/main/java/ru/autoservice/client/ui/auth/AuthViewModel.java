@@ -2,6 +2,8 @@ package ru.autoservice.client.ui.auth;
 
 import android.app.Application;
 import android.os.CountDownTimer;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -39,6 +41,21 @@ public class AuthViewModel extends AndroidViewModel {
     private final MutableLiveData<Boolean> byCall = new MutableLiveData<>(true);
     /** Сервер разрешил попросить код в SMS: звонки не помогли. */
     private final MutableLiveData<Boolean> smsAvailable = new MutableLiveData<>(false);
+    /**
+     * Обратный звонок (OTP_MODE=verificahub): номер, на который клиент
+     * звонит сам. null — код придёт звонком или в SMS.
+     */
+    private final MutableLiveData<String> numberToCall = new MutableLiveData<>(null);
+    /** Обратный звонок закончился неудачей — текст для экрана, опрос остановлен. */
+    private final MutableLiveData<String> callEnded = new MutableLiveData<>(null);
+
+    /** Опрос статуса обратного звонка: раз в 2 секунды, пока экран виден. */
+    private static final long POLL_MS = 2000L;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable pollTask = this::poll;
+    @Nullable private String session;
+    private boolean visible;
+    private boolean polling;
     private final Event.Bus<ApiError> errors = new Event.Bus<>();
     private final Event.Bus<Models.User> signedIn = new Event.Bus<>();
 
@@ -60,6 +77,8 @@ public class AuthViewModel extends AndroidViewModel {
     public LiveData<String> debugCode() { return debugCode; }
     public LiveData<Boolean> byCall() { return byCall; }
     public LiveData<Boolean> smsAvailable() { return smsAvailable; }
+    public LiveData<String> numberToCall() { return numberToCall; }
+    public LiveData<String> callEnded() { return callEnded; }
     public LiveData<Event<ApiError>> errors() { return errors.asLiveData(); }
     public LiveData<Event<Models.User>> signedIn() { return signedIn.asLiveData(); }
 
@@ -107,11 +126,15 @@ public class AuthViewModel extends AndroidViewModel {
                 return;
             }
             phone = result.value().phone();
+            session = result.value().session();
+            callEnded.setValue(null);
+            numberToCall.setValue(result.value().numberToCall());
             byCall.setValue(result.value().byCall());
             smsAvailable.setValue(result.value().smsAvailable());
             debugCode.setValue(result.value().debugCode());
             step.setValue(Step.CODE);
             startResendCountdown(result.value().resendAfterSeconds());
+            schedulePoll(POLL_MS);
         });
     }
 
@@ -130,8 +153,69 @@ public class AuthViewModel extends AndroidViewModel {
         });
     }
 
+    /**
+     * Экран снова виден — например, клиент вернулся из «Телефона» после
+     * звонка. Спрашиваем сразу, не дожидаясь очередного тика.
+     */
+    public void onScreenVisible() {
+        visible = true;
+        schedulePoll(0);
+    }
+
+    public void onScreenHidden() {
+        visible = false;
+        handler.removeCallbacks(pollTask);
+    }
+
+    private void schedulePoll(long delayMs) {
+        handler.removeCallbacks(pollTask);
+        if (session != null && visible) {
+            handler.postDelayed(pollTask, delayMs);
+        }
+    }
+
+    /**
+     * Дозвонился ли клиент. Сбой связи или шлюза ожидание не прерывает —
+     * спросим снова; отказ сервера (время вышло, звонок не подтверждён)
+     * останавливает опрос: дальше только новый запрос.
+     */
+    private void poll() {
+        String current = session;
+        if (current == null || !visible || polling) {
+            return;
+        }
+        polling = true;
+        repository.checkCall(phone, current, result -> {
+            polling = false;
+            if (!current.equals(session)) {
+                return; // клиент уже запросил новый номер или ушёл со шага
+            }
+            if (result.isSuccess()) {
+                if (result.value() != null) {
+                    session = null;
+                    signedIn.post(result.value());
+                    return;
+                }
+            } else if (!isTransient(result.error())) {
+                session = null;
+                String message = result.error().message();
+                callEnded.setValue(message.isEmpty()
+                        ? getApplication().getString(R.string.auth_call_failed) : message);
+                return;
+            }
+            schedulePoll(POLL_MS);
+        });
+    }
+
+    private static boolean isTransient(@NonNull ApiError error) {
+        return error.httpStatus() == 0 || error.httpStatus() >= 500
+                || "otp_unavailable".equals(error.code());
+    }
+
     /** Вернуться к вводу номера. */
     public void editPhone() {
+        session = null;
+        handler.removeCallbacks(pollTask);
         stopResendCountdown();
         debugCode.setValue(null);
         step.setValue(Step.PHONE);
@@ -146,6 +230,7 @@ public class AuthViewModel extends AndroidViewModel {
         // SMS повторяем, только если сервер его разрешил; иначе (SMS ушло
         // вместо сорвавшегося звонка) снова пробуем звонок.
         boolean sms = Boolean.FALSE.equals(byCall.getValue())
+                && numberToCall.getValue() == null
                 && Boolean.TRUE.equals(smsAvailable.getValue());
         request(phone, sms);
     }
@@ -185,6 +270,7 @@ public class AuthViewModel extends AndroidViewModel {
 
     @Override
     protected void onCleared() {
+        handler.removeCallbacks(pollTask);
         stopResendCountdown();
         super.onCleared();
     }

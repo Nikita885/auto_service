@@ -25,6 +25,10 @@ public interface ApiService {
     @POST("api/v1/auth/otp/verify/")
     Call<Dtos.TokenPair> verifyOtp(@Body Dtos.OtpVerifyBody body);
 
+    /** 202 — звонка ещё нет (access пуст), 200 — вошли. */
+    @POST("api/v1/auth/otp/call-status/")
+    Call<Dtos.TokenPair> callStatus(@Body Dtos.CallStatusBody body);
+
     @POST("api/v1/auth/token/refresh/")
     Call<Dtos.RefreshResponse> refreshToken(@Body Dtos.RefreshBody body);
 

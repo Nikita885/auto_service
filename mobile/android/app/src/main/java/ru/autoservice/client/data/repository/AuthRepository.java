@@ -39,16 +39,30 @@ public final class AuthRepository {
         private final int resendAfterSeconds;
         private final boolean byCall;
         private final boolean smsAvailable;
+        @Nullable private final String numberToCall;
+        @Nullable private final String session;
         @Nullable private final String debugCode;
 
         OtpRequested(String phone, int resendAfterSeconds, boolean byCall, boolean smsAvailable,
+                     @Nullable String numberToCall, @Nullable String session,
                      @Nullable String debugCode) {
             this.phone = phone;
             this.resendAfterSeconds = resendAfterSeconds;
             this.byCall = byCall;
             this.smsAvailable = smsAvailable;
+            this.numberToCall = numberToCall;
+            this.session = session;
             this.debugCode = debugCode;
         }
+
+        /**
+         * Обратный звонок: клиент сам звонит на этот номер, код не нужен.
+         * null — код придёт звонком или в SMS.
+         */
+        @Nullable public String numberToCall() { return numberToCall; }
+
+        /** Секрет для опроса статуса обратного звонка. */
+        @Nullable public String session() { return session; }
 
         public String phone() { return phone; }
         public int resendAfterSeconds() { return resendAfterSeconds; }
@@ -75,7 +89,9 @@ public final class AuthRepository {
                 api.requestOtp(new Dtos.OtpRequestBody(phone, sms ? "sms" : null)),
                 // Сервер постарше канала не присылает — тогда это SMS.
                 dto -> new OtpRequested(dto.phone, dto.resendAfterSeconds,
-                        "call".equals(dto.channel), dto.smsAvailable, dto.debugCode),
+                        "call".equals(dto.channel), dto.smsAvailable,
+                        "reverse_call".equals(dto.channel) ? dto.numberToCall : null,
+                        dto.session, dto.debugCode),
                 callback);
     }
 
@@ -92,19 +108,46 @@ public final class AuthRepository {
                 callback.onResult(Result.failure(result.error()));
                 return;
             }
-            Dtos.TokenPair pair = result.value();
-            storage.saveTokens(pair.access, pair.refresh);
-            storage.savePhone(phone);
-            if (pair.invite != null) {
-                invites.clear();
-                boolean attached = "attached".equals(pair.invite.status);
-                // «Уже принято» — не новость для человека, молчим.
-                if (attached || !"referral_already_attached".equals(pair.invite.code)) {
-                    invites.saveOutcome(attached, pair.invite.inviterName, pair.invite.message);
-                }
-            }
-            callback.onResult(Result.success(DtoMapper.user(pair.user)));
+            callback.onResult(Result.success(signedIn(phone, result.value())));
         });
+    }
+
+    /**
+     * Обратный звонок: дозвонился ли клиент. Успех с null — ещё ждём
+     * (сервер ответил 202), с пользователем — вошли, токены сохранены.
+     */
+    public void checkCall(@NonNull String rawPhone, @NonNull String session,
+                          @NonNull Result.Callback<Models.User> callback) {
+        String phone = Formats.normalizePhone(rawPhone);
+        String invite = invites.pending();
+        Calls.enqueue(api.callStatus(new Dtos.CallStatusBody(phone, session, invite == null ? "" : invite)), result -> {
+            if (!result.isSuccess()) {
+                callback.onResult(Result.failure(result.error()));
+                return;
+            }
+            Dtos.TokenPair pair = result.value();
+            if (pair == null || pair.access == null) {
+                callback.onResult(Result.success(null));
+                return;
+            }
+            callback.onResult(Result.success(signedIn(phone, pair)));
+        });
+    }
+
+    /** Вход состоялся: сохранить токены и итог приглашения — одно место на все способы. */
+    @NonNull
+    private Models.User signedIn(@NonNull String phone, @NonNull Dtos.TokenPair pair) {
+        storage.saveTokens(pair.access, pair.refresh);
+        storage.savePhone(phone);
+        if (pair.invite != null) {
+            invites.clear();
+            boolean attached = "attached".equals(pair.invite.status);
+            // «Уже принято» — не новость для человека, молчим.
+            if (attached || !"referral_already_attached".equals(pair.invite.code)) {
+                invites.saveOutcome(attached, pair.invite.inviterName, pair.invite.message);
+            }
+        }
+        return DtoMapper.user(pair.user);
     }
 
     public void me(@NonNull Result.Callback<Models.User> callback) {

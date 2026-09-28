@@ -10,6 +10,8 @@ from rest_framework.views import APIView
 from apps.accounts import services
 from apps.accounts.serializers import (
     AuthResponseSerializer,
+    CallPendingSerializer,
+    CallStatusSerializer,
     OtpRequestResponseSerializer,
     OtpRequestSerializer,
     OtpVerifySerializer,
@@ -18,6 +20,17 @@ from apps.accounts.serializers import (
     UserSerializer,
 )
 from apps.common.net import client_ip
+
+
+def _auth_payload(result) -> dict:
+    """Ответ успешного входа — один на код, звонок и пароль сотрудника."""
+    return {
+        "access": result.access,
+        "refresh": result.refresh,
+        "is_new_user": result.is_new_user,
+        "user": UserSerializer(result.user).data,
+        "invite": result.invite,
+    }
 
 
 class OtpRequestView(APIView):
@@ -51,6 +64,36 @@ class OtpRequestView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+class OtpCallStatusView(APIView):
+    """Обратный звонок: позвонил ли клиент. Приложение спрашивает раз в 2 с."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = "otp_poll"
+
+    @extend_schema(
+        request=CallStatusSerializer,
+        responses={200: AuthResponseSerializer, 202: CallPendingSerializer},
+        summary="Статус обратного звонка (OTP_MODE=verificahub)",
+        description=(
+            "202 {status: pending} — звонка ещё нет, спросите снова через 2 с. "
+            "200 — номер подтверждён, в ответе токены, как у otp/verify. "
+            "410 otp_expired / 400 otp_call_failed — начните вход заново."
+        ),
+        auth=[],
+    )
+    def post(self, request: Request) -> Response:
+        payload = CallStatusSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        result = services.check_call(
+            payload.validated_data["phone"],
+            payload.validated_data["session"],
+            invite=payload.validated_data.get("invite", ""),
+        )
+        if result is None:
+            return Response({"status": "pending"}, status=status.HTTP_202_ACCEPTED)
+        return Response(_auth_payload(result))
+
+
 class OtpVerifyView(APIView):
     permission_classes = [AllowAny]
     throttle_scope = "otp_verify"
@@ -74,16 +117,7 @@ class OtpVerifyView(APIView):
             payload.validated_data["code"],
             invite=payload.validated_data.get("invite", ""),
         )
-        return Response(
-            {
-                "access": result.access,
-                "refresh": result.refresh,
-                "is_new_user": result.is_new_user,
-                "user": UserSerializer(result.user).data,
-                "invite": result.invite,
-            },
-            status=status.HTTP_200_OK,
-        )
+        return Response(_auth_payload(result), status=status.HTTP_200_OK)
 
 
 class StaffLoginView(APIView):
@@ -105,15 +139,7 @@ class StaffLoginView(APIView):
         result = services.staff_login(
             payload.validated_data["phone"], payload.validated_data["password"]
         )
-        return Response(
-            {
-                "access": result.access,
-                "refresh": result.refresh,
-                "is_new_user": False,
-                "user": UserSerializer(result.user).data,
-                "invite": None,
-            }
-        )
+        return Response(_auth_payload(result))
 
 
 class MeView(APIView):

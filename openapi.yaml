@@ -45,6 +45,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
           description: ''
+  /api/v1/auth/otp/call-status/:
+    post:
+      operationId: auth_otp_call_status_create
+      description: '202 {status: pending} — звонка ещё нет, спросите снова через 2
+        с. 200 — номер подтверждён, в ответе токены, как у otp/verify. 410 otp_expired
+        / 400 otp_call_failed — начните вход заново.'
+      summary: Статус обратного звонка (OTP_MODE=verificahub)
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CallStatusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CallStatusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CallStatusRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallPending'
+          description: ''
   /api/v1/auth/otp/request/:
     post:
       operationId: auth_otp_request_create
@@ -1874,6 +1908,35 @@ components:
       - created_at
       - id
       - to_status
+    CallPending:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/CallPendingStatusEnum'
+      required:
+      - status
+    CallPendingStatusEnum:
+      enum:
+      - pending
+      type: string
+      description: '* `pending` - pending'
+    CallStatusRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 20
+        session:
+          type: string
+          minLength: 1
+          maxLength: 64
+        invite:
+          type: string
+          maxLength: 16
+      required:
+      - phone
+      - session
     CancelRequest:
       type: object
       properties:
@@ -1916,14 +1979,6 @@ components:
       - make_name
       - name
       - title
-    ChannelEnum:
-      enum:
-      - call
-      - sms
-      type: string
-      description: |-
-        * `call` - call
-        * `sms` - sms
     ClientLookup:
       type: object
       description: 'Кто стоит за номером: подставить имя и машину в окно записи.'
@@ -3112,6 +3167,14 @@ components:
         * `synthetic` - Синтетическое
         * `semi_synthetic` - Полусинтетическое
         * `mineral` - Минеральное
+    OtpRequestChannelEnum:
+      enum:
+      - call
+      - sms
+      type: string
+      description: |-
+        * `call` - call
+        * `sms` - sms
     OtpRequestRequest:
       type: object
       properties:
@@ -3128,7 +3191,7 @@ components:
             * `call` - call
             * `sms` - sms
           oneOf:
-          - $ref: '#/components/schemas/ChannelEnum'
+          - $ref: '#/components/schemas/OtpRequestChannelEnum'
           - $ref: '#/components/schemas/NullEnum'
       required:
       - phone
@@ -3144,15 +3207,25 @@ components:
           type: integer
         channel:
           allOf:
-          - $ref: '#/components/schemas/ChannelEnum'
+          - $ref: '#/components/schemas/OtpRequestResponseChannelEnum'
           description: |-
-            call — позвоним, код — последние 4 цифры входящего номера; sms — код в SMS
+            call — позвоним, код — последние 4 цифры входящего номера; reverse_call — клиент сам звонит на number_to_call, код не нужен, статус — POST /auth/otp/call-status/ с session; sms — код в SMS
 
             * `call` - call
+            * `reverse_call` - reverse_call
             * `sms` - sms
         sms_available:
           type: boolean
           description: 'Следующий код можно попросить в SMS: звонки не помогли'
+        number_to_call:
+          type: string
+          nullable: true
+          description: 'reverse_call: номер, на который звонит клиент'
+        session:
+          type: string
+          nullable: true
+          description: 'reverse_call: секрет для опроса статуса звонка, храните до
+            входа'
         debug_code:
           type: string
           nullable: true
@@ -3160,9 +3233,21 @@ components:
       required:
       - channel
       - expires_at
+      - number_to_call
       - phone
       - resend_after_seconds
+      - session
       - sms_available
+    OtpRequestResponseChannelEnum:
+      enum:
+      - call
+      - reverse_call
+      - sms
+      type: string
+      description: |-
+        * `call` - call
+        * `reverse_call` - reverse_call
+        * `sms` - sms
     OtpVerifyRequest:
       type: object
       properties:
