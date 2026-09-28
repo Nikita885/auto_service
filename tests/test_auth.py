@@ -95,24 +95,29 @@ def test_parallel_guesses_do_not_exceed_attempt_limit(settings, monkeypatch):
 
     settings.OTP = {**settings.OTP, "MAX_VERIFY_ATTEMPTS": 3}
     services.request_otp("+79001112233")
+    lock = threading.Lock()
 
     real_check = services.check_password
+    compared: list[str] = []
 
     def slow_check(raw, encoded):
+        with lock:
+            compared.append(raw)
         time_module.sleep(0.2)
         return real_check(raw, encoded)
 
     monkeypatch.setattr(services, "check_password", slow_check)
 
     outcomes: list[str] = []
-    lock = threading.Lock()
 
     def guess(n: int) -> None:
         try:
             services.verify_otp("+79001112233", f"{n:04d}")
             result = "ok"
-        except ValidationError:
-            result = "invalid"
+        except ValidationError as exc:
+            # otp_not_found — поток пришёл, когда лимит уже погасил код: это
+            # отказ, а не сверка кода.
+            result = "invalid" if exc.code == "otp_invalid" else "limited"
         except RateLimitError:
             result = "limited"
         except Exception as exc:  # noqa: BLE001 — в потоке исключение иначе теряется
@@ -131,9 +136,12 @@ def test_parallel_guesses_do_not_exceed_attempt_limit(settings, monkeypatch):
         thread.join()
 
     assert len(outcomes) == 8, outcomes
-    checked = outcomes.count("invalid") + outcomes.count("ok")
-    assert checked == 3
-    assert outcomes.count("limited") == 5
+    # Главное — сколько раз код реально сверили: не больше лимита. Считать
+    # по ответам нельзя: поток, пришедший после погашения кода, получает
+    # «код не найден» — тот же класс ошибки, что «неверный код».
+    assert len(compared) == 3, compared
+    assert outcomes.count("invalid") + outcomes.count("ok") == 3, outcomes
+    assert outcomes.count("limited") == 5, outcomes
     assert OtpCode.objects.get().attempts == 3
 
 
