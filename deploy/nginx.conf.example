@@ -9,10 +9,12 @@
 # него. Так у страницы один канонический адрес — иначе поисковики видят один и
 # тот же контент на пяти адресах и делят между ними вес.
 #
-# Основной — moi-servis.ru. Прежние домены — moiservis.pro и «Экспресс Замена»
-# (ekspres-zamena.ru, экспрес-замена.рф) — остались и ведут сюда же с
-# сохранением пути: у них есть история, их успели раздать, а на старые
-# QR-коды приглашений `/i/<код>` уже напечатан moiservis.pro.
+# Основной — moi-servis.ru. Домены прошлого бренда «Экспресс Замена»
+# (ekspres-zamena.ru, экспрес-замена.рф) остались и ведут сюда же с
+# сохранением пути: у них есть история и их успели раздать.
+# Прежний основной moiservis.pro передан другому проекту на этом же
+# сервере — его здесь нет ни в одном server_name, иначе nginx отдал бы
+# его одному из двух конфигов наугад («conflicting server name»).
 #
 # Кириллический домен пишется в punycode (`xn--…`): именно в таком виде он
 # приходит в заголовке Host, и certbot работает только с этой формой.
@@ -36,33 +38,14 @@ limit_req_zone $binary_remote_addr zone=admin_login:10m rate=10r/m;
 server {
     listen 80;
     listen [::]:80;
-    server_name moiservis.pro
-                www.moiservis.pro
-                ekspres-zamena.ru
+    server_name ekspres-zamena.ru
                 www.ekspres-zamena.ru
                 xn----8sbarcksuknlkd6n.xn--p1ai
                 www.xn----8sbarcksuknlkd6n.xn--p1ai;
 
-    # Одно исключение из редиректа. Android проверяет App Links по
-    # /.well-known/assetlinks.json каждого домена из манифеста и за
-    # редиректами не ходит: отдай его 301 — и старые ссылки-приглашения
-    # moiservis.pro/i/<код> начнут открываться в браузере, а не в
-    # приложении. Для этого moiservis.pro остаётся в ALLOWED_HOSTS.
-    location = /.well-known/assetlinks.json {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
     # 301, а не 302: постоянный редирект поисковики учитывают при склейке
-    # адресов, временный — нет. Путь и параметры сохраняются: старая
-    # ссылка /i/<код> приводит на ту же страницу нового домена.
-    location / {
-        return 301 https://moi-servis.ru$request_uri;
-    }
+    # адресов, временный — нет. Путь и параметры сохраняются.
+    return 301 https://moi-servis.ru$request_uri;
 }
 
 # www основного домена — на основной, без www: у страницы один адрес.

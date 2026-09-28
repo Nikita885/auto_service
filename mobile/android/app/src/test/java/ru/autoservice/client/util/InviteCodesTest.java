@@ -10,8 +10,8 @@ public class InviteCodesTest {
     @Test
     public void linkFromQr() {
         assertEquals("AB12CD", InviteCodes.parse("https://moi-servis.ru/i/ab12cd"));
-        // Старые QR и ссылки с прежнего домена разосланы и продолжают работать.
-        assertEquals("AB12CD", InviteCodes.parse("https://moiservis.pro/i/ab12cd"));
+        // Код не привязан к домену: QR с любого адреса сайта читается.
+        assertEquals("AB12CD", InviteCodes.parse("https://ekspres-zamena.ru/i/ab12cd"));
         assertEquals("AB12CD", InviteCodes.parse("https://moi-servis.ru/i/AB12CD/"));
     }
 

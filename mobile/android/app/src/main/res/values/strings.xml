@@ -116,9 +116,6 @@
          откроется в браузере, на странице с кодом. Это ожидаемо:
          проверять App Links можно только релизной подписью. -->
     <string name="invite_host" translatable="false">moi-servis.ru</string>
-    <!-- Прежний домен: ссылки /i/<код> с него уже разосланы и живут, пока
-         сервер отдаёт на нём assetlinks.json (nginx проксирует его мимо 301). -->
-    <string name="invite_host_legacy" translatable="false">moiservis.pro</string>
 
     <!-- выбор автомобиля -->
     <string name="car_picker_title">Ваш автомобиль</string>

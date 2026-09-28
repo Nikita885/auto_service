@@ -156,7 +156,7 @@ def prod_like(settings, tmp_path, monkeypatch):
     settings.DEBUG = False
     settings.SECRET_KEY = "z9" * 30
     settings.OTP = {**settings.OTP, "DEBUG_EXPOSE_CODE": False, "CALL_PROVIDER": "smsru"}
-    settings.ALLOWED_HOSTS = ["moi-servis.ru", "www.moi-servis.ru", "moiservis.pro"]
+    settings.ALLOWED_HOSTS = ["moi-servis.ru", "www.moi-servis.ru"]
     settings.CSRF_TRUSTED_ORIGINS = ["https://moi-servis.ru", "https://www.moi-servis.ru"]
     settings.CORS_ALLOW_ALL_ORIGINS = False
     settings.CORS_ALLOWED_ORIGINS = ["https://moi-servis.ru"]
@@ -201,7 +201,7 @@ def test_audit_passes_on_healthy_production(prod_like):
 @pytest.mark.django_db
 def test_audit_catches_site_url_missing_from_hosts(prod_like, settings):
     """Переезд: адрес приглашений уже новый, а ALLOWED_HOSTS — старые."""
-    settings.ALLOWED_HOSTS = ["moiservis.pro"]
+    settings.ALLOWED_HOSTS = ["ekspres-zamena.ru"]
     finding = next(
         f for f in security_audit.collect_findings() if f.title == "COMPANY_SITE_URL"
     )
@@ -211,7 +211,7 @@ def test_audit_catches_site_url_missing_from_hosts(prod_like, settings):
 
 @pytest.mark.django_db
 def test_audit_catches_site_url_missing_from_csrf_origins(prod_like, settings):
-    settings.CSRF_TRUSTED_ORIGINS = ["https://moiservis.pro"]
+    settings.CSRF_TRUSTED_ORIGINS = ["https://ekspres-zamena.ru"]
     assert _levels(security_audit.collect_findings())["COMPANY_SITE_URL"] == (
         security_audit.FAIL
     )
