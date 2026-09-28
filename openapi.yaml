@@ -48,7 +48,11 @@ paths:
   /api/v1/auth/otp/request/:
     post:
       operationId: auth_otp_request_create
-      summary: Запросить код входа по SMS
+      description: 'По умолчанию звонок: код — последние 4 цифры входящего номера.
+        После OTP_CALLS_BEFORE_SMS звонков без входа в ответе sms_available=true,
+        и следующий код можно попросить в SMS (channel=sms). Номерам сотрудников —
+        403 staff_use_password.'
+      summary: 'Запросить код входа: звонком, после неудачных звонков — SMS'
       tags:
       - auth
       requestBody:
@@ -89,6 +93,32 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/OtpVerifyRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+  /api/v1/auth/staff/login/:
+    post:
+      operationId: auth_staff_login_create
+      description: Клиенту и неверному паролю — одинаково 400 invalid_credentials.
+      summary: Вход сотрудника по паролю
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffLoginRequest'
         required: true
       responses:
         '200':
@@ -1490,7 +1520,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusB4dEnum'
+          - $ref: '#/components/schemas/Status37aEnum'
           title: Статус
         status_display:
           type: string
@@ -1594,7 +1624,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusB4dEnum'
+          - $ref: '#/components/schemas/Status37aEnum'
           title: Статус
         status_display:
           type: string
@@ -1886,6 +1916,14 @@ components:
       - make_name
       - name
       - title
+    ChannelEnum:
+      enum:
+      - call
+      - sms
+      type: string
+      description: |-
+        * `call` - call
+        * `sms` - sms
     ClientLookup:
       type: object
       description: 'Кто стоит за номером: подставить имя и машину в окно записи.'
@@ -2083,7 +2121,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusB4dEnum'
+          - $ref: '#/components/schemas/Status37aEnum'
           title: Статус
         status_display:
           type: string
@@ -2245,7 +2283,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusB4dEnum'
+          - $ref: '#/components/schemas/Status37aEnum'
           title: Статус
         status_display:
           type: string
@@ -2378,7 +2416,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusB4dEnum'
+          - $ref: '#/components/schemas/Status37aEnum'
           title: Статус
         service_point:
           type: string
@@ -2925,6 +2963,9 @@ components:
         reason:
           type: string
           maxLength: 500
+    NullEnum:
+      enum:
+      - null
     Oil:
       type: object
       properties:
@@ -3079,6 +3120,16 @@ components:
           minLength: 1
           description: +7 900 123-45-67
           maxLength: 20
+        channel:
+          nullable: true
+          description: |-
+            Не передан — звонок. sms — только когда sms_available в прошлом ответе.
+
+            * `call` - call
+            * `sms` - sms
+          oneOf:
+          - $ref: '#/components/schemas/ChannelEnum'
+          - $ref: '#/components/schemas/NullEnum'
       required:
       - phone
     OtpRequestResponse:
@@ -3091,14 +3142,27 @@ components:
           format: date-time
         resend_after_seconds:
           type: integer
+        channel:
+          allOf:
+          - $ref: '#/components/schemas/ChannelEnum'
+          description: |-
+            call — позвоним, код — последние 4 цифры входящего номера; sms — код в SMS
+
+            * `call` - call
+            * `sms` - sms
+        sms_available:
+          type: boolean
+          description: 'Следующий код можно попросить в SMS: звонки не помогли'
         debug_code:
           type: string
           nullable: true
           description: Только при OTP_DEBUG_EXPOSE_CODE=True. В проде не приходит.
       required:
+      - channel
       - expires_at
       - phone
       - resend_after_seconds
+      - sms_available
     OtpVerifyRequest:
       type: object
       properties:
@@ -3547,6 +3611,20 @@ components:
       - free_posts
       - local_time
       - start_at
+    StaffLoginRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 20
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+      required:
+      - password
+      - phone
     StartDraftRequest:
       type: object
       properties:
@@ -3554,7 +3632,7 @@ components:
           type: boolean
           default: false
           description: True — выбросить незавершённый черновик и начать заново.
-    StatusB4dEnum:
+    Status37aEnum:
       enum:
       - pending
       - in_progress

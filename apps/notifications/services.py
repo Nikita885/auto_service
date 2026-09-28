@@ -13,6 +13,7 @@ from apps.common.phone import mask_phone
 from apps.notifications import templates
 from apps.notifications.models import (
     Notification,
+    NotificationChannel,
     NotificationKind,
     NotificationStatus,
 )
@@ -62,6 +63,41 @@ def send_otp_sms(*, phone: str, code: str) -> Notification:
     )
     _enqueue(notification, templates.otp(code))
     return notification
+
+
+def call_otp(*, phone: str, ip: str | None) -> str:
+    """Позвонить с кодом входа и вернуть код — последние цифры номера.
+
+    Синхронно, а не через Celery: код называет шлюз, и без его ответа
+    нечего сохранить. В журнал — как и у SMS, без самого кода: звонок
+    стоит денег, и расходы на вход должны считаться по журналу.
+    Ошибка шлюза пробрасывается: решать, что делать дальше (SMS вместо
+    звонка), — дело входа, а не журнала.
+    """
+    from django.utils import timezone
+
+    from apps.notifications.providers import SmsDeliveryError, SmsRejectedError
+    from apps.notifications.providers.call import get_call_provider
+
+    notification = Notification.objects.create(
+        phone=phone,
+        kind=NotificationKind.OTP,
+        channel=NotificationChannel.CALL,
+        text="Звонок с кодом входа ****",
+    )
+    try:
+        placed = get_call_provider().call(phone, ip)
+    except (SmsDeliveryError, SmsRejectedError) as exc:
+        Notification.objects.filter(pk=notification.pk).update(
+            status=NotificationStatus.FAILED, error=str(exc)[:1000]
+        )
+        raise
+    Notification.objects.filter(pk=notification.pk).update(
+        status=NotificationStatus.SENT,
+        provider_message_id=placed.call_id,
+        sent_at=timezone.now(),
+    )
+    return placed.code
 
 
 def _booking_notification(booking, kind: str, text: str) -> Notification:

@@ -5,17 +5,33 @@ from apps.accounts.models import User
 
 class OtpRequestSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20, help_text="+7 900 123-45-67")
+    channel = serializers.ChoiceField(
+        choices=["call", "sms"], required=False, allow_null=True, default=None,
+        help_text="Не передан — звонок. sms — только когда sms_available в прошлом ответе.",
+    )
 
 
 class OtpRequestResponseSerializer(serializers.Serializer):
     phone = serializers.CharField()
     expires_at = serializers.DateTimeField()
     resend_after_seconds = serializers.IntegerField()
+    channel = serializers.ChoiceField(
+        choices=["call", "sms"],
+        help_text="call — позвоним, код — последние 4 цифры входящего номера; sms — код в SMS",
+    )
+    sms_available = serializers.BooleanField(
+        help_text="Следующий код можно попросить в SMS: звонки не помогли",
+    )
     debug_code = serializers.CharField(
         required=False,
         allow_null=True,
         help_text="Только при OTP_DEBUG_EXPOSE_CODE=True. В проде не приходит.",
     )
+
+
+class StaffLoginSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=20)
+    password = serializers.CharField(max_length=128, trim_whitespace=False)
 
 
 class OtpVerifySerializer(serializers.Serializer):

@@ -13,12 +13,13 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.accounts.constants import UserRole
+from apps.accounts.constants import OtpChannel, UserRole
 from apps.accounts.models import OtpCode, User
 from apps.common.exceptions import (
     ConflictError,
@@ -36,6 +37,10 @@ class OtpChallenge:
     phone: str
     expires_at: object
     resend_after_seconds: int
+    #: Как ушёл код: call — звонок (код — последние 4 цифры номера), sms.
+    channel: str = "call"
+    #: Можно ли следующий код попросить в SMS: звонки не помогли.
+    sms_available: bool = False
     debug_code: str | None = None
 
 
@@ -54,15 +59,26 @@ def _generate_code() -> str:
     return "".join(str(secrets.randbelow(10)) for _ in range(length))
 
 
-def request_otp(raw_phone: str, *, ip: str | None = None) -> OtpChallenge:
-    """Выдать новый код на телефон.
+def request_otp(
+    raw_phone: str, *, ip: str | None = None, channel: str | None = None
+) -> OtpChallenge:
+    """Выдать новый код на телефон: звонком, а после неудачных звонков — SMS.
+
+    Сначала звонок: код — последние цифры номера, с которого позвонят. Он
+    дешевле SMS и не зависит от согласованного буквенного отправителя.
+    Каждый повторный запрос кода значит, что предыдущий звонок не помог;
+    после `CALLS_BEFORE_SMS` таких звонков клиенту предлагают SMS
+    (`sms_available`), и он может попросить его явно (`channel="sms"`).
+    Шлюз звонков отказал — в том же запросе уходит SMS: войти человек
+    должен, даже когда звонки не работают.
 
     Защита стоит на трёх уровнях: пауза между отправками, часовой лимит на
-    номер и throttling на уровне DRF по IP. SMS стоят денег, а номер
-    чужого человека можно завалить спамом.
+    номер (звонки и SMS вместе) и throttling на уровне DRF по IP. Каждый
+    код стоит денег, а номер чужого человека можно завалить звонками.
     """
 
     phone = normalize_phone(raw_phone)
+    _refuse_staff(phone)
     now = timezone.now()
     conf = settings.OTP
 
@@ -87,32 +103,118 @@ def request_otp(raw_phone: str, *, ip: str | None = None) -> OtpChallenge:
             code="otp_hourly_limit",
         )
 
-    code = _generate_code()
-    expires_at = now + timedelta(seconds=conf["TTL_SECONDS"])
-
-    with transaction.atomic():
-        # Предыдущие коды гасим: рабочим остаётся только последний.
-        OtpCode.objects.for_phone(phone).active().update(expires_at=now)
-        OtpCode.objects.create(
-            phone=phone,
-            code_hash=make_password(code),
-            expires_at=expires_at,
-            request_ip=ip,
+    calls = _unsuccessful_calls(phone, now)
+    if channel == OtpChannel.SMS and calls < conf["CALLS_BEFORE_SMS"]:
+        raise ValidationError(
+            "Код в SMS можно получить, если звонок не помог",
+            code="otp_sms_not_available",
+            details={"calls_left": conf["CALLS_BEFORE_SMS"] - calls},
         )
+    channel = channel or OtpChannel.CALL
 
-    from apps.notifications.services import send_otp_sms
+    # Звонок заказывается синхронно, и между проверкой паузы и записью кода
+    # проходит ответ шлюза. Два одновременных запроса прошли бы паузу оба и
+    # оплатили бы два звонка — поэтому номер держим коротким замком в кеше
+    # (`add` атомарен и в Redis, и в памяти).
+    lock = f"otp-request:{phone}"
+    if not cache.add(lock, 1, timeout=30):
+        raise RateLimitError(
+            "Код уже отправляется, подождите",
+            code="otp_cooldown",
+            details={"retry_after": conf["RESEND_COOLDOWN_SECONDS"]},
+        )
+    try:
+        code = None
+        if channel == OtpChannel.CALL:
+            code = _place_call(phone, ip)
+            if code is None:
+                channel = OtpChannel.SMS
+        if code is None:
+            code = _generate_code()
 
-    send_otp_sms(phone=phone, code=code)
+        expires_at = timezone.now() + timedelta(seconds=conf["TTL_SECONDS"])
+        with transaction.atomic():
+            # Предыдущие коды гасим: рабочим остаётся только последний.
+            OtpCode.objects.for_phone(phone).active().update(expires_at=timezone.now())
+            OtpCode.objects.create(
+                phone=phone,
+                code_hash=make_password(code),
+                expires_at=expires_at,
+                request_ip=ip,
+                channel=channel,
+            )
+            if channel == OtpChannel.SMS:
+                from apps.notifications.services import send_otp_sms
+
+                send_otp_sms(phone=phone, code=code)
+    finally:
+        cache.delete(lock)
+
     # Телефон в логах маскируем: это персональные данные, а лог живёт
     # дольше и доступен шире, чем база.
-    logger.info("OTP выдан для %s", mask_phone(phone))
+    logger.info("OTP выдан для %s: %s", mask_phone(phone), channel)
+    if channel == OtpChannel.CALL:
+        calls += 1
 
     return OtpChallenge(
         phone=phone,
         expires_at=expires_at,
         resend_after_seconds=conf["RESEND_COOLDOWN_SECONDS"],
+        channel=channel,
+        sms_available=calls >= conf["CALLS_BEFORE_SMS"],
         debug_code=code if _may_expose_code(phone, conf) else None,
     )
+
+
+def _place_call(phone: str, ip: str | None) -> str | None:
+    """Позвонить с кодом. None — шлюз звонков отказал, пора слать SMS."""
+    from apps.notifications.providers import SmsDeliveryError, SmsRejectedError
+    from apps.notifications.services import call_otp
+
+    try:
+        return call_otp(phone=phone, ip=ip)
+    except (SmsDeliveryError, SmsRejectedError) as exc:
+        logger.warning(
+            "Звонок с кодом на %s не заказан (%s) — отправляем SMS", mask_phone(phone), exc
+        )
+        return None
+
+
+def _unsuccessful_calls(phone: str, now) -> int:
+    """Сколько звонков с кодом было после последнего входа, за последний час.
+
+    Звонок, после которого человек снова просит код, — неудачный: не
+    дошёл, сорвался или цифры не разглядели. Входом счёт обнуляется, а
+    окно в час совпадает с часовым лимитом — вчерашние звонки не в счёт.
+    """
+    since = now - timedelta(hours=1)
+    last_login = (
+        OtpCode.objects.for_phone(phone)
+        .filter(used_at__isnull=False, created_at__gte=since)
+        .order_by("-created_at")
+        .values_list("created_at", flat=True)
+        .first()
+    )
+    if last_login is not None:
+        since = last_login
+    return (
+        OtpCode.objects.for_phone(phone)
+        .filter(channel=OtpChannel.CALL, created_at__gt=since)
+        .count()
+    )
+
+
+def _refuse_staff(phone: str) -> None:
+    """Сотрудники входят по паролю — вход кодом на их номер закрыт.
+
+    Иначе пароль ничего бы не защищал: код звонком получает любой, у кого
+    в руках телефон мастера, а токен даёт доступ к записям всей точки.
+    """
+    if User.objects.filter(phone=phone).exclude(role=UserRole.CLIENT).exists():
+        raise PermissionError_(
+            "Сотрудники входят по паролю — на сайте, в панели мастера",
+            code="staff_use_password",
+        )
 
 
 def _may_expose_code(phone: str, conf: dict) -> bool:
@@ -157,6 +259,7 @@ def verify_otp(raw_phone: str, code: str, *, invite: str = "") -> AuthResult:
     """Проверить код и войти. Нет аккаунта — создаём его здесь же."""
 
     phone = normalize_phone(raw_phone)
+    _refuse_staff(phone)
     conf = settings.OTP
 
     otp = OtpCode.objects.for_phone(phone).active().order_by("-created_at").first()
@@ -307,6 +410,47 @@ def get_or_create_client(
             setattr(user, key, profile[key])
         user.save(update_fields=empty)
     return user, False
+
+
+def staff_login(raw_phone: str, password: str) -> AuthResult:
+    """Вход сотрудника в панели — телефон и пароль.
+
+    Ответ на неверный пароль, чужой номер и клиентский номер один и тот
+    же: иначе по ответу можно было бы собрать список номеров сотрудников.
+    Номер закрывается после `MAX_FAILURES` неверных попыток на
+    `LOCK_MINUTES` — с любого адреса: лимит DRF держит перебор только с
+    одного IP.
+    """
+    phone = normalize_phone(raw_phone)
+    conf = settings.STAFF_LOGIN
+    key = f"staff-login-failures:{phone}"
+    if cache.get(key, 0) >= conf["MAX_FAILURES"]:
+        raise RateLimitError(
+            f"Слишком много неверных попыток. Попробуйте через {conf['LOCK_MINUTES']} минут.",
+            code="login_locked",
+        )
+
+    user = User.objects.filter(phone=phone).first()
+    if user is None:
+        # Хешируем впустую: без этого несуществующий номер отвечал бы
+        # заметно быстрее, и список сотрудников собирался бы по времени.
+        make_password(password)
+        ok = False
+    else:
+        ok = user.check_password(password) and user.role != UserRole.CLIENT and user.is_active
+
+    if not ok:
+        # add + incr атомарны в Redis: параллельный перебор не проскочит
+        # между чтением и записью счётчика.
+        cache.add(key, 0, timeout=conf["LOCK_MINUTES"] * 60)
+        cache.incr(key)
+        logger.warning("Неверный вход сотрудника %s", mask_phone(phone))
+        raise ValidationError("Неверный телефон или пароль", code="invalid_credentials")
+
+    cache.delete(key)
+    tokens = issue_tokens(user)
+    logger.info("Вход сотрудника %s", mask_phone(phone))
+    return AuthResult(user=user, is_new_user=False, **tokens)
 
 
 def issue_tokens(user: User) -> dict[str, str]:

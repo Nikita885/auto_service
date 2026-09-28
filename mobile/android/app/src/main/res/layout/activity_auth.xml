@@ -164,6 +164,16 @@
                 android:layout_marginTop="@dimen/space"
                 android:text="@string/auth_sign_in" />
 
+            <!-- Появляется, когда два звонка не помогли и сервер разрешил SMS. -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/request_sms"
+                style="@style/Widget.AutoService.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_xs"
+                android:text="@string/auth_sms"
+                android:visibility="gone" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/resend"
                 style="@style/Widget.AutoService.Button.Text"

@@ -14,6 +14,7 @@ from apps.accounts.serializers import (
     OtpRequestSerializer,
     OtpVerifySerializer,
     ProfileUpdateSerializer,
+    StaffLoginSerializer,
     UserSerializer,
 )
 from apps.common.net import client_ip
@@ -26,7 +27,13 @@ class OtpRequestView(APIView):
     @extend_schema(
         request=OtpRequestSerializer,
         responses={200: OtpRequestResponseSerializer},
-        summary="Запросить код входа по SMS",
+        summary="Запросить код входа: звонком, после неудачных звонков — SMS",
+        description=(
+            "По умолчанию звонок: код — последние 4 цифры входящего номера. "
+            "После OTP_CALLS_BEFORE_SMS звонков без входа в ответе "
+            "sms_available=true, и следующий код можно попросить в SMS "
+            "(channel=sms). Номерам сотрудников — 403 staff_use_password."
+        ),
         auth=[],
     )
     def post(self, request: Request) -> Response:
@@ -34,7 +41,9 @@ class OtpRequestView(APIView):
         payload.is_valid(raise_exception=True)
 
         challenge = services.request_otp(
-            payload.validated_data["phone"], ip=client_ip(request)
+            payload.validated_data["phone"],
+            ip=client_ip(request),
+            channel=payload.validated_data["channel"],
         )
         data = asdict(challenge)
         if data.get("debug_code") is None:
@@ -74,6 +83,36 @@ class OtpVerifyView(APIView):
                 "invite": result.invite,
             },
             status=status.HTTP_200_OK,
+        )
+
+
+class StaffLoginView(APIView):
+    """Вход сотрудника в панели мастера и администратора — по паролю."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = "staff_login"
+
+    @extend_schema(
+        request=StaffLoginSerializer,
+        responses={200: AuthResponseSerializer},
+        summary="Вход сотрудника по паролю",
+        description="Клиенту и неверному паролю — одинаково 400 invalid_credentials.",
+        auth=[],
+    )
+    def post(self, request: Request) -> Response:
+        payload = StaffLoginSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        result = services.staff_login(
+            payload.validated_data["phone"], payload.validated_data["password"]
+        )
+        return Response(
+            {
+                "access": result.access,
+                "refresh": result.refresh,
+                "is_new_user": False,
+                "user": UserSerializer(result.user).data,
+                "invite": None,
+            }
         )
 
 

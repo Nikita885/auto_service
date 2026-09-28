@@ -44,31 +44,25 @@
 
   /* -------------------------------------------------------------- вход */
 
-  async function requestOtp() {
+  /** Вход по телефону и паролю.
+
+      Кодом сотрудники не входят: сервер закрыл вход кодом на их номера,
+      иначе пароль обходился бы звонком на телефон мастера. */
+  async function login(event) {
+    if (event) event.preventDefault();
     const phone = $("#phone").value.trim();
-    if (!phone) return;
-
-    const data = await guard(() => api.request("/auth/otp/request/", {
-      method: "POST", body: { phone }, auth: false,
-    }));
-    if (!data) return;
-
-    state.phone = data.phone;
-    $("#auth-step-phone").hidden = true;
-    $("#auth-step-code").hidden = false;
-    $("#auth-sub").textContent = "Код отправлен на " + data.phone;
-
-    if (data.debug_code) {
-      $("#code").value = data.debug_code;
-      $("#otp-hint").textContent = "Режим разработки: код " + data.debug_code + " подставлен.";
+    const password = $("#password").value;
+    if (!phone || !password) {
+      toast("Введите телефон и пароль.", "error");
+      return;
     }
-    $("#code").focus();
-  }
 
-  async function verifyOtp() {
-    const data = await guard(() => api.request("/auth/otp/verify/", {
-      method: "POST", body: { phone: state.phone, code: $("#code").value.trim() }, auth: false,
+    const button = $("#btn-login");
+    button.disabled = true;
+    const data = await guard(() => api.request("/auth/staff/login/", {
+      method: "POST", body: { phone, password }, auth: false,
     }));
+    button.disabled = false;
     if (!data) return;
 
     if (!allowed(data.user.role)) {
@@ -76,6 +70,7 @@
       return;
     }
 
+    $("#password").value = "";
     api.store.save(data.access, data.refresh);
     state.me = data.user;
     await enterWorkspace();
@@ -925,14 +920,9 @@
   /* --------------------------------------------------------------- старт */
 
   function bindEvents() {
-    $("#btn-otp").onclick = requestOtp;
-    $("#btn-login").onclick = verifyOtp;
-    $("#btn-otp-back").onclick = () => {
-      $("#auth-step-phone").hidden = false;
-      $("#auth-step-code").hidden = true;
-    };
-    $("#phone").addEventListener("keydown", (e) => { if (e.key === "Enter") requestOtp(); });
-    $("#code").addEventListener("keydown", (e) => { if (e.key === "Enter") verifyOtp(); });
+    // Форма, а не кнопка с onclick: Enter в любом поле и менеджер паролей
+    // браузера работают сами.
+    $("#auth-form").onsubmit = login;
 
     $("#btn-signout").innerHTML = icon("logout", 16);
     $("#btn-signout").onclick = () => signOut(false);

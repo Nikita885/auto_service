@@ -5,16 +5,22 @@
 
     <!-- вход -->
     <string name="auth_title">Замена масла\nбез очереди</string>
-    <string name="auth_sub">Вход по номеру телефона. Пароль придумывать не нужно — пришлём код в SMS.</string>
+    <string name="auth_sub">Вход по номеру телефона. Пароль придумывать не нужно — мы позвоним, код — последние 4 цифры номера.</string>
     <string name="auth_phone_hint">Телефон</string>
     <string name="auth_get_code">Получить код</string>
     <string name="auth_code_title">Введите код</string>
     <string name="auth_code_sub">Отправили SMS на %1$s</string>
+    <string name="auth_code_sub_call">Сейчас на %1$s позвонят. Отвечать не нужно — введите последние 4 цифры номера, с которого звонят.</string>
     <string name="auth_code_hint">Код из SMS</string>
+    <string name="auth_code_hint_call">Последние 4 цифры входящего номера</string>
     <string name="auth_sign_in">Войти</string>
     <string name="auth_change_phone">Изменить номер</string>
-    <string name="auth_resend">Отправить код ещё раз</string>
-    <string name="auth_resend_in">Отправить повторно через %1$d с</string>
+    <string name="auth_resend">Отправить SMS ещё раз</string>
+    <string name="auth_resend_in">Отправить SMS ещё раз через %1$d с</string>
+    <string name="auth_recall">Позвонить ещё раз</string>
+    <string name="auth_recall_in">Позвонить ещё раз через %1$d с</string>
+    <string name="auth_sms">Звонок не приходит — получить код в SMS</string>
+    <string name="auth_sms_in">Код в SMS — через %1$d с</string>
     <string name="auth_legal">Продолжая, вы соглашаетесь с обработкой персональных данных.</string>
     <string name="auth_debug_code">Код разработки: %1$s</string>
 

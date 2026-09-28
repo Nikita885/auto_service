@@ -1,7 +1,8 @@
 {% comment %}
 Вход для сотрудников — общий для панели мастера и панели администратора.
-Тот же вход по SMS, что и у клиента: отдельных паролей у сотрудников нет,
-пароль существует только для Django-админки.
+По телефону и паролю: вход кодом на номер сотрудника закрыт, иначе пароль
+обходился бы звонком на телефон мастера. Пароль задаёт администратор в
+Django-админке (/admin/ → Пользователи).
 {% endcomment %}
 
 <section class="section" id="auth-section" style="margin-top:0">
@@ -9,27 +10,21 @@
     <div class="card-head">
       <div>
         <div class="card-title">{{ auth_title }}</div>
-        <div class="card-sub" id="auth-sub">Вход по коду из SMS, как у клиентов.</div>
+        <div class="card-sub" id="auth-sub">Вход по телефону и паролю сотрудника.</div>
       </div>
     </div>
 
-    <div class="stack" id="auth-step-phone">
+    <form class="stack" id="auth-form" novalidate>
       <div class="field">
         <label for="phone">Телефон</label>
-        <input id="phone" type="tel" inputmode="tel" value="{{ demo_phone }}" autocomplete="tel">
+        <input id="phone" type="tel" inputmode="tel" autocomplete="username" placeholder="+7 900 000-00-00">
       </div>
-      <button class="btn btn-primary btn-block" id="btn-otp" type="button">Получить код</button>
-      <p class="hint">Демо-доступ: <span class="mono">{{ demo_phone }}</span></p>
-    </div>
-
-    <div class="stack" id="auth-step-code" hidden>
       <div class="field">
-        <label for="code">Код из SMS</label>
-        <input id="code" class="code-input" inputmode="numeric" maxlength="4" autocomplete="one-time-code">
+        <label for="password">Пароль</label>
+        <input id="password" type="password" autocomplete="current-password">
       </div>
-      <p class="hint" id="otp-hint"></p>
-      <button class="btn btn-primary btn-block" id="btn-login" type="button">Войти</button>
-      <button class="btn btn-ghost btn-block" id="btn-otp-back" type="button">Изменить номер</button>
-    </div>
+      <button class="btn btn-primary btn-block" id="btn-login" type="submit">Войти</button>
+      <p class="hint">Нет пароля или забыли — попросите администратора задать новый.</p>
+    </form>
   </div>
 </section>

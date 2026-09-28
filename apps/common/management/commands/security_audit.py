@@ -242,7 +242,7 @@ def _check_proxy_count() -> Finding:
 def _check_throttling() -> list[Finding]:
     rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
     found = []
-    for scope in ("otp_request", "otp_verify"):
+    for scope in ("otp_request", "otp_verify", "staff_login"):
         rate = rates.get(scope)
         if rate:
             found.append(Finding(OK, f"throttle {scope}", rate))
@@ -273,12 +273,14 @@ def _check_sms() -> list[Finding]:
         if conf["SENDER"]:
             found.append(Finding(OK, "SMS_SENDER", conf["SENDER"]))
         else:
+            # Вход идёт звонком, поэтому не провал, а предупреждение: без
+            # отправителя не работают SMS о записи и запасной код в SMS.
             found.append(
                 Finding(
-                    FAIL,
+                    WARN,
                     "SMS_SENDER",
-                    "пуст — шлюз ответит 221 и не пропустит ни одного "
-                    "сообщения, то есть войти в приложение будет нельзя",
+                    "пуст — шлюз ответит 221: SMS о записи и запасной код "
+                    "входа в SMS не уходят, вход работает только звонком",
                 )
             )
 
@@ -287,13 +289,29 @@ def _check_sms() -> list[Finding]:
     else:
         found.append(
             Finding(
-                FAIL,
+                WARN,
                 "SMS_ENABLED_KINDS",
-                "нет otp — код входа никому не уходит, вход в приложение закрыт",
+                "нет otp — если звонки не помогли, кода в SMS человек не получит",
             )
         )
 
     return found
+
+
+def _check_calls() -> Finding:
+    """Код входа звонком — основной способ войти в приложение."""
+    provider = settings.OTP["CALL_PROVIDER"]
+    if provider == "console":
+        return Finding(
+            FAIL,
+            "OTP_CALL_PROVIDER",
+            "console — никому не звонит, а печатает коды входа в лог; "
+            "вход держится только на запасном SMS",
+        )
+    return Finding(
+        OK, "OTP_CALL_PROVIDER",
+        f"{provider}, SMS после {settings.OTP['CALLS_BEFORE_SMS']} звонков",
+    )
 
 
 def _check_db_password() -> Finding:
@@ -419,6 +437,7 @@ def collect_findings() -> list[Finding]:
     findings.append(_check_proxy_count())
     findings += _check_throttling()
     findings += _check_sms()
+    findings.append(_check_calls())
     findings.append(_check_db_password())
     findings.append(_check_bootstrap_demo())
     findings += _check_demo_accounts()

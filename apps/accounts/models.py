@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 from django.utils import timezone
 
-from apps.accounts.constants import UserRole
+from apps.accounts.constants import OtpChannel, UserRole
 from apps.accounts.managers import UserManager
 from apps.common.models import TimeStampedModel, UUIDModel
 
@@ -96,12 +96,15 @@ class OtpCode(UUIDModel, TimeStampedModel):
     used_at = models.DateTimeField("использован", null=True, blank=True)
     attempts = models.PositiveSmallIntegerField("попыток ввода", default=0)
     request_ip = models.GenericIPAddressField("IP запроса", null=True, blank=True)
+    channel = models.CharField(
+        "канал", max_length=8, choices=OtpChannel.choices, default=OtpChannel.SMS
+    )
 
     objects = OtpCodeQuerySet.as_manager()
 
     class Meta:
-        verbose_name = "SMS-код"
-        verbose_name_plural = "SMS-коды"
+        verbose_name = "код входа"
+        verbose_name_plural = "коды входа"
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["phone", "-created_at"])]
 

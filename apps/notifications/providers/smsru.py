@@ -94,9 +94,11 @@ class SmsRuProvider(SmsProvider):
 
     # ------------------------------------------------------------------
 
-    def _post(self, payload: dict) -> dict:
+    def _post(self, payload: dict, endpoint: str | None = None) -> dict:
+        """POST в SMS.RU и разбор JSON. `endpoint` — для других методов того
+        же шлюза (звонок с кодом): ключ, транспорт и ошибки у них общие."""
         data = urllib.parse.urlencode(payload).encode("utf-8")
-        request = urllib.request.Request(self.endpoint, data=data, method="POST")
+        request = urllib.request.Request(endpoint or self.endpoint, data=data, method="POST")
 
         try:
             with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:

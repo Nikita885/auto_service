@@ -18,7 +18,8 @@ import ru.autoservice.client.util.ApiError;
 import ru.autoservice.client.util.Formats;
 
 /**
- * Вход по SMS: запрос кода, проверка кода, обратный отсчёт до повторной отправки.
+ * Вход по коду: звонком, после двух неудачных звонков — в SMS. Запрос кода,
+ * проверка, обратный отсчёт до повторной отправки.
  *
  * <p>Состояние живёт здесь, а не в Activity: поворот экрана в середине ввода
  * кода не должен ни сбрасывать шаг, ни обнулять таймер повторной отправки.
@@ -34,6 +35,10 @@ public class AuthViewModel extends AndroidViewModel {
     private final MutableLiveData<Boolean> busy = new MutableLiveData<>(false);
     private final MutableLiveData<Integer> resendIn = new MutableLiveData<>(0);
     private final MutableLiveData<String> debugCode = new MutableLiveData<>(null);
+    /** Код придёт звонком (true) или в SMS (false). */
+    private final MutableLiveData<Boolean> byCall = new MutableLiveData<>(true);
+    /** Сервер разрешил попросить код в SMS: звонки не помогли. */
+    private final MutableLiveData<Boolean> smsAvailable = new MutableLiveData<>(false);
     private final Event.Bus<ApiError> errors = new Event.Bus<>();
     private final Event.Bus<Models.User> signedIn = new Event.Bus<>();
 
@@ -53,6 +58,8 @@ public class AuthViewModel extends AndroidViewModel {
     public LiveData<Boolean> busy() { return busy; }
     public LiveData<Integer> resendIn() { return resendIn; }
     public LiveData<String> debugCode() { return debugCode; }
+    public LiveData<Boolean> byCall() { return byCall; }
+    public LiveData<Boolean> smsAvailable() { return smsAvailable; }
     public LiveData<Event<ApiError>> errors() { return errors.asLiveData(); }
     public LiveData<Event<Models.User>> signedIn() { return signedIn.asLiveData(); }
 
@@ -67,6 +74,19 @@ public class AuthViewModel extends AndroidViewModel {
     }
 
     public void requestCode(@NonNull String rawPhone) {
+        request(rawPhone, false);
+    }
+
+    /** Звонок не приходит — код в SMS. Кнопка есть, только когда сервер разрешил. */
+    public void requestSms() {
+        Integer left = resendIn.getValue();
+        if (left != null && left > 0) {
+            return;
+        }
+        request(phone, true);
+    }
+
+    private void request(@NonNull String rawPhone, boolean sms) {
         if (Boolean.TRUE.equals(busy.getValue())) {
             return;
         }
@@ -80,13 +100,15 @@ public class AuthViewModel extends AndroidViewModel {
         }
 
         busy.setValue(true);
-        repository.requestOtp(normalized, result -> {
+        repository.requestOtp(normalized, sms, result -> {
             busy.setValue(false);
             if (!result.isSuccess() || result.value() == null) {
                 errors.post(result.error());
                 return;
             }
             phone = result.value().phone();
+            byCall.setValue(result.value().byCall());
+            smsAvailable.setValue(result.value().smsAvailable());
             debugCode.setValue(result.value().debugCode());
             step.setValue(Step.CODE);
             startResendCountdown(result.value().resendAfterSeconds());
@@ -115,12 +137,17 @@ public class AuthViewModel extends AndroidViewModel {
         step.setValue(Step.PHONE);
     }
 
+    /** Повтор тем же способом: звонок — ещё звонок, SMS — ещё SMS. */
     public void resend() {
         Integer left = resendIn.getValue();
         if (left != null && left > 0) {
             return;
         }
-        requestCode(phone);
+        // SMS повторяем, только если сервер его разрешил; иначе (SMS ушло
+        // вместо сорвавшегося звонка) снова пробуем звонок.
+        boolean sms = Boolean.FALSE.equals(byCall.getValue())
+                && Boolean.TRUE.equals(smsAvailable.getValue());
+        request(phone, sms);
     }
 
     /**

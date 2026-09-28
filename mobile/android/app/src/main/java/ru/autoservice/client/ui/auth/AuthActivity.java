@@ -41,7 +41,7 @@ import ru.autoservice.client.util.PhoneFormat;
  */
 public class AuthActivity extends AppCompatActivity {
 
-    /** Длина кода из SMS — та же, что на сервере (OTP.CODE_LENGTH). */
+    /** Длина кода — та же, что на сервере: 4 цифры звонящего номера или SMS. */
     private static final int CODE_LENGTH = 4;
 
     private ActivityAuthBinding views;
@@ -143,6 +143,7 @@ public class AuthActivity extends AppCompatActivity {
         }));
 
         views.resend.setOnClickListener(v -> model.resend());
+        views.requestSms.setOnClickListener(v -> model.requestSms());
         views.changePhone.setOnClickListener(v -> model.editPhone());
 
         bindServerSettings();
@@ -213,14 +214,14 @@ public class AuthActivity extends AppCompatActivity {
             Ui.setVisible(views.stepCode, codeStep);
 
             views.title.setText(codeStep ? R.string.auth_code_title : R.string.auth_title);
-            views.subtitle.setText(codeStep
-                    ? getString(R.string.auth_code_sub, model.phone())
-                    : getString(R.string.auth_sub));
+            renderChannel();
 
             if (codeStep) {
                 views.codeInput.requestFocus();
             }
         });
+        model.byCall().observe(this, byCall -> renderChannel());
+        model.smsAvailable().observe(this, available -> renderChannel());
 
         model.busy().observe(this, busy -> {
             Ui.setVisible(views.progress, busy);
@@ -231,13 +232,7 @@ public class AuthActivity extends AppCompatActivity {
             views.signIn.setEnabled(!busy);
         });
 
-        model.resendIn().observe(this, seconds -> {
-            boolean waiting = seconds != null && seconds > 0;
-            views.resend.setEnabled(!waiting);
-            views.resend.setText(waiting
-                    ? getString(R.string.auth_resend_in, seconds)
-                    : getString(R.string.auth_resend));
-        });
+        model.resendIn().observe(this, seconds -> renderChannel());
 
         // Код из ответа приходит только с сервера разработки. В релизной
         // сборке поле игнорируем даже если оно каким-то образом пришло:
@@ -283,6 +278,37 @@ public class AuthActivity extends AppCompatActivity {
                 openMain();
             }
         });
+    }
+
+    /**
+     * Тексты шага кода под способ доставки: звонок или SMS, и кнопка SMS,
+     * когда сервер её разрешил (два звонка не помогли).
+     */
+    private void renderChannel() {
+        boolean codeStep = model.step().getValue() == AuthViewModel.Step.CODE;
+        boolean byCall = !Boolean.FALSE.equals(model.byCall().getValue());
+        boolean smsAvailable = Boolean.TRUE.equals(model.smsAvailable().getValue());
+        Integer left = model.resendIn().getValue();
+        boolean waiting = left != null && left > 0;
+
+        views.subtitle.setText(!codeStep
+                ? getString(R.string.auth_sub)
+                : getString(byCall ? R.string.auth_code_sub_call : R.string.auth_code_sub, model.phone()));
+        views.codeLayout.setHint(byCall ? R.string.auth_code_hint_call : R.string.auth_code_hint);
+
+        views.resend.setEnabled(!waiting);
+        if (byCall) {
+            views.resend.setText(waiting
+                    ? getString(R.string.auth_recall_in, left) : getString(R.string.auth_recall));
+        } else {
+            views.resend.setText(waiting
+                    ? getString(R.string.auth_resend_in, left) : getString(R.string.auth_resend));
+        }
+
+        Ui.setVisible(views.requestSms, byCall && smsAvailable);
+        views.requestSms.setEnabled(!waiting);
+        views.requestSms.setText(waiting
+                ? getString(R.string.auth_sms_in, left) : getString(R.string.auth_sms));
     }
 
     private void openOnboarding() {

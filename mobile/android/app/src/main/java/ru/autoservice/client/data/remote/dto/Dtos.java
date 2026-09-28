@@ -21,9 +21,12 @@ public final class Dtos {
 
     public static final class OtpRequestBody {
         @SerializedName("phone") public final String phone;
+        /** null — звонок (по умолчанию), "sms" — когда сервер разрешил SMS. */
+        @SerializedName("channel") public final String channel;
 
-        public OtpRequestBody(String phone) {
+        public OtpRequestBody(String phone, String channel) {
             this.phone = phone;
+            this.channel = channel;
         }
     }
 
@@ -31,6 +34,10 @@ public final class Dtos {
         @SerializedName("phone") public String phone;
         @SerializedName("expires_at") public String expiresAt;
         @SerializedName("resend_after_seconds") public int resendAfterSeconds;
+        /** call — звонок, код — последние 4 цифры входящего номера; sms. */
+        @SerializedName("channel") public String channel;
+        /** Звонки не помогли — следующий код можно попросить в SMS. */
+        @SerializedName("sms_available") public boolean smsAvailable;
         /** Приходит только при OTP_DEBUG_EXPOSE_CODE=True на сервере разработки. */
         @SerializedName("debug_code") public String debugCode;
     }

@@ -17,6 +17,8 @@ class NotificationKind(models.TextChoices):
 class NotificationChannel(models.TextChoices):
     SMS = "sms", "SMS"
     PUSH = "push", "Push"
+    # Код входа звонком: код — последние цифры номера, с которого звонят.
+    CALL = "call", "Звонок"
 
 
 class NotificationStatus(models.TextChoices):

@@ -33,34 +33,49 @@ public final class AuthRepository {
         this.storage = storage;
     }
 
-    /** Результат запроса кода: сколько ждать до повтора и код для отладки. */
+    /** Результат запроса кода: как он придёт, сколько ждать до повтора, код для отладки. */
     public static final class OtpRequested {
         private final String phone;
         private final int resendAfterSeconds;
+        private final boolean byCall;
+        private final boolean smsAvailable;
         @Nullable private final String debugCode;
 
-        OtpRequested(String phone, int resendAfterSeconds, @Nullable String debugCode) {
+        OtpRequested(String phone, int resendAfterSeconds, boolean byCall, boolean smsAvailable,
+                     @Nullable String debugCode) {
             this.phone = phone;
             this.resendAfterSeconds = resendAfterSeconds;
+            this.byCall = byCall;
+            this.smsAvailable = smsAvailable;
             this.debugCode = debugCode;
         }
 
         public String phone() { return phone; }
         public int resendAfterSeconds() { return resendAfterSeconds; }
 
+        /** Код придёт звонком: это последние 4 цифры входящего номера. */
+        public boolean byCall() { return byCall; }
+
+        /** Звонки не помогли — можно попросить код в SMS. */
+        public boolean smsAvailable() { return smsAvailable; }
+
         /** Приходит только с сервера разработки — в проде здесь null. */
         @Nullable public String debugCode() { return debugCode; }
     }
 
     /**
-     * Запросить код. Телефон нормализуется до E.164 прямо здесь: «8 900…» и
+     * Запросить код: по умолчанию звонком, {@code sms} — когда сервер уже
+     * разрешил SMS (звонки не помогли). Телефон нормализуется до E.164 прямо здесь: «8 900…» и
      * «+7 900…» должны попасть в один аккаунт.
      */
-    public void requestOtp(@NonNull String rawPhone, @NonNull Result.Callback<OtpRequested> callback) {
+    public void requestOtp(@NonNull String rawPhone, boolean sms,
+                           @NonNull Result.Callback<OtpRequested> callback) {
         String phone = Formats.normalizePhone(rawPhone);
         Calls.enqueue(
-                api.requestOtp(new Dtos.OtpRequestBody(phone)),
-                dto -> new OtpRequested(dto.phone, dto.resendAfterSeconds, dto.debugCode),
+                api.requestOtp(new Dtos.OtpRequestBody(phone, sms ? "sms" : null)),
+                // Сервер постарше канала не присылает — тогда это SMS.
+                dto -> new OtpRequested(dto.phone, dto.resendAfterSeconds,
+                        "call".equals(dto.channel), dto.smsAvailable, dto.debugCode),
                 callback);
     }
 

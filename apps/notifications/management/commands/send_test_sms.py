@@ -1,4 +1,4 @@
-"""Проверка SMS-шлюза одной командой.
+"""Проверка SMS-шлюза одной командой; с `--call` — звонка с кодом входа.
 
 Нужна, чтобы убедиться в работоспособности ключа и имени отправителя, не
 проходя весь сценарий входа и не тратя код из OTP. Отправка синхронная,
@@ -15,10 +15,14 @@ from apps.notifications.providers import (
     SmsRejectedError,
     get_sms_provider,
 )
+from apps.notifications.providers.call import get_call_provider
 
 
 class Command(BaseCommand):
-    help = "Отправить тестовое SMS: manage.py send_test_sms +79001234567"
+    help = (
+        "Отправить тестовое SMS: manage.py send_test_sms +79001234567; "
+        "позвонить с кодом входа: manage.py send_test_sms +79001234567 --call"
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("phone", help="номер получателя в любом формате")
@@ -27,9 +31,17 @@ class Command(BaseCommand):
             default="Проверка связи. Это тестовое сообщение сервиса.",
             help="текст сообщения",
         )
+        parser.add_argument(
+            "--call",
+            action="store_true",
+            help="вместо SMS заказать звонок с кодом (как при входе), 0,40 ₽",
+        )
 
     def handle(self, *args, **options):
         phone = normalize_phone(options["phone"])
+        if options["call"]:
+            self._call(phone)
+            return
         provider_name = settings.SMS["PROVIDER"]
 
         self.stdout.write(f"Провайдер: {provider_name}")
@@ -59,3 +71,29 @@ class Command(BaseCommand):
             raise CommandError(f"Шлюз недоступен: {exc}") from exc
 
         self.stdout.write(self.style.SUCCESS(f"Отправлено, id сообщения: {message_id}"))
+
+    def _call(self, phone: str) -> None:
+        provider_name = settings.OTP["CALL_PROVIDER"]
+        self.stdout.write(f"Провайдер звонков: {provider_name}")
+        self.stdout.write(f"Получатель: {phone}")
+        if provider_name == "console":
+            self.stdout.write(
+                self.style.WARNING(
+                    "\nВНИМАНИЕ: провайдер console — никто не позвонит, код"
+                    " печатается в лог.\nДля боевых звонков задайте в .env"
+                    " OTP_CALL_PROVIDER=smsru и SMS_API_KEY, затем пересоздайте"
+                    " контейнеры (up -d, а не restart).\n"
+                )
+            )
+        try:
+            placed = get_call_provider().call(phone, None)
+        except SmsRejectedError as exc:
+            raise CommandError(f"Шлюз отказал: {exc}") from exc
+        except SmsDeliveryError as exc:
+            raise CommandError(f"Шлюз недоступен: {exc}") from exc
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Звонок заказан, id {placed.call_id}. Код — последние цифры"
+                f" входящего номера: {placed.code}"
+            )
+        )

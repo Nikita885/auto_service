@@ -155,7 +155,7 @@ def prod_like(settings, tmp_path, monkeypatch):
 
     settings.DEBUG = False
     settings.SECRET_KEY = "z9" * 30
-    settings.OTP = {**settings.OTP, "DEBUG_EXPOSE_CODE": False}
+    settings.OTP = {**settings.OTP, "DEBUG_EXPOSE_CODE": False, "CALL_PROVIDER": "smsru"}
     settings.ALLOWED_HOSTS = ["moi-servis.ru", "www.moi-servis.ru", "moiservis.pro"]
     settings.CSRF_TRUSTED_ORIGINS = ["https://moi-servis.ru", "https://www.moi-servis.ru"]
     settings.CORS_ALLOW_ALL_ORIGINS = False

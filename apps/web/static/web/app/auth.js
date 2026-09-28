@@ -22,8 +22,12 @@ export function Auth({ onSignedIn }) {
   const [phone, setPhone] = useState("+7");
   const [code, setCode] = useState("");
   const [hint, setHint] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(""); // "", "send" или "verify"
   const [resendIn, setResendIn] = useState(0);
+  // Как пришёл код: call — звонок, код — последние 4 цифры входящего
+  // номера; sms — после двух неудачных звонков сервер разрешает SMS.
+  const [channel, setChannel] = useState("call");
+  const [smsAvailable, setSmsAvailable] = useState(false);
   const [pending, setPending] = useState(invite.get());
   const codeRef = useRef(null);
 
@@ -43,21 +47,24 @@ export function Auth({ onSignedIn }) {
 
   useEffect(() => { if (step === "code" && codeRef.current) codeRef.current.focus(); }, [step]);
 
-  async function requestCode() {
+  async function requestCode(wanted) {
     if (!phoneComplete(phone) || busy) return;
-    setBusy(true);
+    setBusy("send");
     const data = await call(() => api.request("/auth/otp/request/", {
-      method: "POST", body: { phone }, auth: false,
+      method: "POST", body: wanted ? { phone, channel: wanted } : { phone }, auth: false,
     }));
-    setBusy(false);
+    setBusy("");
     if (!data) return;
     setStep("code");
+    setCode("");
+    setChannel(data.channel || "sms");
+    setSmsAvailable(Boolean(data.sms_available));
     setResendIn(data.resend_after_seconds || 60);
     // Код в ответе приходит только номерам из OTP_DEBUG_PHONES — это
     // временная замена SMS, пока шлюз не заработал.
     if (data.debug_code) {
       setCode(data.debug_code);
-      setHint("Код пришёл без SMS (тестовый номер) и уже подставлен.");
+      setHint("Тестовый номер: код пришёл в ответе сервера и уже подставлен.");
     } else {
       setHint("");
     }
@@ -65,7 +72,7 @@ export function Auth({ onSignedIn }) {
 
   async function verify() {
     if (code.trim().length < 4 || busy) return;
-    setBusy(true);
+    setBusy("verify");
     try {
       // Код приглашения из ссылки или QR уходит вместе со входом — сервер
       // привяжет человека сам, вводить ничего не придётся.
@@ -82,7 +89,7 @@ export function Auth({ onSignedIn }) {
     } catch (err) {
       toast(errorText(err), "error");
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
 
@@ -96,16 +103,16 @@ export function Auth({ onSignedIn }) {
       ${step === "phone" ? html`
         <div>
           <h1>Замена масла<br /><span>без очереди</span></h1>
-          <p class="muted" style="margin-top:8px">Вход по номеру телефона. Пароль не нужен — пришлём код в SMS.</p>
+          <p class="muted" style="margin-top:8px">Вход по номеру телефона. Пароль не нужен — мы позвоним, код — последние 4 цифры номера.</p>
         </div>
-        <form class="stack" onSubmit=${(e) => { e.preventDefault(); requestCode(); }}>
+        <form class="stack" onSubmit=${(e) => { e.preventDefault(); requestCode(null); }}>
           <div class="field">
             <label for="phone">Телефон</label>
             <input id="phone" type="tel" inputmode="tel" autocomplete="tel" value=${phone}
               onInput=${(e) => setPhone(formatPhone(e.target.value))} />
           </div>
           <button class="btn btn-primary btn-block" type="submit" disabled=${!phoneComplete(phone) || busy}>
-            ${busy ? "Отправляем…" : "Получить код"}
+            ${busy === "send" ? "Звоним…" : "Получить код"}
           </button>
         </form>
         ${pending
@@ -115,21 +122,30 @@ export function Auth({ onSignedIn }) {
       ` : html`
         <div>
           <h1>Введите код</h1>
-          <p class="muted" style="margin-top:8px">Отправили SMS на ${phone}</p>
+          <p class="muted" style="margin-top:8px">${channel === "call"
+            ? "Сейчас на " + phone + " позвонят. Отвечать не нужно — введите последние 4 цифры номера, с которого звонят."
+            : "Отправили SMS на " + phone}</p>
         </div>
         <form class="stack" onSubmit=${(e) => { e.preventDefault(); verify(); }}>
           <div class="field">
-            <label for="code">Код из SMS</label>
+            <label for="code">${channel === "call" ? "Последние 4 цифры входящего номера" : "Код из SMS"}</label>
             <input id="code" ref=${codeRef} class="otp-input" inputmode="numeric" maxlength="8"
               autocomplete="one-time-code" value=${code}
               onInput=${(e) => setCode(e.target.value.replace(/\D/g, ""))} />
           </div>
           ${hint && html`<p class="hint">${hint}</p>`}
           <button class="btn btn-primary btn-block" type="submit" disabled=${code.length < 4 || busy}>
-            ${busy ? "Проверяем…" : "Войти"}
+            ${busy === "verify" ? "Проверяем…" : "Войти"}
           </button>
-          <button class="btn btn-ghost btn-block" type="button" disabled=${resendIn > 0 || busy} onClick=${requestCode}>
-            ${resendIn > 0 ? "Отправить повторно через " + resendIn + " с" : "Отправить код ещё раз"}
+          ${smsAvailable && channel === "call" && html`
+            <button class="btn btn-block" type="button" disabled=${resendIn > 0 || busy} onClick=${() => requestCode("sms")}>
+              ${resendIn > 0 ? "Код в SMS — через " + resendIn + " с" : "Звонок не приходит — получить код в SMS"}
+            </button>`}
+          <button class="btn btn-ghost btn-block" type="button" disabled=${resendIn > 0 || busy}
+            onClick=${() => requestCode(channel === "sms" && smsAvailable ? "sms" : null)}>
+            ${resendIn > 0
+              ? (channel === "call" ? "Позвонить ещё раз через " : "Отправить SMS ещё раз через ") + resendIn + " с"
+              : (channel === "call" ? "Позвонить ещё раз" : "Отправить SMS ещё раз")}
           </button>
           <button class="btn btn-ghost btn-block" type="button" onClick=${() => { setStep("phone"); setCode(""); }}>
             Изменить номер
