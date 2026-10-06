@@ -112,6 +112,8 @@
       get: (path) => request(path),
       post: (path, body) => request(path, { method: "POST", body: body || {} }),
       patch: (path, body) => request(path, { method: "PATCH", body: body || {} }),
+      // 204 без тела — true, чтобы `if (await call(...))` читалось как успех.
+      del: (path) => request(path, { method: "DELETE" }).then(() => true),
       get isAuthorized() { return Boolean(store.access); },
       signOut() { store.clear(); },
     };

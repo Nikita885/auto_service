@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.booking.services import draft as draft_service
 from apps.catalog.models import Oil, OilStock, OilType, ServicePoint
+from apps.garage.models import Car
 from apps.referral.models import ReferralNode
 from apps.referral.services import tree as tree_service
 
@@ -21,10 +22,14 @@ def api() -> APIClient:
 
 @pytest.fixture
 def client_user(db) -> User:
-    return User.objects.create_user(
-        phone="+79001112233", full_name="Иван Тестов", car_model="Kia Rio",
-        car_plate="А123ВС77",
-    )
+    user = User.objects.create_user(phone="+79001112233", full_name="Иван Тестов")
+    Car.objects.create(user=user, title="Kia Rio", plate="А123ВС77", is_primary=True)
+    return user
+
+
+@pytest.fixture
+def client_car(client_user) -> Car:
+    return Car.objects.get(user=client_user, is_primary=True)
 
 
 @pytest.fixture

@@ -533,9 +533,7 @@ def find_client(raw_phone: str) -> User | None:
     return User.objects.filter(phone=normalize_phone(raw_phone)).first()
 
 
-def get_or_create_client(
-    raw_phone: str, *, full_name: str = "", car_model: str = "", car_plate: str = ""
-) -> tuple[User, bool]:
+def get_or_create_client(raw_phone: str, *, full_name: str = "") -> tuple[User, bool]:
     """Клиент, которого записывает мастер: по звонку или у стойки.
 
     Нет аккаунта — заводим такой же, как при входе по SMS: без пароля и
@@ -543,13 +541,12 @@ def get_or_create_client(
     приложение по своему номеру и видит свою запись — телефон и есть его
     логин.
 
-    Существующему клиенту профиль не переписываем, а только дополняем
-    пустые поля: имя и машину он мог поправить сам, а мастер со слов по
-    телефону легко ошибётся. В записи при этом остаётся то, что ввёл
-    мастер, — это снимок, как и у записи из приложения.
+    Существующему клиенту имя не переписываем, а только дополняем пустое:
+    он мог поправить его сам, а мастер со слов по телефону легко ошибётся.
+    Машину ищет и при необходимости добавляет `garage.match_or_add`.
     """
     phone = normalize_phone(raw_phone)
-    profile = {"full_name": full_name, "car_model": car_model, "car_plate": car_plate}
+    profile = {"full_name": full_name}
     user, created = User.objects.get_or_create(
         phone=phone, defaults={"role": UserRole.CLIENT, **profile}
     )
@@ -624,9 +621,18 @@ def issue_tokens(user: User) -> dict[str, str]:
 
 
 def update_profile(user: User, **fields) -> User:
-    """Обновление профиля. Телефон и роль сменить через профиль нельзя."""
+    """Обновление профиля. Телефон и роль сменить через профиль нельзя.
 
-    allowed = {"full_name", "car_model", "car_plate"}
+    `car_model`/`car_plate` присылают сборки приложений, которые знают
+    одну машину в профиле: это основной автомобиль гаража.
+    """
+    from apps.garage.services.cars import update_primary_from_profile
+
+    if user.is_client:
+        update_primary_from_profile(
+            user, title=fields.pop("car_model", None), plate=fields.pop("car_plate", None)
+        )
+    allowed = {"full_name"}
     dirty = []
     for key, value in fields.items():
         if key not in allowed or value is None:

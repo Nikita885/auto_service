@@ -23,10 +23,8 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
         "роль", max_length=16, choices=UserRole.choices, default=UserRole.CLIENT
     )
 
-    # Автомобиль клиента: мастеру нужно понимать, что заезжает.
-    # Хранится в профиле, а не в шагах записи, чтобы не удлинять сценарий.
-    car_model = models.CharField("марка и модель", max_length=120, blank=True)
-    car_plate = models.CharField("госномер", max_length=16, blank=True)
+    # Автомобили клиента — в `garage.Car`: их бывает несколько, и записи
+    # нужно знать, какой из них обслуживали.
 
     # Точки, к которым привязан мастер. Пусто — значит видит все точки.
     # Клиентов это поле не касается.

@@ -72,6 +72,11 @@ class InviteResultSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    # Основной автомобиль строками — для сборок приложений, которые знают
+    # одну машину в профиле. Новые читают список из /garage/cars/.
+    car_model = serializers.SerializerMethodField()
+    car_plate = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = (
@@ -85,11 +90,34 @@ class UserSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "phone", "role", "date_joined")
 
+    def _primary(self, user):
+        from apps.garage.services.cars import primary_car
+
+        # Профиль отдаётся одним объектом, и машину достаём один раз на ответ.
+        cache = self.context.setdefault("_primary_car", {})
+        if user.pk not in cache:
+            cache[user.pk] = primary_car(user) if user.is_client else None
+        return cache[user.pk]
+
+    def get_car_model(self, user) -> str:
+        car = self._primary(user)
+        return car.title if car else ""
+
+    def get_car_plate(self, user) -> str:
+        car = self._primary(user)
+        return car.plate if car else ""
+
 
 class ProfileUpdateSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
-    car_model = serializers.CharField(max_length=120, required=False, allow_blank=True)
-    car_plate = serializers.CharField(max_length=16, required=False, allow_blank=True)
+    car_model = serializers.CharField(
+        max_length=120, required=False, allow_blank=True,
+        help_text="Устарело: правит основной автомобиль. Новое — /garage/cars/",
+    )
+    car_plate = serializers.CharField(
+        max_length=20, required=False, allow_blank=True,
+        help_text="Устарело: правит основной автомобиль. Новое — /garage/cars/",
+    )
 
 
 class AuthResponseSerializer(serializers.Serializer):

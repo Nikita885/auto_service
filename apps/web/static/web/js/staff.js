@@ -459,7 +459,10 @@
     const points = state.catalog.points;
     if (!points.length) { toast("У вас нет доступных точек.", "error"); return; }
 
-    const form = { slot: null, filled: {} };
+    // carId — машина клиента, выбранная кнопкой из подсказки. Пусто —
+    // машину описывают поля «Машина» и «Госномер», сервер найдёт её среди
+    // машин клиента по номеру или добавит новую.
+    const form = { slot: null, filled: {}, carId: null };
     const input = (id, attrs) => el("input", Object.assign({ id }, attrs));
     const field = (label, control, extra) =>
       el("div", { class: "field" + (extra ? " " + extra : "") }, [
@@ -471,6 +474,50 @@
     const name = input("wi-name", { placeholder: "Как обращаться", autocomplete: "off" });
     const car = input("wi-car", { placeholder: "Марка и модель", autocomplete: "off" });
     const plate = input("wi-plate", { placeholder: "Необязательно", autocomplete: "off" });
+    const carChoice = el("div", { class: "choice-row", role: "group", "aria-label": "Машина клиента" });
+    const carChoiceField = el("div", { class: "field field-wide", hidden: true }, [
+      el("span", { class: "label", text: "Машина клиента" }), carChoice,
+    ]);
+
+    /* Выбор машины кнопкой подставляет её в поля; правка полей руками
+       значит «другая машина» — выбор снимается. */
+    function pickCar(chosen) {
+      form.carId = chosen ? chosen.id : null;
+      $$("button", carChoice).forEach((b) =>
+        b.setAttribute("aria-pressed", String(b.dataset.car === (chosen ? chosen.id : ""))));
+      if (chosen) {
+        car.value = chosen.title;
+        plate.value = chosen.plate;
+      } else {
+        car.value = "";
+        plate.value = "";
+        car.focus();
+      }
+    }
+    [car, plate].forEach((box) => box.addEventListener("input", () => {
+      if (!form.carId) return;
+      form.carId = null;
+      $$("button", carChoice).forEach((b) => b.setAttribute("aria-pressed", "false"));
+    }));
+
+    function renderCars(cars) {
+      carChoice.innerHTML = "";
+      carChoiceField.hidden = !cars.length;
+      if (!cars.length) return;
+      cars.forEach((c) => {
+        const btn = el("button", {
+          class: "btn btn-sm", type: "button", "aria-pressed": "false", "data-car": c.id,
+          text: [c.title, c.plate].filter(Boolean).join(" · "),
+        });
+        btn.onclick = () => pickCar(c);
+        carChoice.append(btn);
+      });
+      const other = el("button", { class: "btn btn-sm btn-ghost", type: "button", "data-car": "", text: "Другая машина" });
+      other.onclick = () => pickCar(null);
+      carChoice.append(other);
+      // Основная выбрана сразу, если мастер ещё не начал вводить машину сам.
+      if (!car.value && !plate.value) pickCar(cars.find((c) => c.is_primary) || cars[0]);
+    }
     const point = el("select", { id: "wi-point" },
       points.map((p) => el("option", { value: p.id, text: p.name })));
     const oil = el("select", { id: "wi-oil" });
@@ -493,6 +540,7 @@
         return;
       }
       phoneHint.classList.toggle("hint-error", !found.is_client);
+      renderCars(found.cars || []);
       if (!found.is_client) {
         phoneHint.textContent = "Это номер сотрудника — записать на него нельзя.";
         return;
@@ -500,7 +548,8 @@
       phoneHint.textContent = found.found
         ? "Клиент есть в базе — данные подставлены."
         : "Новый клиент: заведём по этому номеру, в приложение он войдёт по нему же.";
-      [[name, found.full_name], [car, found.car_model], [plate, found.car_plate]].forEach(([box, value]) => {
+      // Машину подставляет выбор кнопкой выше, здесь — только имя.
+      [[name, found.full_name]].forEach(([box, value]) => {
         if (value && (!box.value || form.filled[box.id] === box.value)) {
           box.value = value;
           form.filled[box.id] = value;
@@ -562,6 +611,7 @@
     const body = el("div", { class: "form-grid" }, [
       el("div", { class: "field" }, [el("label", { for: "wi-phone", text: "Телефон" }), phone, phoneHint]),
       field("Имя", name),
+      carChoiceField,
       field("Машина", car),
       field("Госномер", plate),
       field("Адрес", point),
@@ -594,6 +644,7 @@
         const booking = await api.post("/master/bookings/", {
           phone: phone.value.trim(), full_name: name.value.trim(),
           car_model: car.value.trim(), car_plate: plate.value.trim().toUpperCase(),
+          car_id: form.carId,
           service_point: point.value, oil: oil.value, start_at: form.slot,
           comment: comment.value.trim(),
         });

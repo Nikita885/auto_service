@@ -312,10 +312,14 @@ public class BookingFragment extends Fragment {
         String when = Formats.dateTime(draft.slotStart(), point.zone());
         String summary = point.name() + " · " + point.address() + "\n"
                 + when + "\n"
-                + oil.title() + "\n"
-                + getString(R.string.confirm_oil_price) + " " + Formats.money(oil.price())
-                + " · " + getString(R.string.confirm_work_price) + " " + Formats.money(oil.workPrice())
-                + "\n" + getString(R.string.confirm_total) + " " + Formats.money(oil.totalPrice());
+                + oil.title();
+        // Сервер постарше ещё присылает цены; новый — нет (решение
+        // заказчика), и строки с нулями не нужны.
+        if (oil.totalPrice() > 0) {
+            summary += "\n" + getString(R.string.confirm_oil_price) + " " + Formats.money(oil.price())
+                    + " · " + getString(R.string.confirm_work_price) + " " + Formats.money(oil.workPrice())
+                    + "\n" + getString(R.string.confirm_total) + " " + Formats.money(oil.totalPrice());
+        }
 
         views.summary.setText(summary);
     }

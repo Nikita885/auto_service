@@ -16,6 +16,7 @@ api_v1 = [
     path("", include("apps.booking.urls")),
     path("master/", include("apps.master.urls")),
     path("referral/", include("apps.referral.urls")),
+    path("garage/", include("apps.garage.urls")),
 ]
 
 urlpatterns = [

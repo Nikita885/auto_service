@@ -5,8 +5,9 @@
    разошлась бы с первой. Таймер тоже серверный: `seconds_left` при каждом
    ответе, локально только тикаем до следующего. */
 
+import { CarPicker, carLabel } from "app/cars";
 import {
-  CONFIG, api, ask, bus, call, errorText, fmt, html, money, toast, useEffect, useRef, useState,
+  CONFIG, api, ask, bus, call, errorText, fmt, html, toast, useEffect, useRef, useState,
   visitTime,
 } from "app/lib";
 
@@ -58,17 +59,24 @@ export function Booking() {
     if (next) { setDraft(next); setExpired(false); setCreated(null); }
   }
 
-  async function confirm(comment) {
+  async function confirm(comment, carId) {
     if (busy) return;
     setBusy(true);
     try {
-      const booking = await api.post("/bookings/drafts/" + draft.id + "/confirm/", { comment });
+      const booking = await api.post("/bookings/drafts/" + draft.id + "/confirm/", {
+        comment, car_id: carId || null,
+      });
       setCreated(booking);
       setDraft(null);
       bus.emit("bookings:changed");
     } catch (err) {
       if (GONE.includes(err.code)) setExpired(true);
-      else { toast(errorText(err), "error"); loadCurrent(); }
+      else {
+        toast(errorText(err), "error");
+        // Машину удалили на другом устройстве — черновик жив, выбор
+        // перечитается; остальное (слот, масло) — перечитываем черновик.
+        if (err.code !== "car_not_found") loadCurrent();
+      }
     } finally {
       setBusy(false);
     }
@@ -77,7 +85,7 @@ export function Booking() {
   async function drop() {
     const yes = await ask({
       title: "Прервать запись?",
-      text: "Выбранное время и канистра сразу освободятся.",
+      text: "Выбранное время сразу освободится.",
       confirmLabel: "Прервать", danger: true,
     });
     if (!yes) return;
@@ -98,7 +106,7 @@ export function Booking() {
     body = html`<p class="muted center">Загружаем…</p>`;
   } else if (draft === null) {
     body = html`<div class="card pad stack">
-      <p>Выберите адрес, масло и свободное время. На всю запись — ${Math.round(CONFIG.draftTtl / 60)} минут: пока вы выбираете, время и канистра держатся за вами.</p>
+      <p>Выберите адрес, масло и свободное время. На всю запись — ${Math.round(CONFIG.draftTtl / 60)} минут: пока вы выбираете, время и масло держатся за вами.</p>
       <button class="btn btn-primary btn-block" type="button" disabled=${busy} onClick=${() => start(false)}>Начать запись</button>
     </div>`;
   } else {
@@ -205,9 +213,8 @@ function OilStep({ draft, busy, step }) {
         <span class="choice-meta">${oil.viscosity} · ${oil.oil_type_display} · ${oil.volume_liters} л
           ${oil.available_quantity <= 2 ? " · осталось " + oil.available_quantity : ""}</span>
       </span>
-      <span class="choice-side">${money(oil.total_price)}</span>
     </button>`)}
-    <p class="hint">Цена — масло и работа вместе. На месте она не меняется.</p>
+    <p class="hint">Не знаете, какое нужно? Позвоните — подберём по марке и году: ${CONFIG.phone}.</p>
   </div>`;
 }
 
@@ -268,6 +275,7 @@ function SlotStep({ draft, busy, step }) {
 
 function ConfirmStep({ draft, busy, confirm }) {
   const [comment, setComment] = useState("");
+  const [carId, setCarId] = useState(null);
   const oil = draft.oil;
   const point = draft.service_point;
   return html`<div class="stack">
@@ -275,9 +283,10 @@ function ConfirmStep({ draft, busy, confirm }) {
       <div class="summary-row"><span>Адрес</span><span>${point.name}<br /><small class="muted">${point.address}</small></span></div>
       <div class="summary-row"><span>Когда</span><span>${visitTime(draft.slot_start, point.timezone)}</span></div>
       <div class="summary-row"><span>Масло</span><span>${oil.title}</span></div>
-      <div class="summary-row"><span>Цена масла</span><span>${money(oil.price)}</span></div>
-      <div class="summary-row"><span>Работа</span><span>${money(oil.work_price)}</span></div>
-      <div class="summary-row summary-total"><span>Итого</span><span>${money(oil.total_price)}</span></div>
+    </div>
+    <div class="stack-sm">
+      <span class="kicker">Автомобиль</span>
+      <${CarPicker} value=${carId} onChange=${setCarId} />
     </div>
     <div class="field">
       <label for="comment">Комментарий мастеру (необязательно)</label>
@@ -286,7 +295,7 @@ function ConfirmStep({ draft, busy, confirm }) {
     </div>
     <p class="hint">Баллами можно оплатить до ${CONFIG.maxDiscount}% чека — скажите мастеру при расчёте.</p>
     <div class="sticky-actions">
-      <button class="btn btn-primary" type="button" disabled=${busy} onClick=${() => confirm(comment)}>
+      <button class="btn btn-primary" type="button" disabled=${busy} onClick=${() => confirm(comment, carId)}>
         ${busy ? "Записываем…" : "Записаться"}
       </button>
     </div>
@@ -302,7 +311,7 @@ function Created({ booking, onAgain }) {
       <div class="summary-row"><span>Когда</span><span>${visitTime(booking.start_at, booking.service_point.timezone)}</span></div>
       <div class="summary-row"><span>Адрес</span><span>${booking.service_point.address}</span></div>
       <div class="summary-row"><span>Масло</span><span>${booking.oil_title}</span></div>
-      <div class="summary-row summary-total"><span>Итого</span><span>${money(booking.total_price)}</span></div>
+      ${booking.car && html`<div class="summary-row"><span>Автомобиль</span><span>${carLabel(booking.car)}</span></div>`}
     </div>
     <button class="btn btn-primary btn-block" type="button" onClick=${() => bus.emit("goto", "bookings")}>Мои записи</button>
     <button class="btn btn-ghost btn-block" type="button" onClick=${onAgain}>Записаться ещё</button>

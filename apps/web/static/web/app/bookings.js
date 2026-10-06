@@ -22,7 +22,7 @@ export function Bookings() {
   async function cancel(booking) {
     const reason = await ask({
       title: "Отменить запись " + booking.code + "?",
-      text: "Пост и канистра сразу освободятся.",
+      text: "Время сразу освободится — его смогут занять другие.",
       placeholder: "Причина (необязательно)",
       confirmLabel: "Отменить запись", danger: true, withInput: true,
     });
@@ -55,13 +55,13 @@ export function Bookings() {
 function BookingCard({ booking, onCancel }) {
   const [cls, label] = STATUS[booking.status] || ["badge", booking.status_display];
   const withPoints = Number(booking.points_spent) > 0;
-  // Итог к оплате: мастер мог поправить его при расчёте (долили масла,
-  // добавили работу). Тогда рядом — цена, с которой записывались.
-  const price = booking.final_price || booking.total_price;
-  const note = [
-    booking.price_changed ? "по записи " + money(booking.total_price) : "",
-    withPoints ? money(booking.paid_amount) + " деньгами + " + money(booking.points_spent) + " баллами" : "",
-  ].filter(Boolean).join(" · ");
+  // Сумма — только у выполненной записи: это чек, который клиент оплатил.
+  // До визита сервер её не присылает вовсе (цены клиенту не показываем).
+  const paid = booking.final_price != null;
+  const note = paid && withPoints
+    ? money(booking.paid_amount) + " деньгами + " + money(booking.points_spent) + " баллами"
+    : "";
+  const car = [booking.car_model, booking.car_plate].filter(Boolean).join(" · ");
   const zone = booking.service_point && booking.service_point.timezone;
   return html`<article class="card pad">
     <div class="booking-head">
@@ -71,13 +71,14 @@ function BookingCard({ booking, onCancel }) {
     <div class="booking-lines">
       <span>${booking.service_point ? booking.service_point.address : ""}</span>
       <span>${booking.oil_title}</span>
+      ${car && html`<span>${car}</span>`}
       <span>Код записи <b class="mono">${booking.code}</b></span>
       ${booking.cancel_reason && html`<span>Причина: ${booking.cancel_reason}</span>`}
     </div>
-    <div class="booking-foot">
+    ${paid && html`<div class="booking-foot">
       <span class="muted">${note}</span>
-      <span class="booking-price">${money(price)}</span>
-    </div>
+      <span class="booking-price">${money(booking.final_price)}</span>
+    </div>`}
     ${booking.can_cancel && html`<button class="btn btn-danger btn-block" type="button" style="margin-top:12px"
       onClick=${() => onCancel(booking)}>Отменить запись</button>`}
   </article>`;

@@ -218,7 +218,8 @@ class BookingDraftViewSet(
         summary="Шаг 4: подтвердить запись",
         description=(
             "Слот и наличие масла проверяются повторно. Если за время "
-            "заполнения слот заняли — 409 `slot_taken`."
+            "заполнения слот заняли — 409 `slot_taken`. `car_id` — какую "
+            "из своих машин везёт клиент; без него — основная."
         ),
     )
     @action(detail=True, methods=["post"])
@@ -227,7 +228,10 @@ class BookingDraftViewSet(
         payload.is_valid(raise_exception=True)
 
         booking = draft_service.confirm(
-            request.user, pk, comment=payload.validated_data.get("comment", "")
+            request.user,
+            pk,
+            comment=payload.validated_data.get("comment", ""),
+            car_id=payload.validated_data.get("car_id"),
         )
         return Response(
             BookingSerializer(booking).data, status=status.HTTP_201_CREATED

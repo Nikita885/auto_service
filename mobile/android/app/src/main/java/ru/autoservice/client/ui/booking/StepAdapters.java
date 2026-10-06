@@ -14,6 +14,7 @@ import ru.autoservice.client.databinding.ItemOilBinding;
 import ru.autoservice.client.databinding.ItemPointBinding;
 import ru.autoservice.client.databinding.ItemSlotBinding;
 import ru.autoservice.client.domain.model.Models;
+import ru.autoservice.client.ui.common.Ui;
 import ru.autoservice.client.util.Formats;
 
 /**
@@ -132,6 +133,9 @@ public final class StepAdapters {
             void bind(@NonNull Models.Oil oil, @NonNull OnPick<Models.Oil> onPick) {
                 views.brand.setText(oil.brand());
                 views.name.setText(oil.name() + " " + oil.viscosity());
+                // Цен сервер клиенту больше не присылает (решение заказчика) —
+                // пустую сумму не рисуем, «0 ₽» читался бы как «бесплатно».
+                Ui.setVisible(views.price, oil.totalPrice() > 0);
                 views.price.setText(Formats.money(oil.totalPrice()));
 
                 String availability = oil.isAvailable()

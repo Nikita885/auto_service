@@ -21,8 +21,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts import services as accounts_services
-from apps.accounts.constants import UserRole
 from apps.booking.constants import BookingStatus
 from apps.booking.models import Booking, BookingDraft
 from apps.booking.services import booking as booking_service
@@ -30,16 +28,17 @@ from apps.booking.services import slots as slots_service
 from apps.booking.services import stock as stock_service
 from apps.booking.services import walk_in as walk_in_service
 from apps.catalog.models import ServicePoint
-from apps.catalog.serializers import AvailableOilSerializer, SlotSerializer
+from apps.catalog.serializers import SlotSerializer
 from apps.catalog.services import oils as oils_service
 from apps.common.exceptions import NotFoundError, ValidationError
 from apps.common.permissions import IsAdmin, IsMaster
-from apps.common.phone import normalize_phone
+from apps.garage.services.cars import normalize_plate
 from apps.master import metrics
 from apps.master.serializers import (
     ClientLookupSerializer,
     DaySummarySerializer,
     LiveDraftSerializer,
+    MasterAvailableOilSerializer,
     MasterBookingCreateSerializer,
     MasterBookingDetailSerializer,
     MasterBookingSerializer,
@@ -134,6 +133,9 @@ class MasterBookingViewSet(
                 | Q(client_name__icontains=search)
                 | Q(client_phone__icontains=search)
                 | Q(car_plate__icontains=search)
+                # «a123» латиницей найдёт «А123ВС»: номера в записи
+                # приведены к кириллице (garage.normalize_plate).
+                | Q(car_plate__icontains=normalize_plate(search))
             )
 
         if self.action == "retrieve":
@@ -177,6 +179,7 @@ class MasterBookingViewSet(
             full_name=data["full_name"],
             car_model=data["car_model"],
             car_plate=data["car_plate"],
+            car_id=data["car_id"],
             service_point_id=data["service_point"],
             oil_id=data["oil"],
             start_at=data["start_at"],
@@ -328,26 +331,18 @@ class WalkInViewSet(viewsets.ViewSet):
     )
     @action(detail=False, methods=["get"])
     def lookup(self, request: Request) -> Response:
-        phone = normalize_phone(request.query_params.get("phone", ""))
-        user = accounts_services.find_client(phone)
-        return Response(ClientLookupSerializer({
-            "phone": phone,
-            "found": user is not None,
-            "is_client": user is None or user.role == UserRole.CLIENT,
-            "full_name": user.full_name if user else "",
-            "car_model": user.car_model if user else "",
-            "car_plate": user.car_plate if user else "",
-        }).data)
+        found = walk_in_service.lookup(request.query_params.get("phone", ""))
+        return Response(ClientLookupSerializer(found).data)
 
     @extend_schema(
         parameters=[OpenApiParameter("service_point", str, required=True)],
-        responses={200: AvailableOilSerializer(many=True)},
+        responses={200: MasterAvailableOilSerializer(many=True)},
         summary="Масла в наличии для записи",
     )
     @action(detail=False, methods=["get"])
     def oils(self, request: Request) -> Response:
         oils = stock_service.available_oils(self._point(request))
-        return Response(AvailableOilSerializer(oils, many=True).data)
+        return Response(MasterAvailableOilSerializer(oils, many=True).data)
 
     @extend_schema(
         parameters=[

@@ -395,7 +395,8 @@ paths:
     post:
       operationId: bookings_drafts_confirm_create
       description: Слот и наличие масла проверяются повторно. Если за время заполнения
-        слот заняли — 409 `slot_taken`.
+        слот заняли — 409 `slot_taken`. `car_id` — какую из своих машин везёт клиент;
+        без него — основная.
       summary: 'Шаг 4: подтвердить запись'
       parameters:
       - in: path
@@ -659,6 +660,324 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CarModel'
+          description: ''
+  /api/v1/garage/cars/:
+    get:
+      operationId: garage_cars_list
+      summary: Мои автомобили
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Car'
+          description: ''
+    post:
+      operationId: garage_cars_create
+      description: Первый автомобиль сразу становится основным.
+      summary: Добавить автомобиль
+      tags:
+      - Гараж
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CarWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CarWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Car'
+          description: ''
+  /api/v1/garage/cars{format}:
+    get:
+      operationId: garage_cars_formatted_list
+      summary: Мои автомобили
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Car'
+          description: ''
+    post:
+      operationId: garage_cars_formatted_create
+      description: Первый автомобиль сразу становится основным.
+      summary: Добавить автомобиль
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      tags:
+      - Гараж
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CarWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CarWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Car'
+          description: ''
+  /api/v1/garage/cars/{id}/:
+    get:
+      operationId: garage_cars_retrieve
+      summary: Автомобиль
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Car'
+          description: ''
+    patch:
+      operationId: garage_cars_partial_update
+      summary: Изменить автомобиль
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCarWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCarWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCarWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Car'
+          description: ''
+    delete:
+      operationId: garage_cars_destroy
+      description: Записи с этой машиной остаются в истории как были.
+      summary: Удалить автомобиль
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/garage/cars/{id}{format}:
+    get:
+      operationId: garage_cars_formatted_retrieve
+      summary: Автомобиль
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Car'
+          description: ''
+    patch:
+      operationId: garage_cars_formatted_partial_update
+      summary: Изменить автомобиль
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCarWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCarWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCarWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Car'
+          description: ''
+    delete:
+      operationId: garage_cars_formatted_destroy
+      description: Записи с этой машиной остаются в истории как были.
+      summary: Удалить автомобиль
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/garage/cars/{id}/make-primary/:
+    post:
+      operationId: garage_cars_make_primary_create
+      summary: Сделать основным
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Car'
+          description: ''
+  /api/v1/garage/cars/{id}/make-primary{format}:
+    post:
+      operationId: garage_cars_make_primary_formatted_create
+      summary: Сделать основным
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Car'
           description: ''
   /api/v1/master/bookings/:
     get:
@@ -1179,7 +1498,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/AvailableOil'
+                  $ref: '#/components/schemas/MasterAvailableOil'
           description: ''
   /api/v1/master/walk-in/slots/:
     get:
@@ -1506,21 +1825,6 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
           default: '4.0'
           title: Объём канистры, л
-        price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Цена за канистру, ₽
-        work_price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Стоимость работ, ₽
-        total_price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          readOnly: true
         description:
           type: string
           title: Описание
@@ -1533,16 +1837,19 @@ components:
       - id
       - name
       - oil_type_display
-      - price
       - title
-      - total_price
       - viscosity
     BlankEnum:
       enum:
       - ''
     Booking:
       type: object
-      description: Запись глазами клиента.
+      description: |-
+        Запись глазами клиента.
+
+        Цен до визита клиент не видит (решение заказчика): ни цены масла, ни
+        работы, ни суммы записи в ответе нет. После выполнения — итог, который
+        он заплатил, и как он оплачен: это его чек, а не прайс.
       properties:
         id:
           type: string
@@ -1575,29 +1882,26 @@ components:
           type: string
           format: date-time
           title: Окончание
-        oil_price:
+        car:
+          allOf:
+          - $ref: '#/components/schemas/CarShort'
+          readOnly: true
+          nullable: true
+        car_model:
           type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Цена масла
-        work_price:
+          title: Автомобиль
+          maxLength: 120
+        car_plate:
           type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Цена работ
-        total_price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Итого
+          title: Госномер
+          maxLength: 16
         final_price:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
           readOnly: true
-        price_changed:
-          type: boolean
-          readOnly: true
+          description: Итог к оплате — только у выполненной записи, иначе null
         points_spent:
           type: string
           format: decimal
@@ -1607,7 +1911,9 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
           readOnly: true
+          description: Сколько заплачено деньгами — только у выполненной записи
         client_comment:
           type: string
           title: Комментарий клиента
@@ -1631,22 +1937,24 @@ components:
           title: Создано
       required:
       - can_cancel
+      - car
       - created_at
       - end_at
       - final_price
       - id
-      - oil_price
       - oil_title
       - paid_amount
-      - price_changed
       - service_point
       - start_at
       - status_display
-      - total_price
-      - work_price
     BookingDetail:
       type: object
-      description: Запись глазами клиента.
+      description: |-
+        Запись глазами клиента.
+
+        Цен до визита клиент не видит (решение заказчика): ни цены масла, ни
+        работы, ни суммы записи в ответе нет. После выполнения — итог, который
+        он заплатил, и как он оплачен: это его чек, а не прайс.
       properties:
         id:
           type: string
@@ -1679,29 +1987,26 @@ components:
           type: string
           format: date-time
           title: Окончание
-        oil_price:
+        car:
+          allOf:
+          - $ref: '#/components/schemas/CarShort'
+          readOnly: true
+          nullable: true
+        car_model:
           type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Цена масла
-        work_price:
+          title: Автомобиль
+          maxLength: 120
+        car_plate:
           type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Цена работ
-        total_price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Итого
+          title: Госномер
+          maxLength: 16
         final_price:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
           readOnly: true
-        price_changed:
-          type: boolean
-          readOnly: true
+          description: Итог к оплате — только у выполненной записи, иначе null
         points_spent:
           type: string
           format: decimal
@@ -1711,7 +2016,9 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
           readOnly: true
+          description: Сколько заплачено деньгами — только у выполненной записи
         client_comment:
           type: string
           title: Комментарий клиента
@@ -1744,21 +2051,18 @@ components:
           readOnly: true
       required:
       - can_cancel
+      - car
       - created_at
       - end_at
       - final_price
       - id
       - oil
-      - oil_price
       - oil_title
       - paid_amount
-      - price_changed
       - service_point
       - start_at
       - status_display
       - status_logs
-      - total_price
-      - work_price
     BookingDraft:
       type: object
       description: |-
@@ -1943,6 +2247,58 @@ components:
         reason:
           type: string
           maxLength: 500
+    Car:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+          title: Марка и модель
+        plate:
+          type: string
+          readOnly: true
+          title: Госномер
+        year:
+          type: integer
+          readOnly: true
+          nullable: true
+          title: Год выпуска
+        mileage:
+          type: integer
+          readOnly: true
+          nullable: true
+          title: Пробег, км
+        vin:
+          type: string
+          readOnly: true
+        model_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        is_primary:
+          type: boolean
+          readOnly: true
+          title: Основной
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создано
+      required:
+      - created_at
+      - id
+      - is_primary
+      - mileage
+      - model_id
+      - plate
+      - title
+      - vin
+      - year
     CarMake:
       type: object
       properties:
@@ -1979,6 +2335,59 @@ components:
       - make_name
       - name
       - title
+    CarShort:
+      type: object
+      description: 'Машина в чужих ответах: в записи, в подсказке мастеру.'
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+          title: Марка и модель
+        plate:
+          type: string
+          readOnly: true
+          title: Госномер
+        is_primary:
+          type: boolean
+          readOnly: true
+          title: Основной
+      required:
+      - id
+      - is_primary
+      - plate
+      - title
+    CarWriteRequest:
+      type: object
+      description: Вход для добавления и правки. Проверки по смыслу — в сервисе.
+      properties:
+        title:
+          type: string
+          maxLength: 120
+        plate:
+          type: string
+          maxLength: 20
+        year:
+          type: integer
+          nullable: true
+        mileage:
+          type: integer
+          nullable: true
+        vin:
+          type: string
+          maxLength: 24
+        model_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Модель из /cars/search/ — если клиент выбрал подсказку
+        is_primary:
+          type: boolean
+          default: false
+          description: Сделать основным
     ClientLookup:
       type: object
       description: 'Кто стоит за номером: подставить имя и машину в окно записи.'
@@ -1993,11 +2402,19 @@ components:
           type: string
         car_model:
           type: string
+          description: Основная машина
         car_plate:
           type: string
+          description: Основная машина
+        cars:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarShort'
+          description: Все машины клиента, основная первой
       required:
       - car_model
       - car_plate
+      - cars
       - found
       - full_name
       - is_client
@@ -2020,6 +2437,11 @@ components:
         comment:
           type: string
           maxLength: 500
+        car_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Своя машина из /garage/cars/. Не передана — основная.
     DaySummary:
       type: object
       properties:
@@ -2158,6 +2580,79 @@ components:
       - id
       - oil_title
       - seconds_left
+    MasterAvailableOil:
+      type: object
+      description: |-
+        Масло в наличии глазами мастера — с ценами: из них считается чек.
+
+        Клиентский `AvailableOilSerializer` цен не отдаёт вовсе (решение
+        заказчика), поэтому у мастера свой, а не общий с флагом.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        brand:
+          type: string
+          title: Бренд
+          maxLength: 80
+        name:
+          type: string
+          title: Название
+          maxLength: 120
+        viscosity:
+          type: string
+          title: Вязкость
+          description: Например, 5W-30
+          maxLength: 16
+        oil_type:
+          allOf:
+          - $ref: '#/components/schemas/OilTypeEnum'
+          title: Тип
+        oil_type_display:
+          type: string
+          readOnly: true
+        volume_liters:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          default: '4.0'
+          title: Объём канистры, л
+        description:
+          type: string
+          title: Описание
+        available_quantity:
+          type: integer
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - available_quantity
+      - brand
+      - id
+      - name
+      - oil_type_display
+      - price
+      - title
+      - total_price
+      - viscosity
+      - work_price
     MasterBooking:
       type: object
       description: |-
@@ -2299,7 +2794,13 @@ components:
         car_plate:
           type: string
           default: ''
-          maxLength: 16
+          maxLength: 20
+        car_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Машина клиента из /master/walk-in/lookup/. Иначе car_model
+            и car_plate.
         service_point:
           type: string
           format: uuid
@@ -3023,6 +3524,12 @@ components:
       - null
     Oil:
       type: object
+      description: |-
+        Масло глазами клиента — без цен.
+
+        Цен клиенту не показываем нигде (решение заказчика), и убраны они из
+        ответа, а не только из вёрстки: спрятанное в интерфейсе, но лежащее в
+        JSON — та же публикация. Мастер видит цены в своих сериализаторах.
       properties:
         id:
           type: string
@@ -3057,21 +3564,6 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
           default: '4.0'
           title: Объём канистры, л
-        price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Цена за канистру, ₽
-        work_price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Стоимость работ, ₽
-        total_price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          readOnly: true
         description:
           type: string
           title: Описание
@@ -3080,12 +3572,16 @@ components:
       - id
       - name
       - oil_type_display
-      - price
       - title
-      - total_price
       - viscosity
     OilRequest:
       type: object
+      description: |-
+        Масло глазами клиента — без цен.
+
+        Цен клиенту не показываем нигде (решение заказчика), и убраны они из
+        ответа, а не только из вёрстки: спрятанное в интерфейсе, но лежащее в
+        JSON — та же публикация. Мастер видит цены в своих сериализаторах.
       properties:
         brand:
           type: string
@@ -3113,23 +3609,12 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
           default: '4.0'
           title: Объём канистры, л
-        price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Цена за канистру, ₽
-        work_price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          title: Стоимость работ, ₽
         description:
           type: string
           title: Описание
       required:
       - brand
       - name
-      - price
       - viscosity
     OilStockRow:
       type: object
@@ -3336,6 +3821,34 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PointsEntry'
+    PatchedCarWriteRequest:
+      type: object
+      description: Вход для добавления и правки. Проверки по смыслу — в сервисе.
+      properties:
+        title:
+          type: string
+          maxLength: 120
+        plate:
+          type: string
+          maxLength: 20
+        year:
+          type: integer
+          nullable: true
+        mileage:
+          type: integer
+          nullable: true
+        vin:
+          type: string
+          maxLength: 24
+        model_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Модель из /cars/search/ — если клиент выбрал подсказку
+        is_primary:
+          type: boolean
+          default: false
+          description: Сделать основным
     PatchedMasterOilRequest:
       type: object
       properties:
@@ -3376,17 +3889,19 @@ components:
           maxLength: 150
         car_model:
           type: string
+          description: 'Устарело: правит основной автомобиль. Новое — /garage/cars/'
           maxLength: 120
         car_plate:
           type: string
-          maxLength: 16
+          description: 'Устарело: правит основной автомобиль. Новое — /garage/cars/'
+          maxLength: 20
     PointsEntry:
       type: object
       description: |-
         Строка журнала баллов.
 
-        `percent` и `level` — снимок на момент начисления: ставки меняются в
-        `.env`, а история переписываться не должна.
+        `level` — снимок на момент начисления: ставки меняются в `.env`, а
+        история переписываться не должна.
       properties:
         id:
           type: string
@@ -3402,16 +3917,6 @@ components:
         level:
           type: integer
           nullable: true
-        percent:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
-          nullable: true
-        base_amount:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          nullable: true
         booking_code:
           type: string
           default: ''
@@ -3422,14 +3927,12 @@ components:
           format: date-time
       required:
       - amount
-      - base_amount
       - comment
       - created_at
       - id
       - kind
       - kind_display
       - level
-      - percent
     PointsQuote:
       type: object
       description: 'Окно расчёта у мастера: баланс клиента и сколько можно списать.'
@@ -3829,18 +4332,18 @@ components:
           title: Роль
         car_model:
           type: string
-          title: Марка и модель
-          maxLength: 120
+          readOnly: true
         car_plate:
           type: string
-          title: Госномер
-          maxLength: 16
+          readOnly: true
         date_joined:
           type: string
           format: date-time
           readOnly: true
           title: Дата регистрации
       required:
+      - car_model
+      - car_plate
       - date_joined
       - id
       - phone

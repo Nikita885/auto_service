@@ -113,7 +113,7 @@ class LandingView(CompanyMixin, TemplateView):
         context["points"] = ServicePoint.objects.filter(is_active=True)
         # Прайс на витрине — справочные цены, без остатков: наличие на
         # конкретной точке клиент увидит в приложении, когда будет выбирать.
-        context["oils"] = Oil.objects.filter(is_active=True).order_by("price")
+        context["oils"] = Oil.objects.filter(is_active=True).order_by("brand", "name")
         # Сроки, которые витрина обещает клиенту, — из тех же настроек, по
         # которым работает сервер. Напоминание обещаем, только если такие
         # SMS вообще отправляются: их можно выключить в SMS_ENABLED_KINDS.
@@ -216,6 +216,7 @@ APP_MODULES = {
     "app/bookings": "web/app/bookings.js",
     "app/bonus": "web/app/bonus.js",
     "app/profile": "web/app/profile.js",
+    "app/cars": "web/app/cars.js",
     "app/scan": "web/app/scan.js",
     "app/install": "web/app/install.js",
     "app/main": "web/app/main.js",

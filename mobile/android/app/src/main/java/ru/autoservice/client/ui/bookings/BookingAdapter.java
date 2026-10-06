@@ -81,8 +81,9 @@ public class BookingAdapter extends ListAdapter<Models.Booking, BookingAdapter.H
             views.oil.setText(booking.oilTitle());
             views.address.setText(booking.servicePoint() == null
                     ? "" : booking.servicePoint().address());
-            // Итог к оплате; если мастер поправил его при расчёте — рядом
-            // цена, с которой записывались, чтобы разница не была сюрпризом.
+            // Итог к оплате — сервер присылает его только у выполненной
+            // записи (цен до визита клиент не видит): нет суммы — нет строки.
+            Ui.setVisible(views.price, booking.finalPrice() > 0);
             views.price.setText(Formats.money(booking.finalPrice()));
             var context = views.getRoot().getContext();
             var notes = new java.util.ArrayList<String>();

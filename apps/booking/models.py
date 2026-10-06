@@ -194,6 +194,17 @@ class Booking(BaseModel):
         related_name="bookings",
         verbose_name="масло",
     )
+    # Какую машину обслуживали. Ссылка — для гаража и истории по машине;
+    # что показывать, решает снимок `car_model`/`car_plate` ниже: клиент
+    # может переименовать или удалить машину, а запись не должна поехать.
+    car = models.ForeignKey(
+        "garage.Car",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bookings",
+        verbose_name="автомобиль",
+    )
 
     start_at = models.DateTimeField("начало", db_index=True)
     end_at = models.DateTimeField("окончание")

@@ -23,8 +23,14 @@ class ServicePointSerializer(serializers.ModelSerializer):
 
 
 class OilSerializer(serializers.ModelSerializer):
+    """Масло глазами клиента — без цен.
+
+    Цен клиенту не показываем нигде (решение заказчика), и убраны они из
+    ответа, а не только из вёрстки: спрятанное в интерфейсе, но лежащее в
+    JSON — та же публикация. Мастер видит цены в своих сериализаторах.
+    """
+
     oil_type_display = serializers.CharField(source="get_oil_type_display", read_only=True)
-    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     title = serializers.CharField(source="__str__", read_only=True)
 
     class Meta:
@@ -38,9 +44,6 @@ class OilSerializer(serializers.ModelSerializer):
             "oil_type",
             "oil_type_display",
             "volume_liters",
-            "price",
-            "work_price",
-            "total_price",
             "description",
         )
 

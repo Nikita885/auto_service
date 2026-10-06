@@ -64,7 +64,11 @@ def test_new_client_is_created_and_booked(auth, master_user, point, stock, free_
     user = User.objects.get(phone=NEW_PHONE)
     assert user.role == UserRole.CLIENT
     assert not user.has_usable_password()  # входит только по SMS
-    assert (user.full_name, user.car_model) == ("Сергей Звонков", "Lada Vesta")
+    assert user.full_name == "Сергей Звонков"
+    # Названная мастером машина — первый автомобиль гаража нового клиента.
+    car = user.cars.get()
+    assert (car.title, car.plate, car.is_primary) == ("Lada Vesta", "О777ОО74", True)
+    assert Booking.objects.get(user=user).car == car
     # Узел в реферальной программе — сразу, как при регистрации.
     assert ReferralNode.objects.filter(user=user).exists()
     # То же SMS, что и при записи из приложения.
@@ -94,26 +98,31 @@ def test_new_client_sees_booking_after_login(api, master_user, point, stock, fre
 
 # ------------------------------------------------------ клиент уже есть
 def test_existing_client_profile_is_not_overwritten(
-    auth, master_user, client_user, point, stock, free_slot
+    auth, master_user, client_user, client_car, point, stock, free_slot
 ):
-    User.objects.filter(pk=client_user.pk).update(car_plate="")
-
     resp = auth(master_user).post(
         BOOKINGS_URL,
         payload(point, stock.oil, free_slot, phone=client_user.phone,
-                full_name="Иван со слов", car_plate="Е001КХ77"),
+                full_name="Иван со слов", car_model="Lada Granta", car_plate="е001кх77"),
         format="json",
     )
 
     assert resp.status_code == 201, resp.content
     assert User.objects.filter(phone=client_user.phone).count() == 1
     client_user.refresh_from_db()
-    # Своё имя клиент уже заполнил — мастер со слов его не переписывает,
-    # а пустой госномер дополняется.
+    # Своё имя клиент уже заполнил — мастер со слов его не переписывает.
     assert client_user.full_name == "Иван Тестов"
-    assert client_user.car_plate == "Е001КХ77"
-    # В записи — то, что ввёл мастер: это снимок.
+    # Машину, которой у клиента не было, мастер добавляет второй, не
+    # основной; основная не тронута.
+    client_car.refresh_from_db()
+    assert (client_car.title, client_car.plate, client_car.is_primary) == (
+        "Kia Rio", "А123ВС77", True,
+    )
+    added = client_user.cars.exclude(pk=client_car.pk).get()
+    assert (added.title, added.plate, added.is_primary) == ("Lada Granta", "Е001КХ77", False)
     booking = Booking.objects.get(user=client_user)
+    assert booking.car == added
+    # В записи имя — то, что ввёл мастер: это снимок.
     assert booking.client_name == "Иван со слов"
 
 
@@ -122,6 +131,7 @@ def test_lookup_fills_known_client(auth, master_user, client_user):
         walk_in_url("lookup") + "?phone=8 900 111-22-33"
     ).json()
 
+    car = client_user.cars.get()
     assert body == {
         "phone": client_user.phone,
         "found": True,
@@ -129,6 +139,7 @@ def test_lookup_fills_known_client(auth, master_user, client_user):
         "full_name": "Иван Тестов",
         "car_model": "Kia Rio",
         "car_plate": "А123ВС77",
+        "cars": [{"id": str(car.pk), "title": "Kia Rio", "plate": "А123ВС77", "is_primary": True}],
     }
 
 

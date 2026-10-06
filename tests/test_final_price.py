@@ -179,17 +179,19 @@ def test_client_sees_final_total_in_my_bookings(auth, master_user, client_user, 
     rows = auth(client_user).get(reverse("v1:booking:booking-list")).json()
     rows = rows["results"] if isinstance(rows, dict) else rows
     row = rows[0]
-    assert row["total_price"] == "4800.00"
+    # Свой чек клиент видит — это то, что он заплатил. Цены записи, по
+    # которой видно «было 4800», клиенту не отдаём (решение заказчика).
     assert row["final_price"] == "5100.00"
-    assert row["price_changed"] is True
     assert row["paid_amount"] == "5100.00"
+    assert not {"total_price", "oil_price", "work_price", "price_changed"} & row.keys()
 
 
-def test_unchanged_booking_shows_booking_price_as_final(auth, client_user, booking):
+def test_pending_booking_shows_no_amount_to_client(auth, client_user, booking):
     rows = auth(client_user).get(reverse("v1:booking:booking-list")).json()
     rows = rows["results"] if isinstance(rows, dict) else rows
-    assert rows[0]["final_price"] == "4800.00"
-    assert rows[0]["price_changed"] is False
+    # До визита суммы нет вовсе — ни в интерфейсе, ни в JSON.
+    assert rows[0]["final_price"] is None
+    assert rows[0]["paid_amount"] is None
 
 
 def test_completion_sms_names_final_total(auth, master_user, booking):

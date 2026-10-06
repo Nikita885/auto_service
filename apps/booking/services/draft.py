@@ -36,6 +36,7 @@ from apps.common.exceptions import (
     ValidationError,
 )
 from apps.common.phone import mask_phone
+from apps.garage.services import cars as cars_service
 
 logger = logging.getLogger(__name__)
 
@@ -202,15 +203,20 @@ def select_slot(user, draft_id, start_at: datetime) -> BookingDraft:
 
 
 @transaction.atomic
-def confirm(user, draft_id, *, comment: str = "") -> Booking:
+def confirm(user, draft_id, *, comment: str = "", car_id=None) -> Booking:
     """Финальный шаг: превратить черновик в запись.
 
     Все проверки повторяются здесь ещё раз. Между выбором времени и нажатием
     «Подтвердить» могло пройти четыре минуты, за которые слот заняли или
     масло закончилось — узнать об этом клиент должен до, а не после.
+
+    `car_id` — какую из своих машин клиент везёт; не передан — основная.
+    Чужая или удалённая машина — `car_not_found`, черновик остаётся жив.
     """
     draft = _lock_draft(user, draft_id)
     _require_step(draft, DraftStep.SLOT_SELECTED)
+    car = cars_service.car_for_booking(user, car_id)
+    car_model, car_plate = cars_service.snapshot(car)
 
     if not (draft.service_point_id and draft.oil_id and draft.slot_start):
         raise ValidationError("Выбраны не все параметры", code="draft_incomplete")
@@ -243,8 +249,9 @@ def confirm(user, draft_id, *, comment: str = "") -> Booking:
         start_at=draft.slot_start,
         end_at=end_at,
         client_name=user.full_name,
-        car_model=user.car_model,
-        car_plate=user.car_plate,
+        car=car,
+        car_model=car_model,
+        car_plate=car_plate,
         comment=comment,
         actor=user,
         log_comment="Запись создана клиентом",

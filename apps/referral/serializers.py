@@ -36,8 +36,8 @@ class ReferralSummarySerializer(serializers.Serializer):
 class PointsEntrySerializer(serializers.Serializer):
     """Строка журнала баллов.
 
-    `percent` и `level` — снимок на момент начисления: ставки меняются в
-    `.env`, а история переписываться не должна.
+    `level` — снимок на момент начисления: ставки меняются в `.env`, а
+    история переписываться не должна.
     """
 
     id = serializers.UUIDField()
@@ -45,12 +45,9 @@ class PointsEntrySerializer(serializers.Serializer):
     kind = serializers.CharField()
     kind_display = serializers.CharField(source="get_kind_display")
     level = serializers.IntegerField(allow_null=True)
-    percent = serializers.DecimalField(
-        max_digits=5, decimal_places=2, allow_null=True
-    )
-    base_amount = serializers.DecimalField(
-        max_digits=10, decimal_places=2, allow_null=True
-    )
+    # Ни базы, ни ставки начисления клиенту не отдаём: база — это сумма
+    # чужого чека, а ставка вместе с суммой баллов её выдаёт. Цен клиент
+    # не видит (решение заказчика), а чужих — тем более.
     booking_code = serializers.CharField(source="booking.code", default="")
     comment = serializers.CharField()
     created_at = serializers.DateTimeField()

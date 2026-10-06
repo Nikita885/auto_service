@@ -74,7 +74,8 @@ def test_full_flow_creates_booking(auth, client_user, point, stock, free_slot):
     assert booking.user == client_user
     # Снимок данных: имя, машина и цена зафиксированы на момент брони.
     assert booking.client_phone == client_user.phone
-    assert booking.car_plate == client_user.car_plate
+    assert booking.car_plate == "А123ВС77"
+    assert booking.car.is_primary  # не выбрал машину — основная
     assert booking.oil_title == str(stock.oil)
     assert booking.total_price == stock.oil.price + stock.oil.work_price
 

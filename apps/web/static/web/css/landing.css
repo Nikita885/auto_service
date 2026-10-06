@@ -672,65 +672,6 @@
   text-shadow: 0 0 22px var(--neon), 0 0 60px var(--deep-glow);
 }
 
-/* ----------------------------------------------------------------- цены */
-.price-table-wrap { overflow-x: auto; border-radius: var(--radius-lg); padding: 4px; }
-.price-table { width: 100%; border-collapse: collapse; min-width: 640px; }
-
-.price-table th {
-  text-align: left;
-  padding: 16px 20px;
-  font-size: var(--fs-caption);
-  font-weight: var(--fw-bold);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-  background: none;
-  position: static;
-}
-
-.price-table td {
-  position: relative;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--tint);
-  vertical-align: middle;
-  font-size: var(--fs-body);
-  color: var(--text-soft);
-  transition: color .2s, background .2s;
-}
-
-.price-table tbody tr:last-child td { border-bottom: none; }
-
-/* Наведение на строку зажигает её слева — тот же жест, что у бегущего
-   блика на логотипе, только по вертикали. */
-.price-table tbody tr td:first-child::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--neon);
-  box-shadow: 0 0 12px var(--neon);
-  transform: scaleY(0);
-  transition: transform .3s var(--ease);
-}
-
-.price-table tbody tr:hover td { background: var(--glow-faint); color: var(--text); }
-.price-table tbody tr:hover td:first-child::before { transform: scaleY(1); }
-
-.price-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-.price-table .total {
-  font-size: var(--fs-h3);
-  font-weight: var(--fw-heavy);
-  letter-spacing: -.025em;
-  color: var(--text);
-  transition: color .2s, text-shadow .2s;
-}
-.price-table tbody tr:hover .total { color: var(--neon-hot); text-shadow: 0 0 18px var(--glow-strong); }
-
 .oil-brand {
   display: block;
   font-size: var(--fs-caption);
@@ -740,8 +681,6 @@
   color: var(--neon);
 }
 
-.oil-name { display: block; font-size: var(--fs-lead); font-weight: var(--fw-bold); color: var(--text); margin-top: 2px; }
-.oil-sub { display: block; font-size: var(--fs-small); color: var(--text-faint); margin-top: 3px; }
 
 .chip {
   display: inline-block;

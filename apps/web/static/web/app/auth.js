@@ -238,7 +238,8 @@ export function Auth({ onSignedIn }) {
     Подсказка, а не ограничение: свою машину можно вписать как есть —
     справочник полным не бывает, и упираться в него на регистрации значит
     терять клиента. */
-export function CarField({ value, onChange }) {
+export function CarField({ value, onChange, id }) {
+  const inputId = id || "car";
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
   const timer = useRef(null);
@@ -260,13 +261,13 @@ export function CarField({ value, onChange }) {
   }
 
   return html`<div class="field">
-    <label for="car">Марка и модель</label>
-    <input id="car" autocomplete="off" placeholder="Например, Kia Rio" value=${value}
+    <label for=${inputId}>Марка и модель</label>
+    <input id=${inputId} autocomplete="off" placeholder="Например, Kia Rio" value=${value}
       onInput=${onInput} onBlur=${() => setTimeout(() => setOpen(false), 150)} />
     ${open && items.length > 0 && html`<div class="suggest">
       ${items.map((item) => html`<button type="button" key=${item.id}
         onMouseDown=${(e) => e.preventDefault()}
-        onClick=${() => { onChange(item.title); setOpen(false); }}>${item.title}</button>`)}
+        onClick=${() => { onChange(item.title, item.id); setOpen(false); }}>${item.title}</button>`)}
     </div>`}
   </div>`;
 }

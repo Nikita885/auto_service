@@ -43,7 +43,7 @@
 
 {% block nav %}
   <a href="#service">Услуга</a>
-  <a href="#oils">{% if company.SHOW_PRICES %}Цены{% else %}Расходные материалы{% endif %}</a>
+  <a href="#oils">Расходные материалы</a>
   <a href="#how">Как записаться</a>
   <a href="#addresses">Адреса</a>
 {% endblock %}
@@ -165,79 +165,38 @@
 
 <!-- --------------------------------------------------------------- масла -->
 {% comment %}
-Цены показываются, только если `COMPANY_SHOW_PRICES=true`. Заказчик может
-не хотеть раскрывать стоимость публично — тогда на сайте остаётся сам
-ассортимент: клиенту важно увидеть, что его масло есть, а сумму он узнаёт
-по телефону или в приложении. Данные в обоих случаях одни и те же, из
-таблицы `Oil`, — витрина не разъедется с тем, что отдаёт API.
+Цен на сайте нет вовсе — решение заказчика: стоимость называют по
+телефону и мастер на месте. Секция при этом остаётся: клиенту важно
+увидеть, что его масло есть. Данные — из таблицы `Oil`, той же, что у API.
 {% endcomment %}
 <section class="block" id="oils">
   <div class="block-head" data-reveal-group>
-    <span class="kicker kicker-dark" data-reveal>{% if company.SHOW_PRICES %}Прайс{% else %}Ассортимент{% endif %}</span>
-
-    {% if company.SHOW_PRICES %}
-      <h2 data-reveal>Расходные материалы и цены</h2>
-      <p data-reveal>Итог указан вместе с работой.</p>
-    {% else %}
-      <h2 data-reveal>Расходные материалы</h2>
-      <p data-reveal>
-        Подберём по марке автомобиля, году выпуска и пробегу.
-        Стоимость назовём по телефону.
-      </p>
-    {% endif %}
+    <span class="kicker kicker-dark" data-reveal>Ассортимент</span>
+    <h2 data-reveal>Расходные материалы</h2>
+    <p data-reveal>
+      Подберём по марке автомобиля, году выпуска и пробегу.
+      Стоимость назовём по телефону.
+    </p>
   </div>
 
   {% if oils %}
-    {% if company.SHOW_PRICES %}
-      <div class="price-table-wrap glass" data-reveal>
-        <table class="price-table">
-          <thead>
-            <tr>
-              <th>Наименование</th>
-              <th class="hide-sm">Вязкость</th>
-              <th class="hide-sm">Тип</th>
-              <th class="num">Материал</th>
-              <th class="num hide-sm">Работа</th>
-              <th class="num">Итого</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for oil in oils %}
-              <tr>
-                <td>
-                  <span class="oil-brand">{{ oil.brand }}</span>
-                  <span class="oil-name">{{ oil.name }}</span>
-                  <span class="oil-sub">{{ oil.volume_liters }} л{% if oil.description %} · {{ oil.description }}{% endif %}</span>
-                </td>
-                <td class="hide-sm"><span class="chip">{{ oil.viscosity }}</span></td>
-                <td class="hide-sm">{{ oil.get_oil_type_display }}</td>
-                <td class="num">{{ oil.price|floatformat:0 }} ₽</td>
-                <td class="num hide-sm">{{ oil.work_price|floatformat:0 }} ₽</td>
-                <td class="num total">{{ oil.total_price|floatformat:0 }} ₽</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <div class="oil-grid" data-reveal-group>
-        {% for oil in oils %}
-          <article class="oil-card glass" data-reveal>
-            <span class="oil-brand">{{ oil.brand }}</span>
-            <h3 class="oil-title">{{ oil.name }}</h3>
-            <div class="oil-tags">
-              <span class="chip">{{ oil.viscosity }}</span>
-              <span class="chip">{{ oil.get_oil_type_display }}</span>
-              <span class="chip">{{ oil.volume_liters }} л</span>
-            </div>
-            {% if oil.description %}<p class="oil-note">{{ oil.description }}</p>{% endif %}
-          </article>
-        {% endfor %}
-      </div>
-    {% endif %}
+    <div class="oil-grid" data-reveal-group>
+      {% for oil in oils %}
+        <article class="oil-card glass" data-reveal>
+          <span class="oil-brand">{{ oil.brand }}</span>
+          <h3 class="oil-title">{{ oil.name }}</h3>
+          <div class="oil-tags">
+            <span class="chip">{{ oil.viscosity }}</span>
+            <span class="chip">{{ oil.get_oil_type_display }}</span>
+            <span class="chip">{{ oil.volume_liters }} л</span>
+          </div>
+          {% if oil.description %}<p class="oil-note">{{ oil.description }}</p>{% endif %}
+        </article>
+      {% endfor %}
+    </div>
 
     <p class="price-foot-note" data-reveal>
-      {% if company.SHOW_PRICES %}Не нашли нужное?{% else %}Не нашли нужное или хотите узнать стоимость?{% endif %}
+      Не нашли нужное или хотите узнать стоимость?
       Позвоните — подберём по марке и году выпуска:
       <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>
     </p>
@@ -409,7 +368,7 @@
     <div class="footer-col">
       <h4>Разделы</h4>
       <a href="#service">Услуга</a>
-      <a href="#oils">{% if company.SHOW_PRICES %}Цены{% else %}Расходные материалы{% endif %}</a>
+      <a href="#oils">Расходные материалы</a>
       <a href="#how">Как записаться</a>
       <a href="#faq">Вопросы</a>
     </div>

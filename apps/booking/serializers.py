@@ -1,8 +1,10 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.booking.constants import STEP_ORDER, DraftStep
+from apps.booking.constants import STEP_ORDER, BookingStatus, DraftStep
 from apps.booking.models import Booking, BookingDraft, BookingStatusLog
 from apps.catalog.serializers import OilSerializer, ServicePointSerializer
+from apps.garage.serializers import CarShortSerializer
 
 
 class BookingDraftSerializer(serializers.ModelSerializer):
@@ -78,6 +80,10 @@ class SelectSlotSerializer(serializers.Serializer):
 
 class ConfirmDraftSerializer(serializers.Serializer):
     comment = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    car_id = serializers.UUIDField(
+        required=False, allow_null=True,
+        help_text="Своя машина из /garage/cars/. Не передана — основная.",
+    )
 
 
 class CancelSerializer(serializers.Serializer):
@@ -96,20 +102,25 @@ class BookingStatusLogSerializer(serializers.ModelSerializer):
 
 
 class BookingSerializer(serializers.ModelSerializer):
-    """Запись глазами клиента."""
+    """Запись глазами клиента.
+
+    Цен до визита клиент не видит (решение заказчика): ни цены масла, ни
+    работы, ни суммы записи в ответе нет. После выполнения — итог, который
+    он заплатил, и как он оплачен: это его чек, а не прайс.
+    """
 
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     service_point = ServicePointSerializer(read_only=True)
     can_cancel = serializers.BooleanField(
         source="is_cancellable_by_client", read_only=True
     )
-    paid_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    # Итог к оплате. Совпадает с `total_price`, пока мастер не поправил его
-    # при расчёте; `total_price` остаётся ценой на момент брони.
-    final_price = serializers.DecimalField(
-        source="charged_price", max_digits=10, decimal_places=2, read_only=True
+    car = CarShortSerializer(read_only=True, allow_null=True)
+    final_price = serializers.SerializerMethodField(
+        help_text="Итог к оплате — только у выполненной записи, иначе null"
     )
-    price_changed = serializers.SerializerMethodField()
+    paid_amount = serializers.SerializerMethodField(
+        help_text="Сколько заплачено деньгами — только у выполненной записи"
+    )
 
     class Meta:
         model = Booking
@@ -122,11 +133,10 @@ class BookingSerializer(serializers.ModelSerializer):
             "oil_title",
             "start_at",
             "end_at",
-            "oil_price",
-            "work_price",
-            "total_price",
+            "car",
+            "car_model",
+            "car_plate",
             "final_price",
-            "price_changed",
             "points_spent",
             "paid_amount",
             "client_comment",
@@ -137,8 +147,17 @@ class BookingSerializer(serializers.ModelSerializer):
         )
 
 
-    def get_price_changed(self, obj: Booking) -> bool:
-        return obj.final_price is not None and obj.final_price != obj.total_price
+    @staticmethod
+    def _completed(obj: Booking) -> bool:
+        return obj.status == BookingStatus.COMPLETED
+
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True))
+    def get_final_price(self, obj: Booking) -> str | None:
+        return f"{obj.charged_price:.2f}" if self._completed(obj) else None
+
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True))
+    def get_paid_amount(self, obj: Booking) -> str | None:
+        return f"{obj.paid_amount:.2f}" if self._completed(obj) else None
 
 
 class BookingDetailSerializer(BookingSerializer):

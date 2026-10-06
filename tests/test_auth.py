@@ -195,7 +195,9 @@ def test_profile_update(auth, client_user):
     assert response.data["full_name"] == "Новое Имя"
 
     client_user.refresh_from_db()
-    assert client_user.car_plate == "О001ОО77"
+    # Старое поле профиля правит основной автомобиль гаража.
+    assert client_user.cars.get(is_primary=True).plate == "О001ОО77"
+    assert response.json()["car_plate"] == "О001ОО77"
     assert client_user.phone == "+79001112233"  # телефон через профиль не меняется
 
 

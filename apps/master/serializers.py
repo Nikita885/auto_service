@@ -4,6 +4,8 @@ from rest_framework import serializers
 
 from apps.booking.models import Booking, BookingDraft
 from apps.catalog.models import OilType
+from apps.catalog.serializers import AvailableOilSerializer
+from apps.garage.serializers import CarShortSerializer
 
 
 class MasterBookingSerializer(serializers.ModelSerializer):
@@ -118,13 +120,32 @@ class MasterBookingCreateSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=32, help_text="Любая запись номера: 8 900…, +7 900…")
     full_name = serializers.CharField(max_length=150)
     car_model = serializers.CharField(max_length=120, required=False, allow_blank=True, default="")
-    car_plate = serializers.CharField(max_length=16, required=False, allow_blank=True, default="")
+    car_plate = serializers.CharField(max_length=20, required=False, allow_blank=True, default="")
+    car_id = serializers.UUIDField(
+        required=False, allow_null=True, default=None,
+        help_text="Машина клиента из /master/walk-in/lookup/. Иначе car_model и car_plate.",
+    )
     service_point = serializers.UUIDField()
     oil = serializers.UUIDField()
     start_at = serializers.DateTimeField(
         help_text="start_at слота из /master/walk-in/slots/ как есть"
     )
     comment = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+
+
+class MasterAvailableOilSerializer(AvailableOilSerializer):
+    """Масло в наличии глазами мастера — с ценами: из них считается чек.
+
+    Клиентский `AvailableOilSerializer` цен не отдаёт вовсе (решение
+    заказчика), поэтому у мастера свой, а не общий с флагом.
+    """
+
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    work_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta(AvailableOilSerializer.Meta):
+        fields = AvailableOilSerializer.Meta.fields + ("price", "work_price", "total_price")
 
 
 class ClientLookupSerializer(serializers.Serializer):
@@ -134,8 +155,9 @@ class ClientLookupSerializer(serializers.Serializer):
     found = serializers.BooleanField()
     is_client = serializers.BooleanField()
     full_name = serializers.CharField(allow_blank=True)
-    car_model = serializers.CharField(allow_blank=True)
-    car_plate = serializers.CharField(allow_blank=True)
+    car_model = serializers.CharField(allow_blank=True, help_text="Основная машина")
+    car_plate = serializers.CharField(allow_blank=True, help_text="Основная машина")
+    cars = CarShortSerializer(many=True, help_text="Все машины клиента, основная первой")
 
 
 class PointsQuoteSerializer(serializers.Serializer):
