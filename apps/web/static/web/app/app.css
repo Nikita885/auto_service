@@ -283,12 +283,48 @@
 .booking-price { font-weight: var(--fw-bold); font-size: var(--fs-lead); }
 
 /* ------------------------------------------------------------- бонусы */
-.legs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-3); }
+/* Бонусы: строка ближайшей выплаты под балансом — отдельной полосой, чтобы
+   читалась как «новость», а не как продолжение пояснения. */
+.bonus-next {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-ui);
+  color: var(--text-soft);
+}
+.bonus-next.is-coming { color: var(--text); }
+.bonus-next b { color: var(--ok); }
+
+/* Свёрнутые разделы второго уровня: строки списка внутри одной карточки. */
+.disclosures { padding: 0 var(--space-4); }
+.disclosure { border-bottom: 1px solid var(--border); }
+.disclosure:last-child { border-bottom: none; }
+.disclosure summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--space-8);
+  font-weight: var(--fw-semibold);
+  list-style: none;
+  cursor: pointer;
+}
+.disclosure summary::-webkit-details-marker { display: none; }
+.disclosure summary::after {
+  content: "";
+  width: var(--space-2);
+  height: var(--space-2);
+  border-right: 2px solid var(--text-faint);
+  border-bottom: 2px solid var(--text-faint);
+  transform: rotate(45deg);
+  transition: transform var(--dur);
+}
+.disclosure[open] summary::after { transform: rotate(-135deg); }
+.disclosure-body { padding-bottom: var(--space-4); }
+
+.legs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
 .leg { padding: var(--space-3); border-radius: var(--radius); background: var(--surface-2); }
 .leg b { display: block; font-size: var(--fs-h3); font-variant-numeric: tabular-nums; }
 .leg.weak b { color: var(--warn); }
-.payout-line { margin-top: var(--space-3); font-size: var(--fs-ui); }
-.payout-line b { color: var(--ok); }
 
 .invite-code {
   font: var(--fw-bold) 30px/1.1 var(--mono);
