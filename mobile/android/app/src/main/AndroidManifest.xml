@@ -3,13 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Камера — только для сканера QR-кода приглашения. Не обязательна:
-         без неё код вводится руками, и приложение ставится и на устройства
-         без камеры. -->
+    <!-- Камера — только для сканера QR-кода приглашения в веб-приложении.
+         Не обязательна: без неё код вводится руками, и приложение ставится
+         и на устройства без камеры. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <!-- Нужно, чтобы не дёргать сеть вхолостую при выключенном соединении. -->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:name=".App"
@@ -25,38 +23,44 @@
         android:usesCleartextTraffic="false"
         tools:targetApi="34">
 
+        <!--
+          Оболочка над веб-приложением /app/. singleTask: она одна, и ссылка-
+          приглашение, открытая при работающем приложении, приходит в неё
+          через onNewIntent, а не создаёт вторую копию.
+        -->
         <activity
+            android:name=".shell.ShellActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:theme="@style/Theme.AutoService.Splash"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!--
+          Иконка запуска — под прежним именем `.ui.auth.AuthActivity`. Так
+          звалась стартовая активность нативного клиента, и ярлык на рабочем
+          столе ссылается на это имя: переименуй его — и после обновления
+          ярлык у части лаунчеров превратится в «приложение не установлено».
+        -->
+        <activity-alias
             android:name=".ui.auth.AuthActivity"
             android:exported="true"
-            android:theme="@style/Theme.AutoService.Splash"
-            android:windowSoftInputMode="adjustResize">
+            android:targetActivity=".shell.ShellActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-
-        <activity
-            android:name=".ui.MainActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-
-        <activity
-            android:name=".ui.onboarding.OnboardingActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
+        </activity-alias>
 
         <!--
           Ссылка-приглашение. autoVerify требует, чтобы сервер отдавал
           /.well-known/assetlinks.json с отпечатком подписи этой сборки —
           иначе система откроет ссылку в браузере, и человек попадёт на
           страницу с кодом (она для этого и сделана), а не в приложение.
-
-          noHistory: экрана у активности нет, и возвращаться на неё по
-          кнопке «назад» не к чему.
+          Своего экрана нет: код откладывается, открывается оболочка.
         -->
         <activity
-            android:name=".ui.invite.InviteActivity"
+            android:name=".shell.InviteActivity"
             android:exported="true"
             android:noHistory="true"
             android:theme="@android:style/Theme.NoDisplay">
@@ -68,14 +72,5 @@
                 <data android:pathPrefix="/i/" />
             </intent-filter>
         </activity>
-        <!-- Экран сканера из zxing-android-embedded. По умолчанию он
-             ландшафтный; телефон держат вертикально. -->
-        <activity
-            android:name="com.journeyapps.barcodescanner.CaptureActivity"
-            android:screenOrientation="fullSensor"
-            android:stateNotNeeded="true"
-            android:theme="@style/zxing_CaptureTheme"
-            android:windowSoftInputMode="stateAlwaysHidden"
-            tools:replace="screenOrientation" />
     </application>
 </manifest>

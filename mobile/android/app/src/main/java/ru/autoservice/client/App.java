@@ -1,38 +1,57 @@
 package ru.autoservice.client;
 
-import ru.autoservice.client.util.InstallReferrer;
-
 import android.app.Application;
+import android.content.Context;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import ru.autoservice.client.data.local.InviteStorage;
+import ru.autoservice.client.data.local.TokenStorage;
+import ru.autoservice.client.util.InstallReferrer;
 
 /**
- * Точка сборки приложения.
+ * Приложение — оболочка над веб-приложением `/app/` (то же, что на iPhone).
  *
- * <p>Зависимости собираются вручную в {@link AppContainer}, без DI-фреймворка:
- * экранов немного, граф плоский, а явная сборка читается без знания магии
- * аннотаций. Когда модулей станет больше — контейнер легко заменить на Hilt,
- * потому что экраны видят только интерфейсы репозиториев.
+ * <p>Здесь живут только два хранилища, которые нужны и оболочке, и тому,
+ * что приходит снаружи (ссылка-приглашение, Google Play): токены входа и
+ * отложенный код приглашения.
  */
 public class App extends Application {
 
-    private AppContainer container;
+    private TokenStorage tokens;
+    private InviteStorage invites;
+    @Nullable private Runnable inviteListener;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        container = new AppContainer(this);
+        tokens = new TokenStorage(this);
+        invites = new InviteStorage(this);
         // Установили из Google Play по ссылке-приглашению — забираем код.
         InstallReferrer.check(this);
     }
 
     @NonNull
-    public AppContainer container() {
-        return container;
+    public static TokenStorage tokens(@NonNull Context context) {
+        return ((App) context.getApplicationContext()).tokens;
     }
 
     @NonNull
-    public static AppContainer container(@NonNull android.content.Context context) {
-        return ((App) context.getApplicationContext()).container();
+    public static InviteStorage invites(@NonNull Context context) {
+        return ((App) context.getApplicationContext()).invites;
+    }
+
+    /** Экран, которому сказать «пришёл код приглашения», или null. */
+    public static void setInviteListener(@NonNull Context context, @Nullable Runnable listener) {
+        ((App) context.getApplicationContext()).inviteListener = listener;
+    }
+
+    /** Код отложен (ссылка, Google Play) — сообщить открытому экрану. */
+    public static void inviteArrived(@NonNull Context context) {
+        Runnable listener = ((App) context.getApplicationContext()).inviteListener;
+        if (listener != null) {
+            listener.run();
+        }
     }
 }

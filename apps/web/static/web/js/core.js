@@ -14,16 +14,22 @@
 
   function createStore(scope) {
     const k = (name) => scope + "." + name;
+    // В Android-оболочке токены клиента лежат в зашифрованном хранилище
+    // приложения (ключ — в Android Keystore), а не в localStorage WebView:
+    // тот на рутованном телефоне читается как открытый текст, а refresh
+    // живёт 30 дней. Мост отдаёт тот же интерфейс, что localStorage.
+    const box = window.MoiServisNative && window.MoiServisNative.getItem
+      ? window.MoiServisNative : localStorage;
     return {
-      get access() { return localStorage.getItem(k("access")); },
-      get refresh() { return localStorage.getItem(k("refresh")); },
+      get access() { return box.getItem(k("access")); },
+      get refresh() { return box.getItem(k("refresh")); },
       save(access, refresh) {
-        localStorage.setItem(k("access"), access);
-        if (refresh) localStorage.setItem(k("refresh"), refresh);
+        box.setItem(k("access"), access);
+        if (refresh) box.setItem(k("refresh"), refresh);
       },
       clear() {
-        localStorage.removeItem(k("access"));
-        localStorage.removeItem(k("refresh"));
+        box.removeItem(k("access"));
+        box.removeItem(k("refresh"));
       },
     };
   }

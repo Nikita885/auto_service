@@ -1,10 +1,10 @@
-/* Веб-приложение клиента (`/app/`) — для iPhone с главного экрана.
+/* Веб-приложение клиента (`/app/`) — на iPhone с главного экрана, на
+   Android — в приложении-оболочке: одни экраны на обе платформы.
 
    Компоненты (кнопки, поля, карточки, значки, модалки, уведомления) — из
    app.css, здесь только токены темы и раскладка телефона. Цвета один в
-   один с приложением под Android (res/values/colors.xml) и витриной:
-   клиент видит все три, и разное оформление читалось бы как «сделано
-   разными людьми». */
+   один с витриной: клиент видит и сайт, и приложение, и разное
+   оформление читалось бы как «сделано разными людьми». */
 
 .pwa {
   color-scheme: dark;
@@ -40,8 +40,10 @@
   --ring: 0 0 0 3px rgba(46, 166, 255, .35);
 
   --nav-h: 64px;
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* На iPhone отступы даёт `env()`, в Android-оболочке — сама оболочка
+     (`--native-safe-*`, см. app/lib.js): в WebView `env()` всегда ноль. */
+  --safe-top: var(--native-safe-top, env(safe-area-inset-top, 0px));
+  --safe-bottom: var(--native-safe-bottom, env(safe-area-inset-bottom, 0px));
 
   min-height: 100vh;
   min-height: 100dvh;

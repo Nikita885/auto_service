@@ -47,7 +47,8 @@ public final class InstallReferrer {
                             String code = InviteCodes.fromReferrer(
                                     client.getInstallReferrer().getInstallReferrer());
                             if (code != null) {
-                                App.container(app).invites().remember(code);
+                                App.invites(app).remember(code);
+                                App.inviteArrived(app);
                             }
                         }
                         // Недоступен магазин (сборка не из Play, эмулятор) — тоже

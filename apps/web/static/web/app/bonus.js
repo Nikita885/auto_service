@@ -5,7 +5,8 @@
    правил в приложении однажды разошлась бы с первой. */
 
 import {
-  LoadError, api, call, errorText, fmt, html, money, toast, useEffect, useLoad, useState,
+  LoadError, api, call, copyText, errorText, fmt, html, money, shareText, toast, useEffect, useLoad,
+  useState,
 } from "app/lib";
 import { canScan, scanInvite } from "app/scan";
 
@@ -85,21 +86,14 @@ function InviteCard({ s }) {
   async function share() {
     const message = "Меняю масло по записи, без очереди. Заходи по ссылке, код приглашения "
       + s.code + ": " + s.invite_url;
-    // На iPhone — системное меню «Поделиться»; где его нет, копируем текст.
-    if (navigator.share) {
-      try { await navigator.share({ title: "Приглашение", text: message }); } catch (e) { /* закрыли меню */ }
-      return;
-    }
-    copy(message);
+    const result = await shareText(message);
+    if (result === "copied") toast("Приглашение скопировано", "ok");
+    if (result === "failed") toast("Не получилось скопировать — выделите код вручную.", "error");
   }
 
-  async function copy(value) {
-    try {
-      await navigator.clipboard.writeText(value || s.code);
-      toast(value ? "Приглашение скопировано" : "Код скопирован", "ok");
-    } catch (e) {
-      toast("Не получилось скопировать — выделите код вручную.", "error");
-    }
+  async function copy() {
+    if (await copyText(s.code)) toast("Код скопирован", "ok");
+    else toast("Не получилось скопировать — выделите код вручную.", "error");
   }
 
   return html`<section class="card pad center">

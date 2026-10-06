@@ -11,10 +11,12 @@
    манифеста (см. ClientAppView), и установленное приложение откроется с
    ним. */
 
-import { CONFIG, html, isIos, isStandalone } from "app/lib";
+import { CONFIG, html, isAndroidShell, isIos, isStandalone } from "app/lib";
 
 /** Что показать вместо приложения, или null — можно работать. */
 export function gate() {
+  // Android-приложение из Google Play — оболочка над этими же экранами.
+  if (isAndroidShell()) return null;
   if (!isIos()) return "not-iphone";
   if (!isStandalone() && !CONFIG.allowBrowser) return "install";
   return null;

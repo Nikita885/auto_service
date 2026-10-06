@@ -11,6 +11,54 @@ export { html, render, useCallback, useEffect, useRef, useState };
 const App = window.App;
 
 export const CONFIG = JSON.parse(document.getElementById("app-config").textContent);
+
+/* ------------------------------------------------------ Android-оболочка */
+
+/** Мост к Android-приложению (`MoiServisNative`), или null — мы не в нём.
+
+    На Android это же веб-приложение открывается в оболочке: экраны пишутся
+    один раз и совпадают с iPhone по построению. Оболочка добавляет то, чего
+    нет у страницы: хранилище токенов в Keystore, системное «Поделиться»,
+    буфер обмена, код приглашения из ссылки и из Google Play, отступы под
+    системные панели. */
+export const native = window.MoiServisNative || null;
+export const isAndroidShell = () => Boolean(native);
+
+/* Отступы под строку состояния и навигацию. В WebView `env(safe-area-*)`
+   всегда ноль, а оболочка рисует страницу под системными панелями, как
+   iPhone: отступы присылает она, app.css берёт их раньше `env()`. */
+function applyNativeInsets() {
+  if (!native || !native.insets) return;
+  try {
+    const inset = JSON.parse(native.insets());
+    const style = document.documentElement.style;
+    style.setProperty("--native-safe-top", inset.top + "px");
+    style.setProperty("--native-safe-bottom", inset.bottom + "px");
+  } catch (e) { /* без отступов страница всё равно рабочая */ }
+}
+applyNativeInsets();
+window.addEventListener("nativeinsets", applyNativeInsets);
+
+/** «Поделиться»: системное меню телефона; где его нет — копируем текст. */
+export async function shareText(text) {
+  if (native && native.share) { native.share(text); return "shared"; }
+  if (navigator.share) {
+    try { await navigator.share({ text }); } catch (e) { /* закрыли меню */ }
+    return "shared";
+  }
+  return (await copyText(text)) ? "copied" : "failed";
+}
+
+/** В буфер обмена. В WebView `navigator.clipboard` есть не везде — через мост. */
+export async function copyText(text) {
+  if (native && native.copy) return Boolean(native.copy(text));
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 export const fmt = App.fmt;
 export const toast = App.toast;
 export const ask = App.ask;
@@ -114,10 +162,16 @@ export const invite = {
     try { localStorage.setItem(INVITE_KEY, code); } catch (e) { /* приватный режим */ }
   },
   get() {
-    try { return localStorage.getItem(INVITE_KEY) || ""; } catch (e) { return ""; }
+    let code = "";
+    try { code = localStorage.getItem(INVITE_KEY) || ""; } catch (e) { /* приватный режим */ }
+    // Android: код из ссылки `/i/<код>` и из Google Play забирает оболочка —
+    // в том числе после загрузки страницы (ответ магазина приходит не сразу).
+    if (!code && native && native.pendingInvite) code = native.pendingInvite() || "";
+    return code;
   },
   /** Код обработан (принят или отклонён) — больше не предлагаем. */
   done() {
+    if (native && native.clearInvite) native.clearInvite();
     try {
       const code = localStorage.getItem(INVITE_KEY);
       if (code) localStorage.setItem(INVITE_DONE_KEY, code);

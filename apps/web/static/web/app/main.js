@@ -66,6 +66,31 @@ function Root() {
   }, [user]);
 
   useEffect(() => bus.on("signout", () => setUser(null)), []);
+
+  // Android: ссылку-приглашение открыли, пока приложение уже работало, —
+  // оболочка отложила код и сообщает об этом. Вошедшего привязываем сразу,
+  // невошедшему код уйдёт вместе со входом (invite.get()).
+  useEffect(() => {
+    const onInvite = () => { if (user && !user.offline) attachPendingInvite(); };
+    window.addEventListener("nativeinvite", onInvite);
+    return () => window.removeEventListener("nativeinvite", onInvite);
+  }, [user]);
+
+  // Системная кнопка «Назад» на Android: закрыть окно, сканер, вернуться на
+  // первую вкладку — и только с неё выйти из приложения. Ответ `false`
+  // оболочка понимает как «выходи».
+  useEffect(() => {
+    window.__nativeBack = () => {
+      if (document.querySelector(".modal-backdrop")) {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+        return true;
+      }
+      const scannerClose = [...document.querySelectorAll(".scanner .btn")].pop();
+      if (scannerClose) { scannerClose.click(); return true; }
+      if (user && tab !== TABS[0][0]) { go(TABS[0][0]); return true; }
+      return false;
+    };
+  }, [tab, user]);
   useEffect(() => bus.on("goto", (name) => go(name)), []);
   useEffect(() => {
     const onHash = () => setTab(tabFromHash());
