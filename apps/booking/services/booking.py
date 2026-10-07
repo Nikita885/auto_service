@@ -20,7 +20,9 @@ from apps.booking.constants import (
     BookingStatus,
 )
 from apps.booking.models import Booking, BookingPriceChange, BookingStatusLog
+from apps.booking.services import slots as slots_service
 from apps.booking.services import stock as stock_service
+from apps.catalog.models import ServicePoint
 from apps.common.exceptions import (
     ConflictError,
     NotFoundError,
@@ -212,6 +214,64 @@ def cancel_by_client(user, booking_id, *, reason: str = "") -> Booking:
     transaction.on_commit(
         lambda: events.publish_booking(booking, events.BOOKING_CANCELLED)
     )
+    return booking
+
+
+@transaction.atomic
+def reschedule_by_client(user, booking_id, start_at) -> Booking:
+    """Клиент переносит свою запись на другое время той же точки.
+
+    Можно, пока можно отменить (`is_cancellable_by_client`): перенос — это
+    та же отмена старого времени, и пост под клиента к этому моменту уже
+    готовят. Новое время проходит все проверки записи (`validate_slot`)
+    под той же блокировкой точки, что и подтверждение черновика, — последний
+    пост не достанется двоим. Масло остаётся обещанным той же записи, склад
+    не трогаем. Статус не меняется, поэтому `_transition` не нужен; в
+    историю пишется строка «перенесена», а напоминание будет отправлено
+    заново — к новому времени.
+    """
+    booking = Booking.objects.select_for_update().get(
+        pk=get_for_client(user, booking_id).pk
+    )
+    if not booking.is_cancellable_by_client:
+        raise ConflictError(
+            "Перенести запись уже нельзя — слишком близко к времени визита "
+            "или запись не в статусе ожидания",
+            code="reschedule_deadline_passed",
+            details={"status": booking.status},
+        )
+
+    # Раньше проверки слота: своё же время занято самой записью, и клиент
+    # получил бы «время заняли» вместо понятного «вы уже на это время».
+    if start_at == booking.start_at:
+        raise ValidationError("Запись уже на это время", code="reschedule_same_time")
+    point = ServicePoint.objects.select_for_update().get(pk=booking.service_point_id)
+    new_start, new_end = slots_service.validate_slot(point, start_at)
+
+    old_local = booking.local_start()
+    booking.start_at = new_start
+    booking.end_at = new_end
+    booking.reminder_sent_at = None
+    try:
+        # У клиента может быть другая запись на это время (на другой точке):
+        # её ловит уникальный индекс, а не предварительный запрос — без гонки.
+        with transaction.atomic():
+            booking.save(update_fields=["start_at", "end_at", "reminder_sent_at", "updated_at"])
+    except IntegrityError as exc:
+        raise ConflictError(
+            "У вас уже есть запись на это время", code="duplicate_booking"
+        ) from exc
+
+    BookingStatusLog.objects.create(
+        booking=booking,
+        from_status=booking.status,
+        to_status=booking.status,
+        actor=user,
+        comment=f"Перенесена клиентом с {old_local:%d.%m %H:%M} на "
+        f"{booking.local_start():%d.%m %H:%M}",
+    )
+    transaction.on_commit(lambda: events.publish_booking(booking))
+    logger.info("Запись %s перенесена клиентом", booking.code)
     return booking
 
 

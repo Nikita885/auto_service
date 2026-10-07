@@ -86,6 +86,12 @@ class ConfirmDraftSerializer(serializers.Serializer):
     )
 
 
+class RescheduleSerializer(serializers.Serializer):
+    start_at = serializers.DateTimeField(
+        help_text="Начало слота в ISO 8601 с таймзоной, ровно как пришло из /slots/."
+    )
+
+
 class CancelSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
@@ -112,6 +118,11 @@ class BookingSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     service_point = ServicePointSerializer(read_only=True)
     can_cancel = serializers.BooleanField(
+        source="is_cancellable_by_client", read_only=True
+    )
+    # Перенос разрешён ровно тогда же, когда отмена: это отмена старого
+    # времени. Отдельное поле — чтобы приложение не знало этого правила.
+    can_reschedule = serializers.BooleanField(
         source="is_cancellable_by_client", read_only=True
     )
     car = CarShortSerializer(read_only=True, allow_null=True)
@@ -143,6 +154,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "cancel_reason",
             "cancelled_at",
             "can_cancel",
+            "can_reschedule",
             "created_at",
         )
 

@@ -111,7 +111,9 @@
   bottom: 0;
   z-index: 40;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Столько колонок, сколько вкладок: их число меняется (Гараж и т. п.). */
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   height: calc(var(--nav-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
   background: rgba(7, 12, 22, .92);
@@ -277,6 +279,56 @@
 .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 
 .booking-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
+
+/* Ближайшая запись: время крупно — ради него вкладку и открывают. */
+.next-when { margin-top: var(--space-2); font-size: var(--fs-h3-lg); font-weight: var(--fw-heavy); letter-spacing: -.02em; }
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-4); }
+.action-grid .btn { justify-content: center; gap: var(--space-2); }
+.btn-ico { display: inline-grid; place-items: center; }
+.btn-ico svg { width: 18px; height: 18px; }
+
+/* «Продолжить запись»: живой черновик держит время, пока идёт таймер. */
+.resume {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.resume-body { flex: 1; display: grid; gap: 2px; }
+.resume-go { color: var(--accent); font-weight: var(--fw-bold); }
+
+/* Окно во весь экран поверх вкладки (мастер записи, перенос). */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.sheet-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: calc(var(--safe-top) + var(--space-3)) var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-lead);
+}
+.sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-4) calc(var(--safe-bottom) + var(--space-6));
+  -webkit-overflow-scrolling: touch;
+}
+.sheet .sticky-actions { bottom: var(--space-2); }
+body.sheet-open { overflow: hidden; }
 .booking-when { font-size: var(--fs-h3); font-weight: var(--fw-bold); }
 .booking-lines { margin-top: var(--space-2); display: grid; gap: 2px; font-size: var(--fs-ui); color: var(--text-soft); }
 .booking-foot { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-3); }

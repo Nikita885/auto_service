@@ -1,34 +1,56 @@
-/* Запись на замену масла: адрес → масло → время → подтверждение.
+/* Мастер записи: адрес → масло → время → машина и подтверждение.
 
-   Шаги ведёт сервер: черновик сообщает `next_action`, и экран рисует ровно
+   Открывается окном поверх вкладки «Записи» (`BookingWizard` в `Sheet`).
+   Черновик живёт на сервере, поэтому закрыть окно или уйти на другую
+   вкладку можно в любой момент: вкладка покажет «Продолжить запись», и
+   мастер откроется на том же шаге с тем же таймером.
+
+   Шаги ведёт сервер: черновик сообщает `next_action`, и окно рисует ровно
    его. Своего конечного автомата здесь нет — вторая копия правил однажды
    разошлась бы с первой. Таймер тоже серверный: `seconds_left` при каждом
    ответе, локально только тикаем до следующего. */
 
 import { CarPicker, carLabel } from "app/cars";
 import {
-  CONFIG, api, ask, bus, call, errorText, fmt, html, toast, useEffect, useRef, useState,
-  visitTime,
+  CONFIG, api, ask, call, errorText, fmt, html, toast, useEffect, useRef, useState, visitTime,
 } from "app/lib";
 
 const GONE = ["draft_expired", "draft_closed"];
 
-export function Booking() {
-  const [draft, setDraft] = useState(undefined); // undefined — грузим, null — записи нет
+/** Весь сценарий записи. `onClose` — закрыть окно (черновик остаётся),
+    `onBooked(booking)` — запись создана. */
+export function BookingWizard({ onClose, onBooked }) {
+  const [draft, setDraft] = useState(undefined); // undefined — грузим, null — не вышло начать
   const [created, setCreated] = useState(null);
   const [expired, setExpired] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  async function loadCurrent() {
+  /** Открыли окно — продолжаем живой черновик или начинаем новый. */
+  async function begin(restart) {
+    setBusy(true);
     try {
-      setDraft(await api.get("/bookings/drafts/current/"));
+      setDraft(await api.post("/bookings/drafts/", { restart: Boolean(restart) }));
+      setExpired(false);
+      setCreated(null);
     } catch (err) {
       setDraft(null);
       toast(errorText(err), "error");
+    } finally {
+      setBusy(false);
     }
   }
 
-  useEffect(() => { loadCurrent(); }, []);
+  useEffect(() => { begin(false); }, []);
+
+  async function reload() {
+    try {
+      const current = await api.get("/bookings/drafts/current/");
+      if (current) setDraft(current);
+      else setExpired(true);
+    } catch (err) {
+      toast(errorText(err), "error");
+    }
+  }
 
   /** Любой шаг: отправить, принять новое состояние, пережить «время вышло». */
   async function step(path, body) {
@@ -44,19 +66,12 @@ export function Booking() {
       } else {
         toast(errorText(err), "error");
         // Слот заняли или масло разобрали — черновик жив, перечитываем его.
-        if (err.code === "slot_taken" || err.code === "oil_out_of_stock") loadCurrent();
+        if (err.code === "slot_taken" || err.code === "oil_out_of_stock") reload();
       }
       return undefined;
     } finally {
       setBusy(false);
     }
-  }
-
-  async function start(restart) {
-    setBusy(true);
-    const next = await call(() => api.post("/bookings/drafts/", { restart: Boolean(restart) }));
-    setBusy(false);
-    if (next) { setDraft(next); setExpired(false); setCreated(null); }
   }
 
   async function confirm(comment, carId) {
@@ -67,15 +82,14 @@ export function Booking() {
         comment, car_id: carId || null,
       });
       setCreated(booking);
-      setDraft(null);
-      bus.emit("bookings:changed");
+      onBooked(booking);
     } catch (err) {
       if (GONE.includes(err.code)) setExpired(true);
       else {
         toast(errorText(err), "error");
         // Машину удалили на другом устройстве — черновик жив, выбор
         // перечитается; остальное (слот, масло) — перечитываем черновик.
-        if (err.code !== "car_not_found") loadCurrent();
+        if (err.code !== "car_not_found") reload();
       }
     } finally {
       setBusy(false);
@@ -90,37 +104,27 @@ export function Booking() {
     });
     if (!yes) return;
     await call(() => api.post("/bookings/drafts/" + draft.id + "/cancel/", {}));
-    setDraft(null);
+    onClose();
   }
 
-  let body;
-  if (created) {
-    body = html`<${Created} booking=${created} onAgain=${() => setCreated(null)} />`;
-  } else if (expired) {
-    body = html`<div class="card pad center stack">
+  if (created) return html`<${Created} booking=${created} onDone=${onClose} />`;
+  if (expired) {
+    return html`<div class="card pad center stack">
       <b>Пять минут вышли</b>
       <p class="muted">Запись не сохранилась, выбранное время освободилось. Начните заново — это быстро.</p>
-      <button class="btn btn-primary btn-block" type="button" disabled=${busy} onClick=${() => start(true)}>Начать заново</button>
+      <button class="btn btn-primary btn-block" type="button" disabled=${busy} onClick=${() => begin(true)}>Начать заново</button>
     </div>`;
-  } else if (draft === undefined) {
-    body = html`<p class="muted center">Загружаем…</p>`;
-  } else if (draft === null) {
-    body = html`<div class="card pad stack">
-      <p>Выберите адрес, масло и свободное время. На всю запись — ${Math.round(CONFIG.draftTtl / 60)} минут: пока вы выбираете, время и масло держатся за вами.</p>
-      <button class="btn btn-primary btn-block" type="button" disabled=${busy} onClick=${() => start(false)}>Начать запись</button>
-    </div>`;
-  } else {
-    body = html`<${Wizard} draft=${draft} busy=${busy} step=${step} confirm=${confirm}
-      onExpire=${() => setExpired(true)} onDrop=${drop} onRestart=${() => start(true)} />`;
   }
-
-  return html`<main class="screen">
-    <div class="screen-head">
-      <h1>Запись на замену масла</h1>
-      <p>Приезжаете к своему времени — пост ждёт вас.</p>
-    </div>
-    ${body}
-  </main>`;
+  if (draft === undefined) return html`<p class="muted center">Загружаем…</p>`;
+  if (draft === null) {
+    return html`<div class="card pad center stack">
+      <b>Не получилось начать запись</b>
+      <p class="muted">Попробуйте ещё раз или запишитесь по телефону ${CONFIG.phone}.</p>
+      <button class="btn btn-primary btn-block" type="button" disabled=${busy} onClick=${() => begin(false)}>Повторить</button>
+    </div>`;
+  }
+  return html`<${Wizard} draft=${draft} busy=${busy} step=${step} confirm=${confirm}
+    onExpire=${() => setExpired(true)} onDrop=${drop} onRestart=${() => begin(true)} />`;
 }
 
 /* ---------------------------------------------------------------- шаги */
@@ -138,8 +142,11 @@ function Wizard({ draft, busy, step, confirm, onExpire, onDrop, onRestart }) {
   let content;
   if (draft.next_action === "select_point") content = html`<${PointStep} busy=${busy} step=${step} />`;
   else if (draft.next_action === "select_oil") content = html`<${OilStep} draft=${draft} busy=${busy} step=${step} />`;
-  else if (draft.next_action === "select_slot") content = html`<${SlotStep} draft=${draft} busy=${busy} step=${step} />`;
-  else content = html`<${ConfirmStep} draft=${draft} busy=${busy} confirm=${confirm} />`;
+  else if (draft.next_action === "select_slot") {
+    const point = draft.service_point;
+    content = html`<${SlotPicker} pointId=${point.id} zone=${point.timezone} pointName=${point.name}
+      busy=${busy} actionLabel="Дальше" onPick=${(startAt) => step("select-slot", { start_at: startAt })} />`;
+  } else content = html`<${ConfirmStep} draft=${draft} busy=${busy} confirm=${confirm} />`;
 
   return html`<div>
     <div class="row" style="justify-content:space-between">
@@ -158,7 +165,7 @@ function Wizard({ draft, busy, step, confirm, onExpire, onDrop, onRestart }) {
   </div>`;
 }
 
-function Timer({ seconds, stamp, onExpire }) {
+export function Timer({ seconds, stamp, onExpire }) {
   const deadline = useRef(Date.now() + seconds * 1000);
   const [left, setLeft] = useState(seconds);
 
@@ -172,7 +179,7 @@ function Timer({ seconds, stamp, onExpire }) {
     const t = setInterval(() => {
       const s = Math.max(0, Math.round((deadline.current - Date.now()) / 1000));
       setLeft(s);
-      if (s === 0) { clearInterval(t); onExpire(); }
+      if (s === 0) { clearInterval(t); if (onExpire) onExpire(); }
     }, 1000);
     return () => clearInterval(t);
   }, [stamp]);
@@ -220,9 +227,11 @@ function OilStep({ draft, busy, step }) {
 
 const DOW = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
 
-function SlotStep({ draft, busy, step }) {
-  const pointId = draft.service_point.id;
-  const zone = draft.service_point.timezone;
+/** Свободное время точки: дни лентой, время сеткой, кнопка с выбором.
+
+    Общий для шага записи и для переноса — у них одна и та же точка, одна
+    и та же сетка и одно правило свободного поста. */
+export function SlotPicker({ pointId, zone, pointName, busy, actionLabel, onPick }) {
   const [days, setDays] = useState(null);
   const [day, setDay] = useState(null);
   const [slots, setSlots] = useState(null);
@@ -263,11 +272,11 @@ function SlotStep({ draft, busy, step }) {
           ${slots.map((s) => html`<button class="slot-btn" type="button" key=${s.start_at}
             aria-pressed=${String(picked === s.start_at)} onClick=${() => setPicked(s.start_at)}>${s.local_time}</button>`)}
         </div>`}
-    <p class="hint">Время указано по адресу: ${draft.service_point.name}.</p>
+    <p class="hint">Время указано по адресу: ${pointName}.</p>
     <div class="sticky-actions">
       <button class="btn btn-primary" type="button" disabled=${!picked || busy}
-        onClick=${() => step("select-slot", { start_at: picked })}>
-        ${picked ? "Дальше · " + visitTime(picked, zone) : "Выберите время"}
+        onClick=${() => onPick(picked)}>
+        ${picked ? actionLabel + " · " + visitTime(picked, zone) : "Выберите время"}
       </button>
     </div>
   </div>`;
@@ -302,7 +311,7 @@ function ConfirmStep({ draft, busy, confirm }) {
   </div>`;
 }
 
-function Created({ booking, onAgain }) {
+function Created({ booking, onDone }) {
   return html`<div class="card pad stack center">
     <span class="kicker">Вы записаны</span>
     <div class="invite-code">${booking.code}</div>
@@ -313,7 +322,6 @@ function Created({ booking, onAgain }) {
       <div class="summary-row"><span>Масло</span><span>${booking.oil_title}</span></div>
       ${booking.car && html`<div class="summary-row"><span>Автомобиль</span><span>${carLabel(booking.car)}</span></div>`}
     </div>
-    <button class="btn btn-primary btn-block" type="button" onClick=${() => bus.emit("goto", "bookings")}>Мои записи</button>
-    <button class="btn btn-ghost btn-block" type="button" onClick=${onAgain}>Записаться ещё</button>
+    <button class="btn btn-primary btn-block" type="button" onClick=${onDone}>Готово</button>
   </div>`;
 }

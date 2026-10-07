@@ -207,6 +207,32 @@ export const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) ||
 export const isStandalone = () =>
   window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 
+/** Окно во весь экран поверх вкладки: мастер записи, перенос.
+
+    Своё, а не `App.dialog` панелей: на телефоне сценарию из нескольких
+    шагов нужен весь экран, а не карточка посередине. Закрывается крестиком,
+    Escape и системной кнопкой «Назад» на Android (`data-close`). */
+export function Sheet({ title, onClose, children }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape" && !document.querySelector(".modal-backdrop")) onClose(); };
+    document.addEventListener("keydown", onKey);
+    // Под окном страница не должна прокручиваться вместе с ним.
+    document.body.classList.add("sheet-open");
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.classList.remove("sheet-open");
+    };
+  }, [onClose]);
+  return html`<div class="sheet" role="dialog" aria-modal="true" aria-label=${title}>
+    <div class="sheet-bar">
+      <b>${title}</b>
+      <button class="icon-btn" type="button" data-close aria-label="Закрыть" onClick=${onClose}
+        dangerouslySetInnerHTML=${{ __html: App.icon("x", 22) }}></button>
+    </div>
+    <div class="sheet-body">${children}</div>
+  </div>`;
+}
+
 /** Пустое состояние экрана с кнопкой повтора при ошибке. */
 export function LoadError({ error, onRetry }) {
   return html`<div class="empty-state">

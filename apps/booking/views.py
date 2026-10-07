@@ -26,6 +26,7 @@ from apps.booking.serializers import (
     BookingSerializer,
     CancelSerializer,
     ConfirmDraftSerializer,
+    RescheduleSerializer,
     SelectOilSerializer,
     SelectPointSerializer,
     SelectSlotSerializer,
@@ -261,7 +262,7 @@ class BookingViewSet(
             return self.queryset
         qs = (
             Booking.objects.for_user(self.request.user)
-            .select_related("service_point", "oil")
+            .select_related("service_point", "oil", "car")
             .order_by("-start_at")
         )
         if self.action == "retrieve":
@@ -303,5 +304,25 @@ class BookingViewSet(
 
         booking = booking_service.cancel_by_client(
             request.user, pk, reason=payload.validated_data.get("reason", "")
+        )
+        return Response(BookingSerializer(booking).data)
+
+    @extend_schema(
+        request=RescheduleSerializer,
+        responses={200: BookingSerializer},
+        summary="Перенести запись на другое время",
+        description=(
+            "Та же точка, другое время из `/service-points/{id}/slots/`. Можно, "
+            "пока можно отменить (`can_reschedule`). Слот проверяется как при "
+            "записи: занят — 409 `slot_taken`, поздно — 409 "
+            "`reschedule_deadline_passed`."
+        ),
+    )
+    @action(detail=True, methods=["post"])
+    def reschedule(self, request: Request, pk=None) -> Response:
+        payload = RescheduleSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        booking = booking_service.reschedule_by_client(
+            request.user, pk, payload.validated_data["start_at"]
         )
         return Response(BookingSerializer(booking).data)

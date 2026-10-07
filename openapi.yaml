@@ -300,6 +300,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/Booking'
           description: ''
+  /api/v1/bookings/{id}/reschedule/:
+    post:
+      operationId: bookings_reschedule_create
+      description: 'Та же точка, другое время из `/service-points/{id}/slots/`. Можно,
+        пока можно отменить (`can_reschedule`). Слот проверяется как при записи: занят
+        — 409 `slot_taken`, поздно — 409 `reschedule_deadline_passed`.'
+      summary: Перенести запись на другое время
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - 'Запись: мои записи'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RescheduleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RescheduleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RescheduleRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          description: ''
   /api/v1/bookings/drafts/:
     post:
       operationId: bookings_drafts_create
@@ -1930,6 +1968,9 @@ components:
         can_cancel:
           type: boolean
           readOnly: true
+        can_reschedule:
+          type: boolean
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -1937,6 +1978,7 @@ components:
           title: Создано
       required:
       - can_cancel
+      - can_reschedule
       - car
       - created_at
       - end_at
@@ -2035,6 +2077,9 @@ components:
         can_cancel:
           type: boolean
           readOnly: true
+        can_reschedule:
+          type: boolean
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -2051,6 +2096,7 @@ components:
           readOnly: true
       required:
       - can_cancel
+      - can_reschedule
       - car
       - created_at
       - end_at
@@ -4023,6 +4069,15 @@ components:
           type: string
       required:
       - enabled
+    RescheduleRequest:
+      type: object
+      properties:
+        start_at:
+          type: string
+          format: date-time
+          description: Начало слота в ISO 8601 с таймзоной, ровно как пришло из /slots/.
+      required:
+      - start_at
     RoleEnum:
       enum:
       - client

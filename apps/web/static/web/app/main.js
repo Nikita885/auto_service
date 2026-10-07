@@ -1,7 +1,6 @@
 /* Каркас веб-приложения: вход, знакомство и четыре вкладки — как на Android. */
 
 import { Auth, Onboarding } from "app/auth";
-import { Booking } from "app/booking";
 import { Bookings } from "app/bookings";
 import { Bonus } from "app/bonus";
 import { InstallGate, NotIphoneGate, gate } from "app/install";
@@ -16,16 +15,17 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register(CONFIG.swUrl, { scope: "/app/" }).catch(() => {});
 }
 
+// «Запись» и «Мои записи» — одна вкладка «Записи»: ближайшая запись,
+// «Записаться» и история на одном экране, мастер записи — окном поверх.
 const TABS = [
-  ["booking", "Запись", "drop", Booking],
-  ["bookings", "Мои записи", "list", Bookings],
+  ["bookings", "Записи", "calendar", Bookings],
   ["bonus", "Бонусы", "wallet", Bonus],
   ["profile", "Профиль", "user", Profile],
 ];
 
 const tabFromHash = () => {
   const name = location.hash.replace("#", "");
-  return TABS.some(([key]) => key === name) ? name : "booking";
+  return TABS.some(([key]) => key === name) ? name : TABS[0][0];
 };
 
 function App() {
@@ -85,6 +85,8 @@ function Root() {
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
         return true;
       }
+      const sheetClose = [...document.querySelectorAll(".sheet [data-close]")].pop();
+      if (sheetClose) { sheetClose.click(); return true; }
       const scannerClose = [...document.querySelectorAll(".scanner .btn")].pop();
       if (scannerClose) { scannerClose.click(); return true; }
       if (user && tab !== TABS[0][0]) { go(TABS[0][0]); return true; }
@@ -111,7 +113,7 @@ function Root() {
     return html`<${Auth} onSignedIn=${(me, isNew) => { setWelcome(isNew || !me.full_name); setUser(me); }} />`;
   }
   if (welcome) {
-    return html`<${Onboarding} user=${user} onDone=${(me) => { setWelcome(false); setUser(me); go("booking"); }} />`;
+    return html`<${Onboarding} user=${user} onDone=${(me) => { setWelcome(false); setUser(me); go(TABS[0][0]); }} />`;
   }
 
   const Screen = (TABS.find(([key]) => key === tab) || TABS[0])[3];
