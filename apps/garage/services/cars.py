@@ -35,7 +35,14 @@ _VIN_RE = re.compile(r"[A-HJ-NPR-Z0-9]{17}")
 MAX_MILEAGE_KM = 3_000_000
 EARLIEST_YEAR = 1900
 
-EDITABLE = ("title", "plate", "year", "mileage", "vin", "model_id")
+EDITABLE = (
+    "title", "plate", "year", "mileage", "vin", "model_id",
+    "oil_interval_km", "oil_interval_months", "osago_until", "inspection_until",
+)
+# Границы здравого смысла, а не правила сервиса: интервал в 50 км или в
+# 10 лет — опечатка, и напоминание с ней было бы бессмысленным.
+OIL_INTERVAL_KM = (1000, 50000)
+OIL_INTERVAL_MONTHS = (1, 36)
 
 
 def normalize_plate(raw: str) -> str:
@@ -78,6 +85,21 @@ def _clean(fields: dict) -> dict:
         mileage = int(data["mileage"])
         if not 0 <= mileage <= MAX_MILEAGE_KM:
             raise ValidationError("Проверьте пробег", code="car_mileage_invalid")
+    if data.get("oil_interval_km") is not None:
+        low, high = OIL_INTERVAL_KM
+        if not low <= int(data["oil_interval_km"]) <= high:
+            raise ValidationError(
+                f"Интервал замены — от {low} до {high} км", code="car_oil_interval_invalid"
+            )
+    if data.get("oil_interval_months") is not None:
+        low, high = OIL_INTERVAL_MONTHS
+        if not low <= int(data["oil_interval_months"]) <= high:
+            raise ValidationError(
+                f"Интервал замены — от {low} до {high} месяцев", code="car_oil_interval_invalid"
+            )
+    for key in ("osago_until", "inspection_until"):
+        if data.get(key) is not None and not date(2000, 1, 1) <= data[key] <= date(2100, 1, 1):
+            raise ValidationError("Проверьте дату", code="car_date_invalid")
 
     model_id = data.pop("model_id", None)
     if model_id:

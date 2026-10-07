@@ -114,6 +114,22 @@ export function useLoad(loader, deps) {
   return { ...state, reload };
 }
 
+/** «Записаться» с любого экрана: открыть вкладку «Записи» и мастер на ней.
+
+    Флаг, а не только событие: вкладка «Записи» может быть ещё не открыта,
+    и её слушатель появится уже после того, как событие прозвучало. */
+let bookingRequested = false;
+export function startBooking() {
+  bookingRequested = true;
+  bus.emit("goto", "bookings");
+  bus.emit("booking:start");
+}
+export function takeBookingRequest() {
+  const requested = bookingRequested;
+  bookingRequested = false;
+  return requested;
+}
+
 /* ------------------------------------------------------------ телефон */
 
 /** «+7 (900) 123-45-67» из того, что человек набрал. Сервер всё равно

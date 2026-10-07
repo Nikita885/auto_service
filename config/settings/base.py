@@ -227,6 +227,11 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": "/api/v1",
+    # Поле `kind` есть и у истории баллов, и у дневника гаража: без явного
+    # имени генератор называет одно из перечислений хешем (Kind896Enum).
+    "ENUM_NAME_OVERRIDES": {
+        "GarageEntryKindEnum": "apps.garage.models.EntryKind",
+    },
 }
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
@@ -389,6 +394,17 @@ GARAGE = {
     # Защита от мусора, а не правило бизнеса: автомобилей у одного клиента
     # больше десятка бывает только у автопарка, а ему нужен другой продукт.
     "MAX_CARS": env.int("GARAGE_MAX_CARS", default=10),
+    # Интервал замены масла по умолчанию (решение заказчика): что наступит
+    # раньше. Клиент меняет его у своей машины.
+    "OIL_INTERVAL_KM": env.int("GARAGE_OIL_INTERVAL_KM", default=10000),
+    "OIL_INTERVAL_MONTHS": env.int("GARAGE_OIL_INTERVAL_MONTHS", default=12),
+    # Смена резины: с какого дня (ММ-ДД) пора на летнюю и на зимнюю. Даты
+    # заказчика, поправит под свой регион.
+    "SUMMER_TIRES_FROM": env("GARAGE_SUMMER_TIRES_FROM", default="04-20"),
+    "WINTER_TIRES_FROM": env("GARAGE_WINTER_TIRES_FROM", default="10-01"),
+    # Когда напоминание становится «скоро»: за столько км или дней до срока.
+    "SOON_KM": env.int("GARAGE_SOON_KM", default=1000),
+    "SOON_DAYS": env.int("GARAGE_SOON_DAYS", default=30),
 }
 
 # ---------------------------------------------------------------- лендинг

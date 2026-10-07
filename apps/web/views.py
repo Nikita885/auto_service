@@ -217,6 +217,7 @@ APP_MODULES = {
     "app/bonus": "web/app/bonus.js",
     "app/profile": "web/app/profile.js",
     "app/cars": "web/app/cars.js",
+    "app/garage": "web/app/garage.js",
     "app/scan": "web/app/scan.js",
     "app/install": "web/app/install.js",
     "app/main": "web/app/main.js",

@@ -8,8 +8,8 @@
 
 import { BookingWizard, SlotPicker, Timer } from "app/booking";
 import {
-  CONFIG, LoadError, Sheet, api, ask, bus, call, html, money, toast, useEffect, useLoad, useState,
-  visitTime,
+  CONFIG, LoadError, Sheet, api, ask, bus, call, html, money, takeBookingRequest, toast, useEffect,
+  useLoad, useState, visitTime,
 } from "app/lib";
 
 const STATUS = {
@@ -28,7 +28,8 @@ export function Bookings() {
   const upcoming = useLoad(() => api.get("/bookings/?scope=upcoming"));
   const history = useLoad(() => api.get("/bookings/?scope=history"));
   const draft = useLoad(() => api.get("/bookings/drafts/current/"));
-  const [wizard, setWizard] = useState(false);
+  // «Записаться» нажали на другом экране (гараж) — мастер открыт сразу.
+  const [wizard, setWizard] = useState(() => takeBookingRequest());
   const [moving, setMoving] = useState(null);
 
   function reloadAll() {
@@ -39,7 +40,7 @@ export function Bookings() {
 
   useEffect(() => bus.on("bookings:changed", reloadAll), []);
   // «Записаться» с других экранов (гараж, пустые состояния) открывает мастер здесь.
-  useEffect(() => bus.on("booking:start", () => setWizard(true)), []);
+  useEffect(() => bus.on("booking:start", () => { takeBookingRequest(); setWizard(true); }), []);
 
   async function cancel(booking) {
     const reason = await ask({

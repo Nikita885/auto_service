@@ -1,20 +1,15 @@
-/* Машины клиента: список в профиле и выбор машины при записи.
+/* Машины клиента: форма машины, выбор машины при записи, список.
+
+   Управление машинами — во вкладке «Гараж» (`app/garage.js`).
 
    Правила — первая машина основная, основная ровно одна, номер приводится
    к одной форме — живут на сервере (`garage`). Здесь только показ и ввод:
    вторая копия правил однажды разошлась бы с первой. */
 
 import { CarField } from "app/auth";
-import { api, ask, call, html, toast, useEffect, useState } from "app/lib";
+import { api, call, html, toast, useEffect, useState } from "app/lib";
 
 export const carLabel = (car) => [car.title, car.plate].filter(Boolean).join(" · ") || "Автомобиль";
-
-function carMeta(car) {
-  return [
-    car.year ? car.year + " г." : "",
-    car.mileage != null ? new Intl.NumberFormat("ru-RU").format(car.mileage) + " км" : "",
-  ].filter(Boolean).join(" · ");
-}
 
 /** Список машин с перезагрузкой. `null` — ещё грузим. */
 export function useCars() {
@@ -130,67 +125,5 @@ export function CarPicker({ value, onChange }) {
       </span>
     </button>`)}
     <button class="btn btn-ghost btn-block" type="button" onClick=${() => setAdding(true)}>+ Другая машина</button>
-  </div>`;
-}
-
-/** Мои машины: в профиле. */
-export function Garage() {
-  const { cars, reload } = useCars();
-  const [editing, setEditing] = useState(null); // id машины, "new" или null
-
-  async function makePrimary(car) {
-    if (await call(() => api.post("/garage/cars/" + car.id + "/make-primary/", {}))) reload();
-  }
-
-  async function remove(car) {
-    const yes = await ask({
-      title: "Удалить " + carLabel(car) + "?",
-      text: "Прошлые записи на эту машину останутся в истории.",
-      confirmLabel: "Удалить", danger: true,
-    });
-    if (!yes) return;
-    if (await call(() => api.del("/garage/cars/" + car.id + "/"))) {
-      toast("Машина удалена", "ok");
-      reload();
-    }
-  }
-
-  function saved() {
-    setEditing(null);
-    reload();
-  }
-
-  if (cars === null) return html`<p class="muted">Загружаем…</p>`;
-
-  return html`<div class="stack-lg">
-    ${!cars.length && editing !== "new" && html`<div class="empty-state">
-      <b>Добавьте машину</b>
-      <p>Мастер будет знать, что заезжает, а запись подставит её сама.</p>
-    </div>`}
-    ${cars.map((car) => editing === car.id
-      ? html`<div class="card pad" key=${car.id}>
-          <${CarForm} car=${car} full onSaved=${saved} onCancel=${() => setEditing(null)} />
-        </div>`
-      : html`<article class="card pad" key=${car.id}>
-          <div class="booking-head">
-            <span class="booking-when">${car.title || "Автомобиль"}</span>
-            ${car.is_primary && html`<span class="badge badge-accent">Основная</span>`}
-          </div>
-          <div class="booking-lines">
-            ${car.plate && html`<span class="mono">${car.plate}</span>`}
-            ${carMeta(car) && html`<span>${carMeta(car)}</span>`}
-          </div>
-          <div class="row" style="margin-top:12px">
-            <button class="btn btn-sm" type="button" onClick=${() => setEditing(car.id)}>Изменить</button>
-            ${!car.is_primary && html`<button class="btn btn-sm" type="button" onClick=${() => makePrimary(car)}>Сделать основной</button>`}
-            <span class="spacer"></span>
-            <button class="btn btn-sm btn-ghost btn-danger" type="button" onClick=${() => remove(car)}>Удалить</button>
-          </div>
-        </article>`)}
-    ${editing === "new"
-      ? html`<div class="card pad">
-          <${CarForm} full onSaved=${saved} onCancel=${() => setEditing(null)} submitLabel="Добавить" />
-        </div>`
-      : html`<button class="btn btn-block" type="button" onClick=${() => setEditing("new")}>+ Добавить машину</button>`}
   </div>`;
 }

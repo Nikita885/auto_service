@@ -966,6 +966,144 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/garage/cars/{id}/journal/:
+    get:
+      operationId: garage_cars_journal_list
+      summary: Дневник машины
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: Сколько строк, по умолчанию 50
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Entry'
+          description: ''
+    post:
+      operationId: garage_cars_journal_create
+      description: Пробег машины поднимается до наибольшего известного.
+      summary: Добавить запись в дневник
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntryWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EntryWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EntryWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+          description: ''
+  /api/v1/garage/cars/{id}/journal{format}:
+    get:
+      operationId: garage_cars_journal_formatted_list
+      summary: Дневник машины
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: Сколько строк, по умолчанию 50
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Entry'
+          description: ''
+    post:
+      operationId: garage_cars_journal_formatted_create
+      description: Пробег машины поднимается до наибольшего известного.
+      summary: Добавить запись в дневник
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntryWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EntryWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EntryWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+          description: ''
   /api/v1/garage/cars/{id}/make-primary/:
     post:
       operationId: garage_cars_make_primary_create
@@ -1017,6 +1155,185 @@ paths:
               schema:
                 $ref: '#/components/schemas/Car'
           description: ''
+  /api/v1/garage/cars/{id}/summary/:
+    get:
+      operationId: garage_cars_summary_retrieve
+      description: Пробег, напоминания (масло, ОСАГО, техосмотр, резина), расходы
+        за месяц и год по категориям, расход топлива и последние записи — одним ответом
+        для главного экрана гаража.
+      summary: 'Гараж: сводка по машине'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Summary'
+          description: ''
+  /api/v1/garage/cars/{id}/summary{format}:
+    get:
+      operationId: garage_cars_summary_formatted_retrieve
+      description: Пробег, напоминания (масло, ОСАГО, техосмотр, резина), расходы
+        за месяц и год по категориям, расход топлива и последние записи — одним ответом
+        для главного экрана гаража.
+      summary: 'Гараж: сводка по машине'
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Summary'
+          description: ''
+  /api/v1/garage/journal/{id}/:
+    patch:
+      operationId: garage_journal_partial_update
+      description: 'Своя запись дневника: поправить или удалить. Замены у нас — только
+        читать.'
+      summary: Изменить запись дневника
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEntryWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEntryWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEntryWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+          description: ''
+    delete:
+      operationId: garage_journal_destroy
+      description: 'Своя запись дневника: поправить или удалить. Замены у нас — только
+        читать.'
+      summary: Удалить запись дневника
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/garage/journal/{id}{format}:
+    patch:
+      operationId: garage_journal_formatted_partial_update
+      description: 'Своя запись дневника: поправить или удалить. Замены у нас — только
+        читать.'
+      summary: Изменить запись дневника
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEntryWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEntryWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEntryWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entry'
+          description: ''
+    delete:
+      operationId: garage_journal_formatted_destroy
+      description: 'Своя запись дневника: поправить или удалить. Замены у нас — только
+        читать.'
+      summary: Удалить запись дневника
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Гараж
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/master/bookings/:
     get:
       operationId: master_bookings_list
@@ -2330,6 +2647,28 @@ components:
           type: boolean
           readOnly: true
           title: Основной
+        oil_interval_km:
+          type: integer
+          readOnly: true
+          nullable: true
+          title: 'Масло: интервал, км'
+        oil_interval_months:
+          type: integer
+          readOnly: true
+          nullable: true
+          title: 'Масло: интервал, месяцев'
+        osago_until:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+          title: ОСАГО действует до
+        inspection_until:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+          title: Техосмотр действует до
         created_at:
           type: string
           format: date-time
@@ -2338,9 +2677,13 @@ components:
       required:
       - created_at
       - id
+      - inspection_until
       - is_primary
       - mileage
       - model_id
+      - oil_interval_km
+      - oil_interval_months
+      - osago_until
       - plate
       - title
       - vin
@@ -2434,6 +2777,21 @@ components:
           type: boolean
           default: false
           description: Сделать основным
+        oil_interval_km:
+          type: integer
+          nullable: true
+          description: Свой интервал замены масла; null — по умолчанию
+        oil_interval_months:
+          type: integer
+          nullable: true
+        osago_until:
+          type: string
+          format: date
+          nullable: true
+        inspection_until:
+          type: string
+          format: date
+          nullable: true
     ClientLookup:
       type: object
       description: 'Кто стоит за номером: подставить имя и машину в окно записи.'
@@ -2524,6 +2882,100 @@ components:
       - points_spent
       - revenue
       - total
+    Entry:
+      type: object
+      description: 'Строка дневника: своя запись или замена масла у нас (`source`).'
+      properties:
+        id:
+          type: string
+        kind:
+          $ref: '#/components/schemas/GarageEntryKindEnum'
+        kind_display:
+          type: string
+        date:
+          type: string
+          format: date
+        mileage:
+          type: integer
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        liters:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          nullable: true
+        full_tank:
+          type: boolean
+        note:
+          type: string
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        booking_code:
+          type: string
+        editable:
+          type: boolean
+      required:
+      - amount
+      - booking_code
+      - date
+      - editable
+      - full_tank
+      - id
+      - kind
+      - kind_display
+      - liters
+      - mileage
+      - note
+      - source
+    EntryWriteRequest:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/GarageEntryKindEnum'
+        date:
+          type: string
+          format: date
+        mileage:
+          type: integer
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        liters:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          nullable: true
+        full_tank:
+          type: boolean
+        note:
+          type: string
+          maxLength: 200
+    Fuel:
+      type: object
+      properties:
+        average:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,1})?$
+          nullable: true
+        last:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,1})?$
+          nullable: true
+        distance:
+          type: integer
+      required:
+      - average
+      - distance
+      - last
     FunnelStep:
       type: object
       properties:
@@ -2541,6 +2993,24 @@ components:
       - key
       - label
       - share
+    GarageEntryKindEnum:
+      enum:
+      - fuel
+      - oil
+      - service
+      - tires
+      - wash
+      - fine
+      - other
+      type: string
+      description: |-
+        * `fuel` - Заправка
+        * `oil` - Замена масла
+        * `service` - ТО и ремонт
+        * `tires` - Шиномонтаж
+        * `wash` - Мойка
+        * `fine` - Штраф
+        * `other` - Другое
     InviteResult:
       type: object
       properties:
@@ -3895,6 +4365,47 @@ components:
           type: boolean
           default: false
           description: Сделать основным
+        oil_interval_km:
+          type: integer
+          nullable: true
+          description: Свой интервал замены масла; null — по умолчанию
+        oil_interval_months:
+          type: integer
+          nullable: true
+        osago_until:
+          type: string
+          format: date
+          nullable: true
+        inspection_until:
+          type: string
+          format: date
+          nullable: true
+    PatchedEntryWriteRequest:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/GarageEntryKindEnum'
+        date:
+          type: string
+          format: date
+        mileage:
+          type: integer
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        liters:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          nullable: true
+        full_tank:
+          type: boolean
+        note:
+          type: string
+          maxLength: 200
     PatchedMasterOilRequest:
       type: object
       properties:
@@ -3941,6 +4452,34 @@ components:
           type: string
           description: 'Устарело: правит основной автомобиль. Новое — /garage/cars/'
           maxLength: 20
+    Period:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        by_kind:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        distance:
+          type: integer
+          nullable: true
+      required:
+      - by_kind
+      - distance
+      - end
+      - start
+      - total
     PointsEntry:
       type: object
       description: |-
@@ -4069,6 +4608,65 @@ components:
           type: string
       required:
       - enabled
+    Reminder:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/ReminderKindEnum'
+        status:
+          $ref: '#/components/schemas/ReminderStatusEnum'
+        due_date:
+          type: string
+          format: date
+          nullable: true
+        left_days:
+          type: integer
+          nullable: true
+        due_km:
+          type: integer
+          nullable: true
+        left_km:
+          type: integer
+          nullable: true
+        season:
+          type: string
+        last_date:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - due_date
+      - due_km
+      - kind
+      - last_date
+      - left_days
+      - left_km
+      - season
+      - status
+    ReminderKindEnum:
+      enum:
+      - oil
+      - osago
+      - inspection
+      - tires
+      type: string
+      description: |-
+        * `oil` - oil
+        * `osago` - osago
+        * `inspection` - inspection
+        * `tires` - tires
+    ReminderStatusEnum:
+      enum:
+      - overdue
+      - soon
+      - ok
+      - unknown
+      type: string
+      description: |-
+        * `overdue` - overdue
+        * `soon` - soon
+        * `ok` - ok
+        * `unknown` - unknown
     RescheduleRequest:
       type: object
       properties:
@@ -4254,6 +4852,14 @@ components:
       - free_posts
       - local_time
       - start_at
+    SourceEnum:
+      enum:
+      - manual
+      - booking
+      type: string
+      description: |-
+        * `manual` - manual
+        * `booking` - booking
     StaffLoginRequest:
       type: object
       properties:
@@ -4309,6 +4915,42 @@ components:
         * `confirmed` - Подтверждена
         * `expired` - Истекла
         * `cancelled` - Отменена клиентом
+    Summary:
+      type: object
+      properties:
+        car:
+          $ref: '#/components/schemas/Car'
+        mileage:
+          type: integer
+          nullable: true
+        oil_interval_km:
+          type: integer
+        oil_interval_months:
+          type: integer
+        reminders:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reminder'
+        month:
+          $ref: '#/components/schemas/Period'
+        year:
+          $ref: '#/components/schemas/Period'
+        fuel:
+          $ref: '#/components/schemas/Fuel'
+        recent:
+          type: array
+          items:
+            $ref: '#/components/schemas/Entry'
+      required:
+      - car
+      - fuel
+      - mileage
+      - month
+      - oil_interval_km
+      - oil_interval_months
+      - recent
+      - reminders
+      - year
     TimezoneEnum:
       enum:
       - Europe/Kaliningrad

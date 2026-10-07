@@ -3,6 +3,7 @@
 import { Auth, Onboarding } from "app/auth";
 import { Bookings } from "app/bookings";
 import { Bonus } from "app/bonus";
+import { Garage } from "app/garage";
 import { InstallGate, NotIphoneGate, gate } from "app/install";
 import { CONFIG, api, bus, errorText, html, invite, render, toast, useEffect, useState } from "app/lib";
 import { Profile } from "app/profile";
@@ -19,6 +20,7 @@ if ("serviceWorker" in navigator) {
 // «Записаться» и история на одном экране, мастер записи — окном поверх.
 const TABS = [
   ["bookings", "Записи", "calendar", Bookings],
+  ["garage", "Гараж", "car", Garage],
   ["bonus", "Бонусы", "wallet", Bonus],
   ["profile", "Профиль", "user", Profile],
 ];

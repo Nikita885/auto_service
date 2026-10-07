@@ -62,6 +62,16 @@ class Car(BaseModel):
     is_primary = models.BooleanField("основной", default=False)
     archived_at = models.DateTimeField("удалён клиентом", null=True, blank=True)
 
+    # Свой интервал замены масла; пусто — по умолчанию сети
+    # (`GARAGE_OIL_INTERVAL_*`): поменяли умолчание — поменялось у всех, кто
+    # своего не задавал.
+    oil_interval_km = models.PositiveIntegerField("масло: интервал, км", null=True, blank=True)
+    oil_interval_months = models.PositiveSmallIntegerField(
+        "масло: интервал, месяцев", null=True, blank=True
+    )
+    osago_until = models.DateField("ОСАГО действует до", null=True, blank=True)
+    inspection_until = models.DateField("техосмотр действует до", null=True, blank=True)
+
     objects = CarQuerySet.as_manager()
 
     class Meta:
@@ -85,3 +95,44 @@ class Car(BaseModel):
     @property
     def is_archived(self) -> bool:
         return self.archived_at is not None
+
+
+class EntryKind(models.TextChoices):
+    FUEL = "fuel", "Заправка"
+    OIL = "oil", "Замена масла"
+    SERVICE = "service", "ТО и ремонт"
+    TIRES = "tires", "Шиномонтаж"
+    WASH = "wash", "Мойка"
+    FINE = "fine", "Штраф"
+    OTHER = "other", "Другое"
+
+
+class LogEntry(BaseModel):
+    """Запись дневника водителя по машине: заправка, ремонт, мойка, штраф.
+
+    Замены масла, сделанные у нас, сюда не копируются — дневник берёт их
+    из выполненных записей на эту машину (`services/journal.py`): копия
+    разошлась бы с записью, если мастер поправит итог.
+    """
+
+    car = models.ForeignKey(
+        Car, on_delete=models.CASCADE, related_name="entries", verbose_name="автомобиль"
+    )
+    kind = models.CharField("что", max_length=16, choices=EntryKind.choices)
+    date = models.DateField("когда")
+    mileage = models.PositiveIntegerField("пробег, км", null=True, blank=True)
+    amount = models.DecimalField("сумма, ₽", max_digits=10, decimal_places=2, null=True, blank=True)
+    liters = models.DecimalField("литры", max_digits=6, decimal_places=2, null=True, blank=True)
+    # Расход считается от полного бака до полного: неполная заправка
+    # прибавляет литры к следующему отрезку, но сама отрезок не закрывает.
+    full_tank = models.BooleanField("полный бак", default=True)
+    note = models.CharField("заметка", max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "запись дневника"
+        verbose_name_plural = "дневник водителя"
+        ordering = ["-date", "-created_at"]
+        indexes = [models.Index(fields=["car", "kind", "-date"])]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} {self.date:%d.%m.%Y}"

@@ -1,6 +1,5 @@
 /* Профиль: имя, машины, которые видит мастер, и выход. */
 
-import { Garage } from "app/cars";
 import { CONFIG, LoadError, api, ask, bus, call, html, toast, useEffect, useLoad, useState } from "app/lib";
 
 export function Profile() {
@@ -37,7 +36,7 @@ export function Profile() {
   return html`<main class="screen">
     <div class="screen-head">
       <h1>Профиль</h1>
-      <p>Имя и машину видит мастер — так он понимает, что заезжаете именно вы.</p>
+      <p>Имя видит мастер — так он понимает, что заезжаете именно вы.</p>
     </div>
     <div class="stack-lg">
       <form class="card pad stack" onSubmit=${(e) => { e.preventDefault(); save(); }}>
@@ -51,8 +50,8 @@ export function Profile() {
         </div>
         <button class="btn btn-primary btn-block" type="submit" disabled=${busy || !me.data}>Сохранить</button>
       </form>
-      <span class="kicker">Мои машины</span>
-      <${Garage} />
+      <button class="btn btn-block" type="button" onClick=${() => bus.emit("goto", "garage")}>
+        Мои машины — в Гараже</button>
       <a class="btn btn-block" href=${"tel:" + CONFIG.phone.replace(/[^\d+]/g, "")}>Позвонить в сервис · ${CONFIG.phone}</a>
       <button class="btn btn-ghost btn-danger btn-block" type="button" onClick=${signOut}>Выйти</button>
     </div>
