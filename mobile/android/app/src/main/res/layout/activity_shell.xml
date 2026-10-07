@@ -24,10 +24,10 @@
         android:visibility="gone">
 
         <ImageView
-            android:layout_width="@dimen/logo"
-            android:layout_height="@dimen/logo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:importantForAccessibility="no"
-            android:src="@drawable/ic_logo" />
+            android:src="@drawable/ic_mark" />
 
         <TextView
             android:layout_width="wrap_content"

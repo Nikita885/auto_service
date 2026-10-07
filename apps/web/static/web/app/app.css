@@ -9,23 +9,23 @@
 .pwa {
   color-scheme: dark;
 
+  /* Цвета — в design/tokens.json («client»), общем с Android-оболочкой. */
+  /* design-tokens: начало — сгенерировано design/build.py из design/tokens.json, руками не править */
   --bg: #030b14;
   --bg-soft: #070c16;
   --surface: #0b1220;
   --surface-2: #101a2c;
   --border: #1b2c44;
   --border-strong: #2b4569;
-
   --text: #e6f1ff;
   --text-soft: #97accb;
   --text-faint: #7d92b3;
-
   --accent: #2ea6ff;
   --accent-hover: #63c0ff;
   --accent-soft: #122a40;
   --accent-text: #03121f;
   --neon-hot: #b9e6ff;
-
+  --neon-deep: #0a5cff;
   --ok: #3ddc97;
   --ok-soft: #0e2b22;
   --warn: #f5c35c;
@@ -34,6 +34,7 @@
   --danger-soft: #33171c;
   --info: #2ea6ff;
   --info-soft: #122a40;
+  /* design-tokens: конец */
 
   --shadow: none;
   --shadow-lg: 0 18px 50px rgba(0, 0, 0, .6);

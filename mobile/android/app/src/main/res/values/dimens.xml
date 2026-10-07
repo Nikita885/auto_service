@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Шкала — та же, что у веб-приложения (space, fs и radius в :root
-     файла app.css): экран «нет связи» не должен выглядеть чужим. -->
+<!-- Сгенерировано design/build.py из шкал design/tokens.json — руками не править. -->
 <resources>
     <dimen name="space_2">8dp</dimen>
     <dimen name="space_4">16dp</dimen>
@@ -9,5 +8,4 @@
     <dimen name="text_body">15sp</dimen>
     <dimen name="text_h3">20sp</dimen>
     <dimen name="touch_min">48dp</dimen>
-    <dimen name="logo">72dp</dimen>
 </resources>

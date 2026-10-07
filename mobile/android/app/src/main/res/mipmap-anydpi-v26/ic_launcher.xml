@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Адаптивная иконка (Android 8+). Слои рисует design/build.py из того же
+  знака, что иконки iPhone: фон с пятном света и знак со свечением — PNG,
+  потому что свечение вектором не нарисовать. Монохромная (Android 13+,
+  тематические иконки) — вектор того же знака, красит система.
+-->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
-    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+    <background android:drawable="@mipmap/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
 </adaptive-icon>

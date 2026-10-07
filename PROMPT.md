@@ -69,7 +69,7 @@ API обслуживает два мобильных приложения:
 ## 4. Что уже сделано (всё работает и проверено)
 
 Серверная часть **готова полностью**, поверх неё работают лендинг и панели
-сотрудников. 437 тестов, ruff чистый, OpenAPI генерируется без
+сотрудников. 440 тестов, ruff чистый, OpenAPI генерируется без
 предупреждений, сквозной сценарий прогнан по живому HTTP.
 
 ### Реализовано
@@ -268,6 +268,9 @@ tests/             conftest.py + test_auth.py + test_draft_flow.py + test_master
                    + test_sms.py + test_security.py
 
 mobile/android/    клиентское приложение: ui → domain → data, сборка Gradle
+
+design/            tokens.json + mark.svg → build.py: один источник токенов
+                   (CSS и Android) и иконок iPhone и Android
 
 deploy/            nginx.conf.example — пример конфига для боевого сервера
                    backup.sh — снимок PostgreSQL по cron, ротация, копия наружу
@@ -562,7 +565,7 @@ GARAGE_SOON_DAYS=30
 ```bash
 cp .env.example .env
 docker compose build api && docker compose up -d   # или make up
-make test    # 437 тестов
+make test    # 440 тестов
 make lint    # ruff
 ```
 
@@ -720,7 +723,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api python 
 
 Работа не считается сделанной, пока не выполнено всё:
 
-- `make test` зелёный. Сейчас 437 тестов — новых падений быть не должно.
+- `make test` зелёный. Сейчас 440 тестов — новых падений быть не должно.
 - Новая логика покрыта тестами. Особенно граничные случаи: гонки, повторные
   нажатия, истёкшие сроки, права доступа.
 - `make lint` чистый.
@@ -798,7 +801,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api python 
 
 > Проект — бэкенд автосервиса (запись на замену масла): Django 5 + DRF +
 > PostgreSQL + Celery/Redis + JWT + Channels, всё в Docker Compose. Серверная
-> часть готова, 437 тестов; клиентское приложение под Android лежит в
+> часть готова, 440 тестов; клиентское приложение под Android лежит в
 > `mobile/android`. Проект **развёрнут и работает** на https://moi-servis.ru —
 > правки поедут на живой сервер, выкатка описана в `PROMPT.md`, раздел 13.
 > Прочитай `README.md` и `PROMPT.md` целиком — там полный контекст,

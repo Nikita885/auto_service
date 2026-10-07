@@ -24,7 +24,8 @@
     <!-- Стартовый экран: без него первый кадр — белая вспышка. -->
     <style name="Theme.AutoService.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/ink</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_logo</item>
+        <!-- Знак со свечением, как на иконке (design/build.py). -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_mark</item>
         <item name="postSplashScreenTheme">@style/Theme.AutoService</item>
     </style>
 </resources>
