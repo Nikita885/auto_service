@@ -328,3 +328,22 @@ def test_audit_fails_without_keys():
 def test_audit_ok_with_keys(settings):
     settings.VERIFICAHUB = {"API_KEY": "k", "API_SECRET": "s"}
     assert security_audit._check_calls().level == security_audit.OK
+
+
+def test_invite_attaches_at_reverse_call_login(api):
+    """Обратный звонок: код приглашения из ссылки уходит вместе с опросом
+    статуса, и новый клиент сразу в команде пригласившего."""
+    from apps.referral.services import tree as tree_service
+
+    friend = User.objects.create_user(phone="+79008887766", full_name="Друг")
+    inviter = tree_service.ensure_node(friend)
+    session = request_code(api).json()["session"]
+    body = {"phone": PHONE, "session": session, "invite": inviter.code.lower()}
+    url = reverse("v1:accounts:otp-call-status")
+
+    assert api.post(url, body, format="json").status_code == 202
+    done = api.post(url, body, format="json")
+
+    assert done.status_code == 200, done.content
+    assert done.json()["invite"] == {"status": "attached", "inviter_name": "Друг"}
+    assert User.objects.get(phone=PHONE).referral_node.sponsor_id == inviter.pk

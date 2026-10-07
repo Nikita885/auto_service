@@ -113,6 +113,30 @@ final class NativeBridge {
         return true;
     }
 
+    /**
+     * Текст из буфера обмена — для «Вставить код приглашения». Читаем только
+     * по нажатию человека на странице (её кнопка зовёт этот метод), и только
+     * своей странице: буфер — чужие данные.
+     */
+    @JavascriptInterface
+    @Nullable
+    public String paste() {
+        if (!trusted) {
+            return null;
+        }
+        ClipboardManager clipboard =
+                (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard == null || !clipboard.hasPrimaryClip()) {
+            return null;
+        }
+        ClipData clip = clipboard.getPrimaryClip();
+        if (clip == null || clip.getItemCount() == 0) {
+            return null;
+        }
+        CharSequence text = clip.getItemAt(0).coerceToText(activity);
+        return text == null ? null : text.toString();
+    }
+
     /** Отступы под системные панели в CSS-пикселях: `{"top":24,"bottom":48}`. */
     @JavascriptInterface
     @NonNull

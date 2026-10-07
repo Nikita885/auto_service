@@ -49,6 +49,21 @@ export async function shareText(text) {
   return (await copyText(text)) ? "copied" : "failed";
 }
 
+/** Текст из буфера обмена — для «Вставить код»; пусто, если нельзя.
+
+    iPhone покажет системное «Вставить» над кнопкой: читать буфер без
+    касания человека браузер не даёт, и это правильно. */
+export async function pasteText() {
+  if (native && native.paste) return native.paste() || "";
+  try {
+    return await navigator.clipboard.readText();
+  } catch (e) {
+    return "";
+  }
+}
+
+export const canPaste = () => Boolean((native && native.paste) || (navigator.clipboard && navigator.clipboard.readText));
+
 /** В буфер обмена. В WebView `navigator.clipboard` есть не везде — через мост. */
 export async function copyText(text) {
   if (native && native.copy) return Boolean(native.copy(text));

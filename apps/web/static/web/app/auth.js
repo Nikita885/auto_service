@@ -1,10 +1,10 @@
 /* Вход по номеру и знакомство — те же шаги, что в приложении под Android. */
 
 import {
-  CONFIG, api, call, errorText, formatPhone, html, invite, phoneComplete, toast,
+  CONFIG, api, call, canPaste, errorText, formatPhone, html, invite, pasteText, phoneComplete, toast,
   useEffect, useRef, useState,
 } from "app/lib";
-import { canScan, scanInvite } from "app/scan";
+import { canScan, inviteFromText, scanInvite } from "app/scan";
 
 /** Итог кода приглашения, пришедшего вместе со входом. */
 export function reportInvite(result) {
@@ -40,6 +40,17 @@ export function Auth({ onSignedIn }) {
   async function scan() {
     const code = await scanInvite();
     if (!code) return;
+    invite.set(code);
+    setPending(code);
+    toast("Код " + code + " сохранён — применится при входе.", "ok");
+  }
+
+  // iPhone: веб-приложение с главного экрана ссылку из Safari не получает —
+  // человек копирует код (или всё сообщение со ссылкой) и вставляет одним
+  // нажатием. Разбор тот же, что у сканера.
+  async function paste() {
+    const code = inviteFromText(await pasteText());
+    if (!code) { toast("В буфере нет кода приглашения — скопируйте его из ссылки.", "error"); return; }
     invite.set(code);
     setPending(code);
     toast("Код " + code + " сохранён — применится при входе.", "ok");
@@ -166,8 +177,13 @@ export function Auth({ onSignedIn }) {
         </form>
         ${pending
           ? html`<p class="invite-note">Код приглашения <b>${pending}</b> применится автоматически при входе.</p>`
-          : canScan() && html`<button class="btn btn-ghost btn-block" type="button" onClick=${scan}>
-              Меня пригласили — сканировать QR-код</button>`}
+          : (canScan() || canPaste()) && html`<div class="stack-sm">
+              <span class="hint center">Меня пригласили:</span>
+              <div class="row" style="flex-wrap:nowrap">
+                ${canPaste() && html`<button class="btn btn-ghost" style="flex:1" type="button" onClick=${paste}>Вставить код</button>`}
+                ${canScan() && html`<button class="btn btn-ghost" style="flex:1" type="button" onClick=${scan}>Сканировать QR</button>`}
+              </div>
+            </div>`}
       ` : channel === "reverse_call" ? html`
         <div>
           <h1>Позвоните нам</h1>

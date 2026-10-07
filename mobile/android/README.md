@@ -144,7 +144,7 @@ util/                 InstallReferrer (код из Google Play), InviteCodes (р
 |---|---|
 | `getItem`, `setItem`, `removeItem` | хранилище токенов — интерфейс localStorage, `core.js` подставляет его вместо `localStorage` |
 | `pendingInvite()`, `clearInvite()` | отложенный код приглашения (ссылка, Google Play) |
-| `share(text)`, `copy(text)` | системное «Поделиться», буфер обмена |
+| `share(text)`, `copy(text)`, `paste()` | системное «Поделиться», буфер обмена (запись и чтение — для «Вставить код») |
 | `insets()` | отступы под системные панели, CSS-пиксели |
 
 Страница узнаёт, что она в оболочке, по наличию моста (`isAndroidShell()` в

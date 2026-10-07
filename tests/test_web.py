@@ -244,3 +244,25 @@ def test_web_app_is_not_usable_from_browser_in_production(client, settings):
 def test_web_app_sends_android_to_play_with_invite(client, stores):
     config = _app_config(client, HTTP_USER_AGENT=ANDROID)
     assert config["playUrl"] == PLAY + "&referrer=invite%3DABC123"
+
+
+@pytest.mark.django_db
+def test_invite_page_tells_each_phone_its_way(client, stores):
+    """iPhone: установить — код доедет сам; уже стоит — «Вставить код».
+    Android: Google Play передаст код; уже стоит — та же вставка."""
+    from apps.accounts.models import User
+    from apps.referral.services import tree as tree_service
+
+    node = tree_service.ensure_node(User.objects.create_user(phone="+79005550001"))
+
+    iphone = client.get(f"/i/{node.code}/", HTTP_USER_AGENT=IPHONE).content.decode()
+    android = client.get(f"/i/{node.code}/", HTTP_USER_AGENT=ANDROID).content.decode()
+    desktop = client.get(f"/i/{node.code}/", HTTP_USER_AGENT=DESKTOP).content.decode()
+
+    assert "Установить приложение» ниже — код подставится сам" in iphone
+    assert "«Вставить код»" in iphone and "экране «Домой»" in iphone
+    assert "Google Play — код подставится сам" in android
+    assert "«Вставить код»" in android and "экране «Домой»" not in android
+    assert "Откройте эту ссылку на телефоне" in desktop
+    # Прежнего экрана «Приглашайте друзей» в приложении больше нет.
+    assert "Приглашайте друзей" not in iphone + android + desktop

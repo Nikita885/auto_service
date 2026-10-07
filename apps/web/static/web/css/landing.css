@@ -1186,6 +1186,14 @@
   line-height: 1.9;
 }
 
+/* «Приложение уже стоит?» — второй путь, тише основного. */
+.invite-note {
+  margin: 0 0 var(--space-6);
+  font-size: var(--fs-small);
+  color: var(--text-faint);
+  text-align: left;
+}
+
 .invite-stores { justify-content: center; margin-bottom: 22px; }
 
 .invite-foot { margin: 0; font-size: var(--fs-ui); color: var(--text-faint); }

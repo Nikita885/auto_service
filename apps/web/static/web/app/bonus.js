@@ -10,9 +10,10 @@
    правил в приложении однажды разошлась бы с первой. */
 
 import {
-  LoadError, api, call, copyText, errorText, fmt, html, shareText, toast, useLoad, useState,
+  LoadError, api, call, canPaste, copyText, errorText, fmt, html, pasteText, shareText, toast, useLoad,
+  useState,
 } from "app/lib";
-import { canScan, scanInvite } from "app/scan";
+import { canScan, inviteFromText, scanInvite } from "app/scan";
 
 const points = (n) => fmt.number(n) + " " + fmt.plural(Math.floor(Number(n)), "балл", "балла", "баллов");
 
@@ -191,10 +192,15 @@ function AttachForm({ onAttached }) {
     if (ok) { toast("Приглашение принято", "ok"); onAttached(); }
   }
 
-  // Отсканировали — привязываем сразу, без кнопки «Применить».
+  // Отсканировали или вставили — привязываем сразу, без «Применить».
   async function scan() {
     const found = await scanInvite();
     if (found) { setCode(found); attach(found); }
+  }
+
+  async function paste() {
+    const found = inviteFromText(await pasteText());
+    if (found) { setCode(found); attach(found); } else toast("В буфере нет кода приглашения.", "error");
   }
   return html`<div class="stack">
     <div class="row" style="flex-wrap:nowrap">
@@ -202,7 +208,9 @@ function AttachForm({ onAttached }) {
         onInput=${(e) => setCode(e.target.value.toUpperCase())} aria-label="Код приглашения" />
       <button class="btn btn-primary" type="button" disabled=${busy || !code.trim()} onClick=${() => attach()}>Применить</button>
     </div>
-    ${canScan() && html`<button class="btn btn-block" type="button" disabled=${busy} onClick=${scan}>
-      Сканировать QR-код друга</button>`}
+    <div class="row" style="flex-wrap:nowrap">
+      ${canPaste() && html`<button class="btn" style="flex:1" type="button" disabled=${busy} onClick=${paste}>Вставить код</button>`}
+      ${canScan() && html`<button class="btn" style="flex:1" type="button" disabled=${busy} onClick=${scan}>Сканировать QR</button>`}
+    </div>
   </div>`;
 }
