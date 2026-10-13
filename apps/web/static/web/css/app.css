@@ -207,6 +207,10 @@ main:focus { outline: none; }
 .grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .grid-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .grid-4 { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+/* Метрик ровно восемь: четыре колонки дают два ровных ряда. auto-fit на
+   широком экране раскладывал их 6 + 2 с пустым хвостом. */
+.kpi-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .kpi-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .row-end { justify-content: flex-end; }
