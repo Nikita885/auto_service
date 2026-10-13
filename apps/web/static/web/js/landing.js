@@ -322,7 +322,9 @@
      только греет процессор и съедает батарею на телефоне. */
 
   function initMockup() {
-    var mockup = document.querySelector(".mockup");
+    // Ставим на паузу всю витрину героя: и телефон, и плашки рядом с ним
+    // идут по одному циклу.
+    var mockup = document.querySelector(".hero-visual");
     if (!mockup || !("IntersectionObserver" in window)) return;
 
     var io = new IntersectionObserver(function (entries) {
@@ -332,6 +334,48 @@
     }, { threshold: 0 });
 
     io.observe(mockup);
+  }
+
+  /* ------------------------------------------------ открыто ли сейчас */
+  /* Статус на карточке адреса считается здесь, а не в шаблоне: страница
+     одна для всех, а «открыто» должно быть правдой в момент просмотра.
+     Время берём в часовом поясе точки, а не браузера — клиент из другого
+     города видит то же, что и человек у ворот. */
+
+  var WEEKDAYS = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+
+  function toMinutes(hhmm) {
+    var parts = hhmm.split(":");
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  }
+
+  function pointClock(tz) {
+    var parts = {};
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).formatToParts(new Date()).forEach(function (p) { parts[p.type] = p.value; });
+    return { day: WEEKDAYS[parts.weekday], minutes: parseInt(parts.hour, 10) * 60 + parseInt(parts.minute, 10) };
+  }
+
+  function initOpenStatus() {
+    $$(".address-card[data-tz]").forEach(function (card) {
+      var chip = card.querySelector(".address-status");
+      if (!chip) return;
+      var now = pointClock(card.dataset.tz);
+      var opens = toMinutes(card.dataset.opens);
+      var closes = toMinutes(card.dataset.closes);
+      var days = card.dataset.days ? card.dataset.days.split(",").map(Number) : [];
+      var workday = !days.length || days.indexOf(now.day) !== -1;
+      var open = workday && (opens < closes
+        ? now.minutes >= opens && now.minutes < closes
+        : now.minutes >= opens || now.minutes < closes);
+
+      chip.textContent = open
+        ? "Открыто до " + card.dataset.closes
+        : (workday && now.minutes < opens ? "Откроется в " + card.dataset.opens : "Сейчас закрыто");
+      chip.classList.add(open ? "chip-ok" : "chip-off");
+      chip.hidden = false;
+    });
   }
 
   /* --------------------------------------------------------------- старт */
@@ -345,6 +389,7 @@
       initScroll();
       initFaq();
       initMockup();
+      initOpenStatus();
     } catch (err) {
       // Оформление не стоит того, чтобы из-за него пропал текст: если
       // что-то упало на полпути, показываем всё как есть.

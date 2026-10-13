@@ -248,19 +248,39 @@
 
   <div class="address-grid" data-reveal-group>
     {% for point in points %}
-      <article class="address-card glass" data-reveal>
+      {% comment %}
+      Карточка по образцу офисных карточек Slack и Upwork на Mobbin: имя,
+      адрес, часы, внизу — действия. Статус «открыто / закрыто» считает
+      landing.js по часовому поясу точки: в разметке он один и тот же для
+      всех посетителей, а честным должен быть в момент просмотра. Без JS
+      остаются просто часы работы.
+      {% endcomment %}
+      <article class="address-card glass" data-reveal
+               data-tz="{{ point.timezone }}" data-opens="{{ point.opens_at|time:'H:i' }}"
+               data-closes="{{ point.closes_at|time:'H:i' }}" data-days="{{ point.workdays|join:',' }}">
         <div class="address-top">
           <h3>{{ point.name }}</h3>
-          <span class="chip chip-ok">открыто {{ point.opens_at|time:"H:i" }}–{{ point.closes_at|time:"H:i" }}</span>
+          <span class="chip address-status" hidden></span>
         </div>
         <p class="address-line">{{ point.address }}</p>
-        <div class="address-facts">
-          <div><b>{{ point.posts_count }}</b><span>{% if point.posts_count == 1 %}пост{% else %}поста{% endif %}</span></div>
-          <div><b>{{ points|length }}</b><span>{{ points|length|ru_plural:"адрес,адреса,адресов" }} сети</span></div>
-        </div>
+
+        <ul class="address-facts">
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            {% if point.workdays %}По графику{% else %}Ежедневно{% endif %}, {{ point.opens_at|time:"H:i" }}–{{ point.closes_at|time:"H:i" }}
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-6h6v6"/></svg>
+            {{ point.posts_count }} {{ point.posts_count|ru_plural:"пост,поста,постов" }} — записи не пересекаются
+          </li>
+        </ul>
+
         <div class="address-actions">
           {% if point.phone %}<a class="btn btn-sm" href="tel:{{ point.phone|tel_href }}">{{ point.phone }}</a>{% endif %}
-          <a class="btn btn-sm btn-ghost" href="https://yandex.ru/maps/?text={{ point.address|urlencode }}" rel="noopener" target="_blank">Маршрут</a>
+          <a class="address-route" href="https://yandex.ru/maps/?{% if point.latitude and point.longitude %}pt={{ point.longitude|stringformat:'s' }},{{ point.latitude|stringformat:'s' }}&amp;z=16&amp;l=map{% else %}text={{ point.address|urlencode }}{% endif %}" rel="noopener" target="_blank">
+            Маршрут
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
         </div>
       </article>
     {% empty %}

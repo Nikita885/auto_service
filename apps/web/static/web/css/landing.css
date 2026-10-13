@@ -536,7 +536,22 @@
 .mk-timer { fill: var(--neon-hot); font: 700 17px var(--mono); }
 .mk-accent { fill: var(--neon); }
 .mk-dot-accent { fill: var(--neon-dim); stroke: var(--neon); stroke-width: 1.5; }
-.mk-cta-label { fill: var(--accent-text); }
+.mk-cta-label { fill: var(--accent-text); font: 800 15px var(--font); text-anchor: middle; }
+
+/* Текст на экране — настоящий, а не полоски-заглушки. */
+.mk-sub { fill: var(--text-faint); font: 600 11px var(--font); }
+.mk-label { fill: var(--text-faint); font: 700 10.5px var(--font); letter-spacing: .02em; }
+.mk-card-title { fill: var(--text); font: 700 13px var(--font); letter-spacing: -.01em; }
+.mk-card-sub { fill: var(--text-soft); font: 500 10.5px var(--font); }
+.mk-icon { fill: var(--neon); }
+.mk-check { fill: none; stroke: var(--neon); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.mk-time { fill: var(--text-soft); font: 700 12.5px var(--mono); text-anchor: middle; }
+.mk-time-active { animation: mk-time 12s linear infinite; animation-delay: 4.2s; }
+@keyframes mk-time {
+  0%, 2% { fill: var(--text-soft); }
+  8%, 92% { fill: var(--accent-text); }
+  100% { fill: var(--text-soft); }
+}
 
 /* Шаги загораются по очереди — ровно так, как их проходит клиент. */
 .mk-step { fill: var(--line-mid); }
@@ -588,7 +603,54 @@
 .mk-glow { animation: mk-glow 12s linear infinite; }
 @keyframes mk-glow { 0%, 76% { opacity: 0; } 84%, 96% { opacity: .75; } 100% { opacity: 0; } }
 
-.mockup.is-paused * { animation-play-state: paused; }
+.hero-visual.is-paused * { animation-play-state: paused; }
+
+/* Плашки поверх телефона: «пост держим» висит всегда, SMS всплывает
+   в момент нажатия «Записаться» — тот же 12-секундный цикл. */
+.hero-phone { position: relative; display: inline-block; }
+
+.float-card {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 10px 10px;
+  border-radius: var(--radius);
+  background: rgba(11, 18, 32, .82);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .55), 0 0 24px var(--deep-haze);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  white-space: nowrap;
+}
+.float-card b { display: block; font-size: var(--fs-small); font-weight: var(--fw-bold); color: var(--text); }
+.float-card small { display: block; margin-top: 2px; font-size: var(--fs-caption); color: var(--text-soft); }
+
+.float-ico {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: var(--neon-hot);
+  background: var(--glow-faint);
+  border: 1px solid var(--line-strong);
+}
+.float-ico svg { width: 17px; height: 17px; }
+.float-ico-ok { color: #3ddc97; background: rgba(61, 220, 151, .1); border-color: rgba(61, 220, 151, .3); }
+
+/* Плашки заходят на корпус телефона краем, а не на экран: под ними
+   остаются читаемыми адрес и время. */
+.float-post { top: 30%; right: calc(100% - 20px); animation: float-bob 6s ease-in-out infinite; }
+.float-sms { bottom: 14%; left: calc(100% - 20px); animation: float-sms 12s linear infinite; }
+
+@keyframes float-bob { 50% { transform: translateY(-6px); } }
+@keyframes float-sms {
+  0%, 78% { opacity: 0; transform: translateY(12px) scale(.96); }
+  82%, 96% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
 
 /* --------------------------------------------------------------- плитки */
 .bento { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap-grid); }
@@ -769,25 +831,37 @@
 
 .address-facts {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
-  margin: 22px 0;
-  padding: 18px 0;
+  margin: 20px 0 22px;
+  padding: 16px 0;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
+  list-style: none;
 }
 
-.address-facts b {
-  display: block;
-  font-size: var(--fs-h3-lg);
-  font-weight: var(--fw-heavy);
-  letter-spacing: -.025em;
-  color: var(--neon-hot);
-  font-variant-numeric: tabular-nums;
-}
+.address-facts li { display: flex; align-items: center; gap: 10px; font-size: var(--fs-ui); color: var(--text-soft); }
+.address-facts svg { flex: none; width: 18px; height: 18px; color: var(--neon); }
 
-.address-facts span { display: block; font-size: var(--fs-caption); color: var(--text-faint); margin-top: 3px; }
+/* Закрыто — тихим серым, а не тревожным красным: это не ошибка. */
+.chip-off { background: transparent; border-color: var(--border-strong); color: var(--text-faint); font-size: var(--fs-caption); }
+
 .address-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.address-actions { align-items: center; justify-content: space-between; }
+
+/* «Маршрут →» — ссылкой, как «Get directions →» у Slack: вторая кнопка
+   рядом с телефоном спорила с ним за внимание. */
+.address-route {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: var(--fs-ui);
+  font-weight: var(--fw-bold);
+  color: var(--neon-hot);
+  text-decoration: none;
+}
+.address-route svg { width: 16px; height: 16px; transition: transform var(--dur-fast) var(--ease); }
+.address-route:hover svg { transform: translateX(3px); }
 
 /* ----------------------------------------------------------- приложение */
 .app-panel {
@@ -1084,6 +1158,11 @@
   .hero-grid { grid-template-columns: 1fr; gap: 34px; }
   /* На телефоне первым экраном должно быть предложение, а не мокап. */
   .mockup { width: min(220px, 56vw); }
+  /* Узко: остаётся только SMS, и она ложится на край телефона, а не
+     уезжает за экран. */
+  .float-post { display: none; }
+  .float-sms { left: 0; right: 0; bottom: -4%; width: max-content; margin: 0 auto; padding: 8px 12px 8px 8px; }
+  .float-sms small { max-width: 168px; overflow: hidden; text-overflow: ellipsis; }
   .hero-stats { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); }
   .hstat + .hstat { border-left: none; padding-left: 8px; }
   .hstat:nth-child(n + 3) { border-top: 1px solid var(--line); }
@@ -1123,7 +1202,7 @@
 @media (prefers-reduced-motion: reduce) {
   .logo-line { stroke-dashoffset: 0; animation: none; }
   .logo-lines { opacity: 1; animation: none; }
-  .logo-spark, .hero-road, .mockup * { animation: none; }
+  .logo-spark, .hero-road, .mockup *, .float-card { animation: none; }
   .logo-spark { opacity: 0; }
   .mk-step-1, .mk-step-2, .mk-step-3, .mk-slot-active { fill: var(--neon); }
   .mk-timer-fill { transform: scaleX(.6); }

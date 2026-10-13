@@ -5,65 +5,99 @@
 
 Это не статичная картинка, а короткий показ сценария записи: шаги
 загораются по очереди, выбирается время, утекает таймер брони и в конце
-нажимается подтверждение. Цикл 12 секунд, вся анимация — в landing.css.
-Держать её в CSS, а не в SMIL или JS, нужно чтобы одна строка
-`prefers-reduced-motion` выключала всё разом.
+нажимается подтверждение — тогда же рядом всплывает SMS. Цикл 12 секунд,
+вся анимация — в landing.css. Держать её в CSS, а не в SMIL или JS, нужно
+чтобы одна строка `prefers-reduced-motion` выключала всё разом.
+
+На экране настоящие данные — первая точка и первое масло из базы, а не
+серые полоски: по референсам (TravelPerk, Fresha на Mobbin) живой экран
+продаёт приложение лучше схемы. Нет данных — подставляем нейтральное.
 {% endcomment %}
+{% with point=points.0 oil=oils.0 %}
+<div class="hero-phone">
+  <svg class="mockup" viewBox="0 0 300 580" role="presentation" focusable="false">
+    <!-- корпус -->
+    <rect x="10" y="10" width="280" height="560" rx="38" class="mk-body"/>
+    <rect x="22" y="22" width="256" height="536" rx="30" class="mk-screen"/>
+    <rect x="118" y="30" width="64" height="9" rx="4.5" class="mk-notch"/>
 
-<svg class="mockup" viewBox="0 0 300 580" role="presentation" focusable="false">
-  <!-- корпус -->
-  <rect x="10" y="10" width="280" height="560" rx="38" class="mk-body"/>
-  <rect x="22" y="22" width="256" height="536" rx="30" class="mk-screen"/>
-  <rect x="118" y="30" width="64" height="9" rx="4.5" class="mk-notch"/>
+    <!-- шапка экрана -->
+    <text x="44" y="76" class="mk-title">Запись</text>
+    <text x="44" y="96" class="mk-sub">Шаг 3 из 4 · время</text>
 
-  <!-- шапка экрана -->
-  <text x="44" y="76" class="mk-title">Запись</text>
-  <rect x="44" y="88" width="122" height="7" rx="3.5" class="mk-line-soft"/>
+    <!-- прогресс из четырёх шагов: три проходит клиент, четвёртый — итог -->
+    <rect x="44" y="112" width="46" height="5" rx="2.5" class="mk-step mk-step-1"/>
+    <rect x="96" y="112" width="46" height="5" rx="2.5" class="mk-step mk-step-2"/>
+    <rect x="148" y="112" width="46" height="5" rx="2.5" class="mk-step mk-step-3"/>
+    <rect x="200" y="112" width="46" height="5" rx="2.5" class="mk-step"/>
 
-  <!-- прогресс из четырёх шагов: три проходит клиент, четвёртый — итог -->
-  <rect x="44" y="112" width="46" height="5" rx="2.5" class="mk-step mk-step-1"/>
-  <rect x="96" y="112" width="46" height="5" rx="2.5" class="mk-step mk-step-2"/>
-  <rect x="148" y="112" width="46" height="5" rx="2.5" class="mk-step mk-step-3"/>
-  <rect x="200" y="112" width="46" height="5" rx="2.5" class="mk-step"/>
+    <!-- выбранный адрес -->
+    <rect x="44" y="134" width="212" height="58" rx="14" class="mk-card"/>
+    <circle cx="70" cy="163" r="13" class="mk-dot-accent"/>
+    <path d="M70 156.5a4.6 4.6 0 0 0-4.6 4.6c0 3.4 4.6 8.2 4.6 8.2s4.6-4.8 4.6-8.2a4.6 4.6 0 0 0-4.6-4.6z" class="mk-icon"/>
+    <text x="92" y="159" class="mk-card-title">{% if point %}{{ point.name|truncatechars:20 }}{% else %}Ближайший адрес{% endif %}</text>
+    <text x="92" y="177" class="mk-card-sub">{% if point %}{{ point.address|truncatechars:28 }}{% else %}выбран по карте{% endif %}</text>
 
-  <!-- выбранный адрес -->
-  <rect x="44" y="134" width="212" height="58" rx="14" class="mk-card"/>
-  <circle cx="70" cy="163" r="13" class="mk-dot-accent"/>
-  <rect x="92" y="150" width="86" height="8" rx="4" class="mk-line"/>
-  <rect x="92" y="166" width="130" height="7" rx="3.5" class="mk-line-soft"/>
+    <!-- выбранное масло -->
+    <rect x="44" y="202" width="212" height="58" rx="14" class="mk-card"/>
+    <circle cx="70" cy="231" r="13" class="mk-dot-accent"/>
+    <path d="M70 224.5c-2.6 3.4-4.2 5.8-4.2 7.6a4.2 4.2 0 0 0 8.4 0c0-1.8-1.6-4.2-4.2-7.6z" class="mk-icon"/>
+    <text x="92" y="227" class="mk-card-title">{% if oil %}{{ oil.brand|truncatechars:18 }}{% else %}Синтетика{% endif %}</text>
+    <text x="92" y="245" class="mk-card-sub">{% if oil %}{{ oil.viscosity }} · {{ oil.volume_liters }} л{% else %}подобрано по марке{% endif %}</text>
+    <path d="M226 231l5 5 9-10" class="mk-check"/>
 
-  <!-- выбранное масло -->
-  <rect x="44" y="202" width="212" height="58" rx="14" class="mk-card"/>
-  <circle cx="70" cy="231" r="13" class="mk-dot-accent"/>
-  <rect x="92" y="218" width="104" height="8" rx="4" class="mk-line"/>
-  <rect x="92" y="234" width="72" height="7" rx="3.5" class="mk-line-soft"/>
-  <rect x="206" y="222" width="34" height="9" rx="4.5" class="mk-accent"/>
+    <!-- сетка свободного времени -->
+    <text x="44" y="285" class="mk-label">Сегодня · свободно</text>
+    <rect x="44" y="296" width="64" height="42" rx="12" class="mk-slot"/>
+    <rect x="118" y="296" width="64" height="42" rx="12" class="mk-slot-active"/>
+    <rect x="192" y="296" width="64" height="42" rx="12" class="mk-slot"/>
+    <rect x="44" y="348" width="64" height="42" rx="12" class="mk-slot"/>
+    <rect x="118" y="348" width="64" height="42" rx="12" class="mk-slot"/>
+    <rect x="192" y="348" width="64" height="42" rx="12" class="mk-slot"/>
+    <text x="76" y="322" class="mk-time">09:30</text>
+    <text x="150" y="322" class="mk-time mk-time-active">10:00</text>
+    <text x="224" y="322" class="mk-time">10:30</text>
+    <text x="76" y="374" class="mk-time">11:30</text>
+    <text x="150" y="374" class="mk-time">12:00</text>
+    <text x="224" y="374" class="mk-time">13:30</text>
 
-  <!-- сетка свободного времени -->
-  <rect x="44" y="278" width="60" height="7" rx="3.5" class="mk-line-soft"/>
-  <rect x="44" y="296" width="64" height="42" rx="12" class="mk-slot"/>
-  <rect x="118" y="296" width="64" height="42" rx="12" class="mk-slot-active"/>
-  <rect x="192" y="296" width="64" height="42" rx="12" class="mk-slot"/>
-  <rect x="44" y="348" width="64" height="42" rx="12" class="mk-slot"/>
-  <rect x="118" y="348" width="64" height="42" rx="12" class="mk-slot"/>
-  <rect x="192" y="348" width="64" height="42" rx="12" class="mk-slot"/>
+    <!-- таймер брони: пять минут на всю запись -->
+    <rect x="44" y="406" width="212" height="44" rx="14" class="mk-card"/>
+    <text x="62" y="434" class="mk-timer">04:38</text>
+    <rect x="122" y="425" width="118" height="6" rx="3" class="mk-line-soft"/>
+    <rect x="122" y="425" width="118" height="6" rx="3" class="mk-timer-fill"/>
 
-  <!-- таймер брони: пять минут на всю запись -->
-  <rect x="44" y="406" width="212" height="44" rx="14" class="mk-card"/>
-  <text x="62" y="434" class="mk-timer">04:38</text>
-  <rect x="122" y="425" width="118" height="6" rx="3" class="mk-line-soft"/>
-  <rect x="122" y="425" width="118" height="6" rx="3" class="mk-timer-fill"/>
+    <!-- кнопка подтверждения -->
+    <rect x="44" y="468" width="212" height="48" rx="16" class="mk-cta"/>
+    <text x="150" y="497" class="mk-cta-label">Записаться</text>
 
-  <!-- кнопка подтверждения -->
-  <rect x="44" y="468" width="212" height="48" rx="16" class="mk-cta"/>
-  <rect x="104" y="487" width="92" height="10" rx="5" class="mk-cta-label"/>
+    <!-- вспышка подтверждения: запись создана -->
+    <g class="mk-glow">
+      <rect x="30" y="454" width="240" height="76" rx="24" fill="none"
+            stroke="#b9e6ff" stroke-width="2" opacity=".6"/>
+      <rect x="44" y="468" width="212" height="48" rx="16" fill="#b9e6ff" opacity=".22"/>
+    </g>
 
-  <!-- вспышка подтверждения: запись создана -->
-  <g class="mk-glow">
-    <rect x="30" y="454" width="240" height="76" rx="24" fill="none"
-          stroke="#b9e6ff" stroke-width="2" opacity=".6"/>
-    <rect x="44" y="468" width="212" height="48" rx="16" fill="#b9e6ff" opacity=".22"/>
-  </g>
+    <rect x="118" y="538" width="64" height="6" rx="3" class="mk-line-soft"/>
+  </svg>
 
-  <rect x="118" y="538" width="64" height="6" rx="3" class="mk-line-soft"/>
-</svg>
+  {% comment %}
+  Две плашки поверх телефона — приём из героя TravelPerk: рядом с экраном
+  то, что клиент получит в жизни. Пост держится за ним всё время, а после
+  нажатия «Записаться» приходит SMS с кодом.
+  {% endcomment %}
+  <div class="float-card float-post">
+    <span class="float-ico float-ico-ok">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+    </span>
+    <span><b>Пост держим за вами</b><small>никого не поставят вперёд</small></span>
+  </div>
+
+  <div class="float-card float-sms">
+    <span class="float-ico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>
+    </span>
+    <span><b>SMS · {{ company.NAME }}</b><small>Ждём вас в 10:00{% if point %}, {{ point.name|truncatechars:16 }}{% endif %}. Код 4821</small></span>
+  </div>
+</div>
+{% endwith %}
