@@ -214,17 +214,27 @@
       return;
     }
 
+    // Следующая машина — первая ожидающая запись, время которой ещё не
+    // прошло (с запасом на опоздание). Её мастер ищет глазами чаще всего,
+    // поэтому строка подсвечена, как «Up next» в расписаниях Fresha и
+    // Jobber на Mobbin. На другой день подсветки нет: там «следующей» нет.
+    const late = Date.now() - 15 * 60 * 1000;
+    const next = items.find((b) => b.status === "pending" && new Date(b.start_at).getTime() >= late);
+    const nextId = next && new Date(next.start_at).toDateString() === new Date().toDateString() ? next.id : null;
+
     items.forEach((booking) => {
       const badge = STATUS_BADGE[booking.status] || ["badge", booking.status_display];
+      const isNext = booking.id === nextId;
       const paidWithPoints = Number(booking.points_spent) > 0;
       const car = [booking.car_model, booking.car_plate].filter(Boolean).join(" ");
 
-      tbody.append(el("tr", { class: "status-" + booking.status }, [
+      tbody.append(el("tr", { class: "status-" + booking.status + (isNext ? " is-next" : "") }, [
         el("td", { class: "nowrap", "data-label": "Время" }, [
           // local_time приходит от сервера в часовом поясе точки: браузер
           // мастера может стоять в другом регионе, и его время тут ни при чём.
           el("div", { class: "cell-main", text: booking.local_time.split(" ")[1] }),
           el("div", { class: "cell-sub mono", text: booking.code }),
+          isNext ? el("span", { class: "next-tag", text: "Следующая" }) : null,
         ]),
         el("td", { "data-label": "Клиент и машина" }, [
           el("div", { class: "cell-main", text: booking.client_name || "Без имени" }),
@@ -249,7 +259,9 @@
             : null,
         ]),
         el("td", { "data-label": "Статус" }, [
-          el("span", { class: "badge " + badge[0], text: badge[1] }),
+          // Точка цвета статуса перед словом — как в таблицах Remote: статус
+          // считывается периферийным зрением, не читая подпись.
+          el("span", { class: "badge " + badge[0] }, [el("span", { class: "dot" }), badge[1]]),
           booking.cancel_reason
             ? el("div", { class: "cell-sub", style: "margin-top:4px", text: booking.cancel_reason })
             : null,

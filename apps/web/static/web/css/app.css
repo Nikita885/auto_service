@@ -749,6 +749,18 @@ td.nowrap { white-space: nowrap; }
 tr.status-completed td, tr.status-cancelled_by_client td,
 tr.status-cancelled_by_master td, tr.status-no_show td, tr.is-muted td { color: var(--text-soft); }
 tr.status-in_progress td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+tr.is-next td { background: var(--accent-soft); }
+tr.is-next td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.next-tag {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  color: var(--accent-text);
+  background: var(--accent);
+}
 
 .panel-hint { margin: 0 0 var(--space-3); }
 
@@ -823,6 +835,8 @@ tr.status-in_progress td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
   .table-cards tr.row-empty td::before { display: none; }
   tr.status-in_progress td:first-child { box-shadow: none; }
   tr.status-in_progress { box-shadow: inset 3px 0 0 var(--warn); }
+  tr.is-next td:first-child { box-shadow: none; }
+  tr.is-next { box-shadow: inset 3px 0 0 var(--accent); }
   .toolbar-date input { width: 140px; }
   .kpi-label { white-space: normal; }
 
