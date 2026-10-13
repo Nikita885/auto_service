@@ -248,6 +248,57 @@
 .summary-row span:last-child { text-align: right; font-weight: var(--fw-semibold); }
 .summary-total span:last-child { font-size: var(--fs-h3); color: var(--accent); }
 
+/* Сводка строками «иконка · подпись · значение» — Walmart Auto Service,
+   Grab, Alan на Mobbin. Значение слева под подписью: длинное «Lukoil
+   Genesis Armortech 5W-40, 4.0 л» не рвётся в узкой правой колонке. */
+.info-list { display: grid; gap: var(--space-3); }
+.next-card .info-list { margin-top: var(--space-3); }
+.info-row { display: flex; align-items: flex-start; gap: var(--space-3); }
+.info-ico {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.info-body { min-width: 0; padding-top: 1px; font-size: var(--fs-ui); line-height: 1.35; }
+.info-body small { display: block; font-size: var(--fs-caption); font-weight: var(--fw-semibold); color: var(--text-faint); }
+.info-body > span { display: block; margin-top: 1px; color: var(--text); overflow-wrap: anywhere; }
+.info-body:not(:has(small)) { align-self: center; padding-top: 0; }
+
+/* Код записи — отдельной плашкой: его диктуют вслух на посту. */
+.code-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+}
+.code-card small { font-size: var(--fs-small); color: var(--text-soft); }
+.code-card b { font: var(--fw-bold) 22px/1 var(--mono); letter-spacing: .14em; color: var(--accent); user-select: all; }
+.code-card-inline { margin-top: var(--space-4); }
+
+/* «Вы записаны»: знак, время крупно — главное, что надо запомнить. */
+.done-head { display: grid; justify-items: center; gap: var(--space-2); padding-top: var(--space-3); text-align: center; }
+.done-head h2 { font-size: var(--fs-title); font-weight: var(--fw-heavy); letter-spacing: -.02em; }
+.done-mark {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  color: var(--accent-text);
+  background: var(--ok);
+  box-shadow: 0 0 0 8px var(--ok-soft), 0 0 36px var(--ok-soft);
+}
+.done-when { font-size: var(--fs-h3); font-weight: var(--fw-bold); color: var(--accent); }
+
 .sticky-actions {
   position: sticky;
   bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--space-2));
@@ -462,6 +513,18 @@ body.sheet-open { overflow: hidden; }
 
 .empty-state { padding: var(--space-7) var(--space-4); text-align: center; color: var(--text-soft); }
 .empty-state b { display: block; margin-bottom: var(--space-2); color: var(--text); font-size: var(--fs-lead); }
+.empty-ico {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--space-4);
+  border-radius: 20px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 32px var(--accent-soft);
+}
+.empty-ico svg { width: 30px; height: 30px; }
 
 /* Уведомления и модалки над нижней панелью, а не под ней. */
 .pwa .toasts { bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--space-3)); left: var(--space-3); right: var(--space-3); }

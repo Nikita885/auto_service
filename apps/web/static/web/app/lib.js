@@ -233,6 +233,37 @@ export function visitTime(iso, zone) {
   }
 }
 
+/** «Сегодня», «Завтра», «Через 3 дня» — сколько осталось до визита по
+    календарю точки. Подсказка над датой, как «In 7 days» у Fresha: дату
+    ещё надо сопоставить с сегодняшней, а это читается сразу. */
+export function daysUntil(iso, zone) {
+  const day = (d) => {
+    try { return new Date(d.toLocaleDateString("en-CA", { timeZone: zone || undefined })); } catch (e) { return new Date(d.toDateString()); }
+  };
+  const n = Math.round((day(new Date(iso)) - day(new Date())) / 86400000);
+  if (n < 0) return "";
+  if (n === 0) return "Сегодня";
+  if (n === 1) return "Завтра";
+  if (n === 2) return "Послезавтра";
+  const mod10 = n % 10, mod100 = n % 100;
+  const word = mod10 === 1 && mod100 !== 11 ? "день"
+    : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "дня" : "дней";
+  return "Через " + n + " " + word;
+}
+
+/** Строка сводки: иконка, подпись сверху, значение снизу — как в
+    «Review» у Walmart Auto Service и Grab. Подпись над значением, а не
+    слева: длинное название масла не ломается в узкую правую колонку. */
+export function InfoRow({ icon, label, children }) {
+  return html`<div class="info-row">
+    <span class="info-ico" dangerouslySetInnerHTML=${{ __html: window.App.icon(icon, 18) }}></span>
+    <span class="info-body">
+      ${label && html`<small>${label}</small>`}
+      <span>${children}</span>
+    </span>
+  </div>`;
+}
+
 export const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 export const isStandalone = () =>

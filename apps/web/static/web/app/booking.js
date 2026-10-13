@@ -12,7 +12,7 @@
 
 import { CarPicker, carLabel } from "app/cars";
 import {
-  CONFIG, api, ask, call, errorText, fmt, html, toast, useEffect, useRef, useState, visitTime,
+  CONFIG, InfoRow, api, ask, call, errorText, fmt, html, toast, useEffect, useRef, useState, visitTime,
 } from "app/lib";
 
 const GONE = ["draft_expired", "draft_closed"];
@@ -288,10 +288,10 @@ function ConfirmStep({ draft, busy, confirm }) {
   const oil = draft.oil;
   const point = draft.service_point;
   return html`<div class="stack">
-    <div class="card pad">
-      <div class="summary-row"><span>Адрес</span><span>${point.name}<br /><small class="muted">${point.address}</small></span></div>
-      <div class="summary-row"><span>Когда</span><span>${visitTime(draft.slot_start, point.timezone)}</span></div>
-      <div class="summary-row"><span>Масло</span><span>${oil.title}</span></div>
+    <div class="card pad info-list">
+      <${InfoRow} icon="calendar" label="Когда">${visitTime(draft.slot_start, point.timezone)}</${InfoRow}>
+      <${InfoRow} icon="pin" label=${point.name}>${point.address}</${InfoRow}>
+      <${InfoRow} icon="drop" label="Масло">${oil.title}</${InfoRow}>
     </div>
     <div class="stack-sm">
       <span class="kicker">Автомобиль</span>
@@ -311,17 +311,26 @@ function ConfirmStep({ draft, busy, confirm }) {
   </div>`;
 }
 
+/** Запись создана: сначала «получилось» и время, потом код и детали.
+    Порядок — как на экранах подтверждения из Mobbin (Fresha, Zocdoc):
+    человеку важно «когда ехать», код понадобится только на посту. */
 function Created({ booking, onDone }) {
-  return html`<div class="card pad stack center">
-    <span class="kicker">Вы записаны</span>
-    <div class="invite-code">${booking.code}</div>
-    <p class="muted">Код записи назовёте на посту.</p>
-    <div style="text-align:left">
-      <div class="summary-row"><span>Когда</span><span>${visitTime(booking.start_at, booking.service_point.timezone)}</span></div>
-      <div class="summary-row"><span>Адрес</span><span>${booking.service_point.address}</span></div>
-      <div class="summary-row"><span>Масло</span><span>${booking.oil_title}</span></div>
-      ${booking.car && html`<div class="summary-row"><span>Автомобиль</span><span>${carLabel(booking.car)}</span></div>`}
+  const point = booking.service_point;
+  return html`<div class="stack-lg">
+    <div class="done-head">
+      <span class="done-mark" dangerouslySetInnerHTML=${{ __html: window.App.icon("check", 30) }}></span>
+      <h2>Вы записаны</h2>
+      <p class="done-when">${visitTime(booking.start_at, point.timezone)}</p>
     </div>
-    <button class="btn btn-primary btn-block" type="button" onClick=${onDone}>Готово</button>
+    <div class="code-card">
+      <small>Код записи<br />назовите на посту</small>
+      <b>${booking.code}</b>
+    </div>
+    <div class="card pad info-list">
+      <${InfoRow} icon="pin" label=${point.name}>${point.address}</${InfoRow}>
+      <${InfoRow} icon="drop" label="Масло">${booking.oil_title}</${InfoRow}>
+      ${booking.car && html`<${InfoRow} icon="car" label="Автомобиль">${carLabel(booking.car)}</${InfoRow}>`}
+    </div>
+    <button class="btn btn-primary btn-block btn-lg" type="button" onClick=${onDone}>Готово</button>
   </div>`;
 }

@@ -8,8 +8,8 @@
 
 import { BookingWizard, SlotPicker, Timer } from "app/booking";
 import {
-  CONFIG, LoadError, Sheet, api, ask, bus, call, html, money, takeBookingRequest, toast, useEffect,
-  useLoad, useState, visitTime,
+  CONFIG, InfoRow, LoadError, Sheet, api, ask, bus, call, daysUntil, html, money, takeBookingRequest, toast,
+  useEffect, useLoad, useState, visitTime,
 } from "app/lib";
 
 const STATUS = {
@@ -84,6 +84,7 @@ export function Bookings() {
       ${next.length > 0
         ? html`<${NextBooking} booking=${next[0]} onCancel=${cancel} onMove=${setMoving} />`
         : !past.length && html`<div class="empty-state">
+            <span class="empty-ico" dangerouslySetInnerHTML=${icon("calendar")}></span>
             <b>Запишитесь на замену масла</b>
             <p>Выберите адрес и удобное время — это пара минут. Пост будет ждать вас.</p>
           </div>`}
@@ -150,17 +151,21 @@ function carLine(booking) {
 function NextBooking({ booking, onCancel, onMove }) {
   const [cls, label] = STATUS[booking.status] || ["badge", booking.status_display];
   const point = booking.service_point;
-  return html`<article class="card pad">
+  const soon = daysUntil(booking.start_at, point.timezone);
+  return html`<article class="card pad next-card">
     <div class="booking-head">
-      <span class="kicker">Ближайшая запись</span>
+      <span class="kicker">${soon || "Ближайшая запись"}</span>
       <span class=${"badge " + cls}>${label}</span>
     </div>
     <div class="next-when">${visitTime(booking.start_at, point.timezone)}</div>
-    <div class="booking-lines">
-      <span>${point.address}</span>
-      <span>${booking.oil_title}</span>
-      ${carLine(booking) && html`<span>${carLine(booking)}</span>`}
-      <span>Код записи <b class="mono">${booking.code}</b> — назовите его на посту</span>
+    <div class="info-list">
+      <${InfoRow} icon="pin" label=${point.name}>${point.address}</${InfoRow}>
+      <${InfoRow} icon="drop">${booking.oil_title}</${InfoRow}>
+      ${carLine(booking) && html`<${InfoRow} icon="car">${carLine(booking)}</${InfoRow}>`}
+    </div>
+    <div class="code-card code-card-inline">
+      <small>Код записи<br />назовите на посту</small>
+      <b>${booking.code}</b>
     </div>
     <div class="action-grid">
       <a class="btn" href=${routeUrl(point)} target="_blank" rel="noopener">
