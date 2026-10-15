@@ -84,6 +84,11 @@ class BookingDraft(BaseModel):
         related_name="drafts",
         verbose_name="масло",
     )
+    # «Не знаю, какое нужно — подберите на месте»: шаг масла пройден без
+    # масла. Мастер точки перезванивает и выбирает его вместе с клиентом
+    # (решение заказчика, октябрь 2026). Отдельный флаг, а не пустой `oil`:
+    # пустое масло значит ещё и «до этого шага не дошли».
+    oil_on_site = models.BooleanField("масло подберут на месте", default=False)
     slot_start = models.DateTimeField("начало слота", null=True, blank=True)
 
     expires_at = models.DateTimeField("истекает", db_index=True)
@@ -188,9 +193,15 @@ class Booking(BaseModel):
         related_name="bookings",
         verbose_name="точка",
     )
+    # Пусто — клиент попросил подобрать масло на месте: запись стоит в
+    # очереди звонков у мастера, пока он не выберет масло
+    # (`booking.set_oil`). Выполнить запись без масла нельзя — со склада
+    # списывается конкретная канистра.
     oil = models.ForeignKey(
         "catalog.Oil",
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="bookings",
         verbose_name="масло",
     )

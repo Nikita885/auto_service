@@ -496,7 +496,6 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/SelectOilRequest'
-        required: true
       security:
       - jwtAuth: []
       responses:
@@ -1572,6 +1571,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/PointsQuote'
           description: ''
+  /api/v1/master/bookings/{id}/set-oil/:
+    post:
+      operationId: master_bookings_set_oil_create
+      description: 'Клиент просил подобрать масло на месте: мастер перезвонил и выбрал
+        его вместе с клиентом. Проверяется наличие на точке, цены записи ставятся
+        по маслу, запись уходит из очереди звонков.'
+      summary: Выбрать масло
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterSetOilRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MasterSetOilRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MasterSetOilRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterBooking'
+          description: ''
   /api/v1/master/bookings/{id}/start/:
     post:
       operationId: master_bookings_start_create
@@ -2229,6 +2266,11 @@ components:
           type: string
           title: Масло (снимок)
           maxLength: 255
+        oil_on_site:
+          type: boolean
+          readOnly: true
+          description: 'Масло подберут на месте: мастер перезвонит и выберет его вместе
+            с клиентом'
         start_at:
           type: string
           format: date-time
@@ -2301,6 +2343,7 @@ components:
       - end_at
       - final_price
       - id
+      - oil_on_site
       - oil_title
       - paid_amount
       - service_point
@@ -2338,6 +2381,11 @@ components:
           type: string
           title: Масло (снимок)
           maxLength: 255
+        oil_on_site:
+          type: boolean
+          readOnly: true
+          description: 'Масло подберут на месте: мастер перезвонит и выберет его вместе
+            с клиентом'
         start_at:
           type: string
           format: date-time
@@ -2420,6 +2468,7 @@ components:
       - final_price
       - id
       - oil
+      - oil_on_site
       - oil_title
       - paid_amount
       - service_point
@@ -2473,6 +2522,9 @@ components:
           allOf:
           - $ref: '#/components/schemas/Oil'
           readOnly: true
+        oil_on_site:
+          type: boolean
+          title: Масло подберут на месте
         slot_start:
           type: string
           format: date-time
@@ -2531,6 +2583,9 @@ components:
           oneOf:
           - $ref: '#/components/schemas/CloseReasonEnum'
           - $ref: '#/components/schemas/BlankEnum'
+        oil_on_site:
+          type: boolean
+          title: Масло подберут на месте
         slot_start:
           type: string
           format: date-time
@@ -3192,6 +3247,11 @@ components:
         status_display:
           type: string
           readOnly: true
+        needs_oil:
+          type: boolean
+          readOnly: true
+          description: 'Клиент просил подобрать масло на месте: перезвонить и выбрать
+            (set-oil)'
         service_point:
           type: string
           format: uuid
@@ -3281,6 +3341,7 @@ components:
       - final_price
       - id
       - local_time
+      - needs_oil
       - oil_price
       - oil_title
       - paid_amount
@@ -3360,6 +3421,11 @@ components:
         status_display:
           type: string
           readOnly: true
+        needs_oil:
+          type: boolean
+          readOnly: true
+          description: 'Клиент просил подобрать масло на месте: перезвонить и выбрать
+            (set-oil)'
         service_point:
           type: string
           format: uuid
@@ -3462,6 +3528,7 @@ components:
       - final_price
       - id
       - local_time
+      - needs_oil
       - oil_price
       - oil_title
       - paid_amount
@@ -3608,6 +3675,11 @@ components:
           default: ''
           description: Почему изменён итог. Необязательно.
           maxLength: 500
+        oil:
+          type: string
+          format: uuid
+          nullable: true
+          description: Масло, если клиент просил подобрать на месте и его ещё не выбрали.
     MasterOil:
       type: object
       properties:
@@ -3726,6 +3798,15 @@ components:
       required:
       - id
       - name
+    MasterSetOilRequest:
+      type: object
+      description: Масло, выбранное мастером вместе с клиентом.
+      properties:
+        oil:
+          type: string
+          format: uuid
+      required:
+      - oil
     Metrics:
       type: object
       properties:
@@ -4692,8 +4773,12 @@ components:
         oil_id:
           type: string
           format: uuid
-      required:
-      - oil_id
+          nullable: true
+        on_site:
+          type: boolean
+          default: false
+          description: 'True — «подберите на месте»: без масла, мастер перезвонит.
+            Тогда oil_id не нужен.'
     SelectPointRequest:
       type: object
       properties:

@@ -23,6 +23,9 @@ class MasterBookingSerializer(serializers.ModelSerializer):
         source="charged_price", max_digits=10, decimal_places=2, read_only=True,
         help_text="Итог к оплате: правка мастера при расчёте или цена брони",
     )
+    needs_oil = serializers.SerializerMethodField(
+        help_text="Клиент просил подобрать масло на месте: перезвонить и выбрать (set-oil)"
+    )
 
     class Meta:
         model = Booking
@@ -31,6 +34,7 @@ class MasterBookingSerializer(serializers.ModelSerializer):
             "code",
             "status",
             "status_display",
+            "needs_oil",
             "service_point",
             "service_point_name",
             "start_at",
@@ -54,6 +58,9 @@ class MasterBookingSerializer(serializers.ModelSerializer):
 
     def get_local_time(self, obj: Booking) -> str:
         return obj.local_start().strftime("%d.%m.%Y %H:%M")
+
+    def get_needs_oil(self, obj: Booking) -> bool:
+        return obj.oil_id is None
 
 
 class MasterBookingDetailSerializer(MasterBookingSerializer):
@@ -112,6 +119,16 @@ class MasterCompleteSerializer(serializers.Serializer):
         max_length=500, required=False, allow_blank=True, default="",
         help_text="Почему изменён итог. Необязательно.",
     )
+    oil = serializers.UUIDField(
+        required=False, allow_null=True, default=None,
+        help_text="Масло, если клиент просил подобрать на месте и его ещё не выбрали.",
+    )
+
+
+class MasterSetOilSerializer(serializers.Serializer):
+    """Масло, выбранное мастером вместе с клиентом."""
+
+    oil = serializers.UUIDField()
 
 
 class MasterBookingCreateSerializer(serializers.Serializer):
@@ -238,6 +255,8 @@ class LiveDraftSerializer(serializers.ModelSerializer):
         )
 
     def get_oil_title(self, obj: BookingDraft) -> str | None:
+        if obj.oil_on_site:
+            return "Подберём на месте"
         return str(obj.oil) if obj.oil_id else None
 
 

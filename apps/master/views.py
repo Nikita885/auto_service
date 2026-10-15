@@ -47,6 +47,7 @@ from apps.master.serializers import (
     MasterCompleteSerializer,
     MasterOilCreateSerializer,
     MasterOilSerializer,
+    MasterSetOilSerializer,
     MetricsSerializer,
     NoShowSerializer,
     OilStockRowSerializer,
@@ -234,8 +235,25 @@ class MasterBookingViewSet(
         data = payload.validated_data
         booking = booking_service.complete(
             request.user, pk, points=data["points"],
-            final_price=data["final_price"], reason=data["reason"],
+            final_price=data["final_price"], reason=data["reason"], oil_id=data["oil"],
         )
+        return Response(MasterBookingSerializer(booking).data)
+
+    @extend_schema(
+        request=MasterSetOilSerializer,
+        responses={200: MasterBookingSerializer},
+        summary="Выбрать масло",
+        description=(
+            "Клиент просил подобрать масло на месте: мастер перезвонил и выбрал "
+            "его вместе с клиентом. Проверяется наличие на точке, цены записи "
+            "ставятся по маслу, запись уходит из очереди звонков."
+        ),
+    )
+    @action(detail=True, methods=["post"], url_path="set-oil")
+    def set_oil(self, request: Request, pk=None) -> Response:
+        payload = MasterSetOilSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        booking = booking_service.set_oil(request.user, pk, payload.validated_data["oil"])
         return Response(MasterBookingSerializer(booking).data)
 
     @extend_schema(

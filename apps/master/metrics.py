@@ -194,7 +194,8 @@ def _funnel(drafts) -> dict:
     stats = drafts.aggregate(
         started=Count("id"),
         point_selected=Count("id", filter=Q(service_point__isnull=False)),
-        oil_selected=Count("id", filter=Q(oil__isnull=False)),
+        # «Подберите на месте» — тоже пройденный шаг масла, просто без масла.
+        oil_selected=Count("id", filter=Q(oil__isnull=False) | Q(oil_on_site=True)),
         slot_selected=Count("id", filter=Q(slot_start__isnull=False)),
         confirmed=Count("id", filter=Q(booking__isnull=False)),
         expired=Count("id", filter=Q(close_reason="expired")),

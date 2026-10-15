@@ -194,14 +194,14 @@ export function useLoad(loader, deps, key) {
   return { ...state, reload };
 }
 
-/** «Записаться» с любого экрана: открыть вкладку «Записи» и мастер на ней.
+/** «Записаться» с любого экрана: открыть «Главную» и мастер на ней.
 
-    Флаг, а не только событие: вкладка «Записи» может быть ещё не открыта,
+    Флаг, а не только событие: «Главная» может быть ещё не открыта,
     и её слушатель появится уже после того, как событие прозвучало. */
 let bookingRequested = false;
 export function startBooking() {
   bookingRequested = true;
-  bus.emit("goto", "bookings");
+  bus.emit("goto", "home");
   bus.emit("booking:start");
 }
 export function takeBookingRequest() {

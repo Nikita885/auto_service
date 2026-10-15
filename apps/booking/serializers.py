@@ -37,6 +37,7 @@ class BookingDraftSerializer(serializers.ModelSerializer):
             "close_reason",
             "service_point",
             "oil",
+            "oil_on_site",
             "slot_start",
             "slot_end",
             "expires_at",
@@ -69,7 +70,19 @@ class SelectPointSerializer(serializers.Serializer):
 
 
 class SelectOilSerializer(serializers.Serializer):
-    oil_id = serializers.UUIDField()
+    oil_id = serializers.UUIDField(required=False, allow_null=True, default=None)
+    on_site = serializers.BooleanField(
+        default=False,
+        help_text="True — «подберите на месте»: без масла, мастер перезвонит. "
+        "Тогда oil_id не нужен.",
+    )
+
+    def validate(self, attrs):
+        if not attrs["on_site"] and not attrs["oil_id"]:
+            raise serializers.ValidationError(
+                {"oil_id": "Выберите масло или «подберите на месте»."}
+            )
+        return attrs
 
 
 class SelectSlotSerializer(serializers.Serializer):
@@ -132,6 +145,9 @@ class BookingSerializer(serializers.ModelSerializer):
     paid_amount = serializers.SerializerMethodField(
         help_text="Сколько заплачено деньгами — только у выполненной записи"
     )
+    oil_on_site = serializers.SerializerMethodField(
+        help_text="Масло подберут на месте: мастер перезвонит и выберет его вместе с клиентом"
+    )
 
     class Meta:
         model = Booking
@@ -142,6 +158,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "status_display",
             "service_point",
             "oil_title",
+            "oil_on_site",
             "start_at",
             "end_at",
             "car",
@@ -158,6 +175,9 @@ class BookingSerializer(serializers.ModelSerializer):
             "created_at",
         )
 
+
+    def get_oil_on_site(self, obj: Booking) -> bool:
+        return obj.oil_id is None
 
     @staticmethod
     def _completed(obj: Booking) -> bool:

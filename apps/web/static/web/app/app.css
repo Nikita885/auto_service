@@ -223,20 +223,283 @@
 .legal { font-size: var(--fs-caption); color: var(--text-faint); text-align: center; }
 
 
-/* ------------------------------------------------------------- запись */
-.progress { display: flex; gap: 6px; margin: var(--space-2) 0 var(--space-4); }
-.progress span { flex: 1; height: 4px; border-radius: var(--radius-pill); background: var(--border); }
-.progress span.done { background: var(--accent); box-shadow: 0 0 10px -2px var(--accent); }
+/* ------------------------------------------------------------ общее */
+.section-title {
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-small);
+  font-weight: var(--fw-bold);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.pwa .label { letter-spacing: .06em; }
+.link-btn {
+  border: none;
+  background: none;
+  padding: var(--space-2) 0;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: var(--fs-ui);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.link-btn:hover { color: var(--text); }
+.mono { font-family: var(--mono); letter-spacing: .1em; }
+.pwa .btn-danger-solid { --btn-bg: var(--danger); --btn-fg: var(--accent-text); --btn-bd: var(--danger); }
+.pwa .btn-danger-solid:hover { background: color-mix(in srgb, var(--danger) 85%, white); }
+
+/* Чипы: причина отмены, тип записи дневника. */
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-sm);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-ui);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); box-shadow: var(--glow-sm); }
+
+/* Список строками (история, «Ещё», настройки): принцип «список — это
+   строки, а не коробки»; один фон на весь список, разделители внутри. */
+.list { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden; }
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-lg);
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.list-row:last-child { border-bottom: none; }
+.list-row:active { background: var(--surface-2); }
+.list-row:hover { text-decoration: none; }
+.list-row:focus-visible { outline: none; box-shadow: inset var(--ring); }
+.list-body { flex: 1; min-width: 0; display: grid; gap: var(--space-0); }
+.list-body b { font-weight: var(--fw-semibold); }
+.list-body .muted { font-size: var(--fs-small); }
+.list-side { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.list-row.is-danger, .list-row.is-danger .strip-ico { color: var(--danger); }
+.list-row.is-danger .strip-ico { background: var(--danger-soft); }
+.chev { display: grid; flex: none; color: var(--text-faint); }
+
+/* Статус записи словом и точкой цвета: считывается периферийным зрением. */
+.status, .status-line { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-small); font-weight: var(--fw-semibold); }
+.status { align-self: flex-start; width: fit-content; padding: var(--space-0) var(--space-2); border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent); }
+.status.is-work { background: var(--warn-soft); color: var(--warn); }
+.status.is-ok { background: var(--ok-soft); color: var(--ok); }
+.status.is-bad { background: var(--danger-soft); color: var(--danger); }
+.status.is-off { background: var(--surface-2); color: var(--text-soft); }
+.status-line { color: var(--accent); font-weight: var(--fw-medium); }
+.status-line.is-work { color: var(--warn); }
+.status-line.is-ok { color: var(--ok); }
+.status-line.is-bad { color: var(--danger); }
+.status-line.is-off { color: var(--text-faint); }
+.status-line .dot { width: var(--space-2); height: var(--space-2); }
+
+/* ------------------------------------------------------------ главная */
+/* Билет: верх — когда и где, корешок — код, который называют на посту.
+   Перфорация — два выреза цвета фона по краям линии отрыва. */
+.ticket {
+  position: relative;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(90% 60% at 100% 0%, color-mix(in srgb, var(--neon-deep) 22%, transparent), transparent 70%),
+    var(--surface);
+  overflow: hidden;
+}
+.ticket-main { display: grid; gap: var(--space-4); padding: var(--space-5) var(--space-4) var(--space-4); }
+.ticket-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.ticket-when { display: grid; gap: var(--space-1); }
+.ticket-day { font-size: var(--fs-lead); font-weight: var(--fw-semibold); }
+.ticket-day::first-letter { text-transform: uppercase; }
+.ticket-time {
+  font-size: var(--fs-number);
+  line-height: 1;
+  font-weight: var(--fw-heavy);
+  letter-spacing: -.03em;
+  color: var(--neon-hot);
+  text-shadow: var(--glow-lg);
+  font-variant-numeric: tabular-nums;
+}
+.ticket-actions { display: flex; justify-content: space-around; gap: var(--space-2); }
+.round-act {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  min-width: var(--control-lg);
+  border: none;
+  background: none;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+  cursor: pointer;
+}
+.round-act:hover { text-decoration: none; color: var(--text); }
+.round-act > span {
+  display: grid;
+  place-items: center;
+  width: var(--touch);
+  height: var(--touch);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text);
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.round-act:active > span { border-color: var(--accent); box-shadow: var(--glow-sm); }
+.round-act:focus-visible { outline: none; }
+.round-act:focus-visible > span { box-shadow: var(--ring); }
+.ticket-stub {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-top: 1px dashed var(--border-strong);
+}
+.ticket .ticket-stub::before, .ticket .ticket-stub::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--space-2) * -1);
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+}
+.ticket .ticket-stub::before { left: calc(var(--space-2) * -1); }
+.ticket .ticket-stub::after { right: calc(var(--space-2) * -1); }
+.ticket-code { font: var(--fw-bold) var(--fs-h3-lg)/1 var(--mono); letter-spacing: .16em; color: var(--accent); user-select: all; }
+.ticket-stub-solo { border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); }
+.ticket-skel { display: grid; gap: var(--space-3); }
+
+/* Полосы под билетом: масло из гаража и баллы — одна строка, одно касание. */
+.strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-lg);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.strip:active { background: var(--surface-2); }
+.strip:focus-visible { outline: none; box-shadow: var(--ring); }
+.strip-ico {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--control);
+  height: var(--control);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.strip-body { flex: 1; min-width: 0; display: grid; gap: var(--space-0); }
+.strip-body b { font-weight: var(--fw-semibold); }
+.strip-body .muted { font-size: var(--fs-small); }
+.strip-go { flex: none; color: var(--accent); font-weight: var(--fw-bold); font-size: var(--fs-ui); }
+/* Масло: «скоро» — жёлтым, «пора» — тоже жёлтым, но плотнее: это повод
+   записаться, а не авария. */
+.strip.is-soon { border-color: color-mix(in srgb, var(--warn) 45%, var(--border)); }
+.strip.is-soon .strip-ico { background: var(--warn-soft); color: var(--warn); }
+.strip.is-overdue { border-color: color-mix(in srgb, var(--warn) 70%, var(--border)); background: var(--warn-soft); }
+.strip.is-overdue .strip-ico { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
+
+.invite-book { display: grid; justify-items: start; gap: var(--space-3); }
+.invite-book .empty-ico { margin: 0; }
+.invite-book b { font-size: var(--fs-lead); }
+
+/* «Продолжить запись»: живой черновик держит время, пока идёт таймер. */
+.resume {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+  box-shadow: var(--glow-sm);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.resume-body { flex: 1; display: grid; gap: var(--space-0); }
+.resume-body .muted { font-size: var(--fs-small); }
+.resume-go { color: var(--accent); font-weight: var(--fw-bold); }
+
+/* ------------------------------------------------------- мастер записи */
+.wizard { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+/* Лента дней шире экрана и прокручивается сама: колонки не растягиваются. */
+.wizard .stack, .sheet-body > .stack { min-width: 0; }
+.wizard-top { display: grid; gap: var(--space-2); }
+.wizard-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+/* Шаги чипами: подпись шага сверху, выбранное — под ней. Пройденный
+   открывается касанием, будущий недоступен. */
+.step-chips { min-width: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-1); }
+.step-chip {
+  display: grid;
+  gap: var(--space-0);
+  min-width: 0;
+  min-height: var(--touch);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-faint);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.step-chip small { font-size: var(--fs-caption); font-weight: var(--fw-semibold); white-space: nowrap; }
+.step-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-small); font-weight: var(--fw-semibold); }
+.step-chip.is-done { color: var(--text); border-color: var(--border-strong); }
+.step-chip.is-done small { color: var(--ok); }
+.step-chip.is-current { border-color: var(--accent); background: var(--accent-soft); box-shadow: var(--glow-sm); color: var(--text); }
+.step-chip.is-current small { color: var(--accent); }
+.step-chip:disabled { cursor: default; opacity: .55; }
+.step-chip:focus-visible { outline: none; box-shadow: var(--ring); }
+.step-title { font-size: var(--fs-h3); font-weight: var(--fw-bold); }
+.wizard-drop { justify-self: center; }
 
 .timer {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 6px 12px;
+  flex: none;
+  min-height: var(--control-sm);
+  padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent);
-  font: var(--fw-bold) var(--fs-body) var(--mono);
+  font: var(--fw-bold) var(--fs-ui) var(--mono);
   font-variant-numeric: tabular-nums;
 }
 .timer.low { background: var(--danger-soft); color: var(--danger); }
@@ -246,30 +509,42 @@
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  min-height: 60px;
+  min-height: calc(var(--touch) + var(--space-4));
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--dur-fast), background var(--dur-fast);
+  transition: border-color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
 }
 .choice:active { background: var(--surface-2); }
-.choice[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.choice[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: var(--glow-sm); }
 .choice:disabled { opacity: .5; }
+.choice:focus-visible { outline: none; box-shadow: var(--ring); }
 .choice-body { flex: 1; min-width: 0; }
 .choice-title { display: block; font-weight: var(--fw-semibold); }
-.choice-meta { display: block; margin-top: 2px; font-size: var(--fs-small); color: var(--text-soft); }
+.choice-meta { display: block; margin-top: var(--space-0); font-size: var(--fs-small); color: var(--text-soft); }
 .choice-side { text-align: right; font-weight: var(--fw-bold); white-space: nowrap; }
+.choice-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  color: transparent;
+}
+.choice[aria-pressed="true"] .choice-mark { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
 
-.days { display: flex; gap: var(--space-2); overflow-x: auto; padding-bottom: var(--space-1); scrollbar-width: none; }
+.days { display: flex; gap: var(--space-2); overflow-x: auto; margin-inline: calc(var(--space-4) * -1); padding: 0 var(--space-4) var(--space-1); scrollbar-width: none; }
 .days::-webkit-scrollbar { display: none; }
 .day {
   flex: none;
-  width: 58px;
+  width: var(--control-lg);
   padding: var(--space-2) 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -280,102 +555,100 @@
   cursor: pointer;
 }
 .day small { display: block; font-size: var(--fs-caption); color: var(--text-faint); text-transform: uppercase; }
-.day b { display: block; font-size: var(--fs-h3); }
-.day[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
+.day b { display: block; font-size: var(--fs-h3); font-variant-numeric: tabular-nums; }
+.day[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); box-shadow: var(--glow-sm); }
 .day[aria-pressed="true"] small { color: var(--accent-text); }
+.day:focus-visible { outline: none; box-shadow: var(--ring); }
 
+.slot-group { display: grid; gap: var(--space-2); }
 .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
 .slot-btn {
-  min-height: 44px;
+  min-height: var(--touch);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--surface);
   color: inherit;
   font: var(--fw-semibold) var(--fs-body) var(--font);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
-.slot-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
+.slot-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); box-shadow: var(--glow-sm); }
+.slot-btn:focus-visible { outline: none; box-shadow: var(--ring); }
 
 .summary-row { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
 .summary-row:last-child { border-bottom: none; }
 .summary-row span:first-child { color: var(--text-soft); }
 .summary-row span:last-child { text-align: right; font-weight: var(--fw-semibold); }
-.summary-total span:last-child { font-size: var(--fs-h3); color: var(--accent); }
 
 /* Сводка строками «иконка · подпись · значение» — Walmart Auto Service,
-   Grab, Alan на Mobbin. Значение слева под подписью: длинное «Lukoil
-   Genesis Armortech 5W-40, 4.0 л» не рвётся в узкой правой колонке. */
+   Grab, Alan на Mobbin. Значение под подписью: длинное «Lukoil Genesis
+   Armortech 5W-40, 4,0 л» не рвётся в узкой правой колонке. */
 .info-list { display: grid; gap: var(--space-3); }
-.next-card .info-list { margin-top: var(--space-3); }
 .info-row { display: flex; align-items: flex-start; gap: var(--space-3); }
 .info-ico {
   flex: none;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: var(--control-sm);
+  height: var(--control-sm);
+  border-radius: var(--radius-sm);
   color: var(--accent);
   background: var(--accent-soft);
 }
-.info-body { min-width: 0; padding-top: 1px; font-size: var(--fs-ui); line-height: 1.35; }
+.info-body { min-width: 0; padding-top: var(--space-0); font-size: var(--fs-ui); line-height: 1.35; }
 .info-body small { display: block; font-size: var(--fs-caption); font-weight: var(--fw-semibold); color: var(--text-faint); }
-.info-body > span { display: block; margin-top: 1px; color: var(--text); overflow-wrap: anywhere; }
+.info-body > span { display: block; margin-top: var(--space-0); color: var(--text); overflow-wrap: anywhere; }
 .info-body:not(:has(small)) { align-self: center; padding-top: 0; }
 
-/* Код записи — отдельной плашкой: его диктуют вслух на посту. */
-.code-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--bg-soft);
-}
-.code-card small { font-size: var(--fs-small); color: var(--text-soft); }
-.code-card b { font: var(--fw-bold) 22px/1 var(--mono); letter-spacing: .14em; color: var(--accent); user-select: all; }
-.code-card-inline { margin-top: var(--space-4); }
-
-/* «Вы записаны»: знак, время крупно — главное, что надо запомнить. */
+/* «Вы записаны»: знак загорается один раз, время крупно. */
 .done-head { display: grid; justify-items: center; gap: var(--space-2); padding-top: var(--space-3); text-align: center; }
 .done-head h2 { font-size: var(--fs-title); font-weight: var(--fw-heavy); letter-spacing: -.02em; }
 .done-mark {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
+  width: var(--space-9);
+  height: var(--space-9);
   border-radius: 50%;
   color: var(--accent-text);
   background: var(--ok);
-  box-shadow: 0 0 0 8px var(--ok-soft), 0 0 36px var(--ok-soft);
+  box-shadow: 0 0 0 var(--space-2) var(--ok-soft), 0 0 var(--space-7) var(--ok-soft);
+  animation: done-ignite .9s var(--ease) both;
 }
-.done-when { font-size: var(--fs-h3); font-weight: var(--fw-bold); color: var(--accent); }
+/* Неравные шаги — «схватывание» неона, как у знака на витрине. */
+@keyframes done-ignite {
+  0% { opacity: 0; transform: scale(.7); }
+  30% { opacity: 1; }
+  40% { opacity: .4; }
+  55% { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .done-mark { animation: none; } }
+.done-when { font-size: var(--fs-h3); font-weight: var(--fw-bold); color: var(--neon-hot); text-shadow: var(--glow-lg); }
 
+/* Кнопка шага прибита к низу окна: всегда под пальцем, над полоской «Домой». */
 .sticky-actions {
   position: sticky;
-  bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--space-2));
+  bottom: 0;
+  z-index: 2;
   display: flex;
   gap: var(--space-2);
-  margin-top: var(--space-4);
+  margin: var(--space-2) calc(var(--space-4) * -1) 0;
+  padding: var(--space-3) var(--space-4);
+  background: linear-gradient(to bottom, transparent, var(--bg) var(--space-4));
 }
 .sticky-actions .btn { flex: 1; }
 
-/* ------------------------------------------------------- мои записи */
 .seg {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  padding: 4px;
-  margin-bottom: var(--space-3);
+  padding: var(--space-1);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
 }
 .seg button {
-  min-height: 36px;
+  min-height: var(--control-sm);
   border: none;
   border-radius: var(--radius-sm);
   background: none;
@@ -384,31 +657,6 @@
   cursor: pointer;
 }
 .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
-
-.booking-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
-
-/* Ближайшая запись: время крупно — ради него вкладку и открывают. */
-.next-when { margin-top: var(--space-2); font-size: var(--fs-h3-lg); font-weight: var(--fw-heavy); letter-spacing: -.02em; }
-.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-4); }
-.action-grid .btn { justify-content: center; gap: var(--space-2); }
-.btn-ico { display: inline-grid; place-items: center; }
-.btn-ico svg { width: 18px; height: 18px; }
-
-/* «Продолжить запись»: живой черновик держит время, пока идёт таймер. */
-.resume {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  width: 100%;
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.resume-body { flex: 1; display: grid; gap: 2px; }
-.resume-go { color: var(--accent); font-weight: var(--fw-bold); }
 
 /* Гараж. */
 .car-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
@@ -448,8 +696,8 @@
 .entry-amount { font-weight: var(--fw-bold); white-space: nowrap; }
 .check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-ui); }
 .pwa .check input { width: var(--space-5); min-height: 0; height: var(--space-5); }
-.seg-sm { padding: 2px; margin-bottom: 0; }
-.seg-sm button { min-height: var(--space-7); padding: 0 var(--space-3); }
+.seg-sm { padding: var(--space-0); }
+.seg-sm button { min-height: var(--control-sm); padding: 0 var(--space-3); }
 
 /* Окно снизу (мастер записи, перенос, формы гаража): выезжает, затемняет
    экран под собой, смахивается вниз. Почти во весь экран — сверху виден
@@ -519,6 +767,8 @@
 .sheet-body {
   flex: 1;
   overflow-y: auto;
+  /* Лента дней и нижняя кнопка выходят на поля окна — вбок окно не едет. */
+  overflow-x: hidden;
   overscroll-behavior: contain;
   padding: 0 var(--space-4) calc(var(--safe-bottom) + var(--space-6));
   -webkit-overflow-scrolling: touch;
@@ -532,7 +782,6 @@
   border-top: 1px solid var(--border);
   background: var(--bg);
 }
-.sheet .sticky-actions { bottom: var(--space-2); }
 body.sheet-open { overflow: hidden; }
 .booking-when { font-size: var(--fs-h3); font-weight: var(--fw-bold); }
 .booking-lines { margin-top: var(--space-2); display: grid; gap: 2px; font-size: var(--fs-ui); color: var(--text-soft); }

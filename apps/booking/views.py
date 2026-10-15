@@ -194,7 +194,8 @@ class BookingDraftViewSet(
         payload.is_valid(raise_exception=True)
 
         draft = draft_service.select_oil(
-            request.user, pk, payload.validated_data["oil_id"]
+            request.user, pk, payload.validated_data["oil_id"],
+            on_site=payload.validated_data["on_site"],
         )
         return Response(BookingDraftSerializer(draft).data)
 

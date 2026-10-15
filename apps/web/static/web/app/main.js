@@ -1,9 +1,9 @@
 /* Каркас веб-приложения: вход, знакомство и четыре вкладки — как на Android. */
 
 import { Auth, Onboarding } from "app/auth";
-import { Bookings } from "app/bookings";
 import { Bonus } from "app/bonus";
 import { Garage } from "app/garage";
+import { Home } from "app/home";
 import { InstallGate, NotIphoneGate, gate } from "app/install";
 import {
   CONFIG, OfflineBanner, api, bus, cache, errorText, html, invite, isNetworkError, render, toast, useEffect, useState,
@@ -18,17 +18,22 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register(CONFIG.swUrl, { scope: "/app/" }).catch(() => {});
 }
 
-// «Запись» и «Мои записи» — одна вкладка «Записи»: ближайшая запись,
-// «Записаться» и история на одном экране, мастер записи — окном поверх.
+// «Главная» (выбор заказчика, редизайн октябрь 2026): ближайшая запись,
+// масло из гаража, баллы и история на одном экране, мастер записи — окном
+// снизу.
 const TABS = [
-  ["bookings", "Записи", "calendar", Bookings],
+  ["home", "Главная", "home", Home],
   ["garage", "Гараж", "car", Garage],
   ["bonus", "Бонусы", "wallet", Bonus],
   ["profile", "Профиль", "user", Profile],
 ];
 
+// Старые ссылки и закладки на вкладку «Записи» ведут на «Главную».
+const ALIASES = { bookings: "home" };
+
 const tabFromHash = () => {
-  const name = location.hash.replace("#", "");
+  const raw = location.hash.replace("#", "");
+  const name = ALIASES[raw] || raw;
   return TABS.some(([key]) => key === name) ? name : TABS[0][0];
 };
 
@@ -129,7 +134,7 @@ function Root() {
   const Screen = (TABS.find(([key]) => key === tab) || TABS[0])[3];
   return html`
     <${OfflineBanner} />
-    <${Screen} key=${tab} />
+    <${Screen} key=${tab} user=${user} />
     <nav class="tabbar" aria-label="Разделы">
       ${TABS.map(([key, label, iconName]) => html`<button type="button" key=${key}
         aria-current=${key === tab ? "page" : null} onClick=${() => go(key)}>

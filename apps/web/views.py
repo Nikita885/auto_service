@@ -213,7 +213,7 @@ APP_MODULES = {
     "app/lib": "web/app/lib.js",
     "app/auth": "web/app/auth.js",
     "app/booking": "web/app/booking.js",
-    "app/bookings": "web/app/bookings.js",
+    "app/home": "web/app/home.js",
     "app/bonus": "web/app/bonus.js",
     "app/profile": "web/app/profile.js",
     "app/cars": "web/app/cars.js",

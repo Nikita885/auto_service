@@ -182,6 +182,7 @@
   function renderSummary(summary) {
     // Полоса, а не четыре больших карточки: мастеру нужны цифры одним
     // взглядом над таблицей, а не половина экрана до первой записи.
+    renderCallQueue();
     const kpis = [
       ["Всего", fmt.number(summary.total)],
       ["Ждут", fmt.number(summary.pending)],
@@ -244,13 +245,17 @@
           ]),
         ]),
         el("td", { class: "cell-oil", "data-label": "Масло" }, [
-          el("div", { text: booking.oil_title }),
+          // «Подберите на месте»: клиент ждёт звонка — мастер выбирает масло
+          // вместе с ним (решение заказчика: в течение 30 минут в рабочее время).
+          isWaitingCall(booking)
+            ? el("span", { class: "badge badge-warn", text: "Позвонить, подобрать масло" })
+            : el("div", { text: booking.oil_title }),
           state.points.length > 1 ? el("div", { class: "cell-sub", text: booking.service_point_name }) : null,
         ]),
         el("td", { class: "num nowrap", "data-label": "Сумма" }, [
           // Итог к оплате: если мастер поправил его при расчёте, рядом —
           // цена записи, чтобы разница была видна без открытия истории.
-          el("div", { class: "cell-main", text: fmt.money(booking.final_price) }),
+          el("div", { class: "cell-main", text: booking.needs_oil ? "—" : fmt.money(booking.final_price) }),
           booking.final_price !== booking.total_price
             ? el("div", { class: "cell-sub", text: "по записи " + fmt.money(booking.total_price) })
             : null,
@@ -271,6 +276,59 @@
     });
   }
 
+  /** Очередь звонков — отдельной строкой над сводкой: это дело на сейчас,
+      а не цифра дня. */
+  function renderCallQueue() {
+    const waiting = (state.bookings || []).filter(isWaitingCall);
+    let note = $("#call-queue");
+    if (!note) {
+      note = el("div", { class: "note note-warn", id: "call-queue", role: "status" });
+      $("#summary").before(note);
+    }
+    note.hidden = !waiting.length;
+    note.innerHTML = icon("phone");
+    note.append(el("span", {
+      text: waiting.length === 1
+        ? "Клиент ждёт звонка: подобрать масло — " + waiting[0].local_time.split(" ")[1] + ", " + (waiting[0].client_name || waiting[0].client_phone) + "."
+        : waiting.length + " " + fmt.plural(waiting.length, "клиент ждёт", "клиента ждут", "клиентов ждут") + " звонка: подобрать масло.",
+    }));
+  }
+
+  const isWaitingCall = (booking) =>
+    booking.needs_oil && (booking.status === "pending" || booking.status === "in_progress");
+
+  /** Масло после звонка: клиент просил подобрать на месте. Список — то, что
+      есть на точке записи; цены записи поставит сервер. */
+  async function openSetOil(booking) {
+    const rows = await guard(() => api.get("/master/walk-in/oils/?service_point=" + booking.service_point));
+    if (!rows) return;
+    if (!rows.length) { toast("На этой точке нет масла в наличии.", "error"); return; }
+    const select = el("select", { id: "set-oil" }, rows.map((oil) =>
+      el("option", { value: oil.id, text: oil.brand + " " + oil.name + " " + oil.viscosity + " · " + fmt.money(oil.total_price) })));
+    const body = el("div", { class: "stack" }, [
+      el("p", { class: "hint" }, [
+        document.createTextNode("Клиент просил подобрать масло. Позвоните: "),
+        el("a", { href: "tel:" + booking.client_phone, text: booking.client_phone }),
+        document.createTextNode([booking.car_model, booking.car_plate].filter(Boolean).length
+          ? " · " + [booking.car_model, booking.car_plate].filter(Boolean).join(" ") : ""),
+      ]),
+      el("div", { class: "field" }, [el("label", { for: "set-oil", text: "Масло" }), select]),
+    ]);
+    const cancel = el("button", { class: "btn", type: "button", text: "Отмена" });
+    const save = el("button", { class: "btn btn-primary", type: "button", text: "Сохранить масло" });
+    const dlg = App.dialog({ title: "Масло · " + booking.code, sub: booking.client_name || "Клиент", body, actions: [cancel, save] });
+    cancel.onclick = dlg.close;
+    save.onclick = async () => {
+      save.disabled = true;
+      const ok = await guard(() => api.post("/master/bookings/" + booking.id + "/set-oil/", { oil: select.value }));
+      save.disabled = false;
+      if (!ok) return;
+      dlg.close();
+      toast("Масло выбрано: " + ok.oil_title, "ok");
+      await reload();
+    };
+  }
+
   async function post(path, body, okText) {
     const ok = await guard(() => api.post(path, body || {}));
     if (ok) { toast(okText || "Готово", "ok"); await reload(); }
@@ -283,8 +341,12 @@
     const btn = (label, cls, onClick) =>
       el("button", { class: "btn btn-sm " + cls, type: "button", text: label, onClick });
 
+    // Клиент ждёт звонка про масло — это первым: без масла не выполнить.
+    if (isWaitingCall(booking)) {
+      box.append(btn("Выбрать масло", "btn-primary", () => openSetOil(booking)));
+    }
     // Главное действие по статусу — одно и первое: «в работу», потом «выполнено».
-    if (booking.status === "pending") {
+    if (booking.status === "pending" && !isWaitingCall(booking)) {
       box.append(btn("В работу", "btn-primary", () => post(base + "start/", {}, "Запись в работе")));
     }
     if (booking.status === "in_progress") {

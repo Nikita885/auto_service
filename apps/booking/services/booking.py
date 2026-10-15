@@ -32,6 +32,10 @@ from apps.common.exceptions import (
 
 logger = logging.getLogger(__name__)
 
+#: Что стоит в записи вместо масла, пока его не выбрал мастер: так запись
+#: читается и в SMS, и в истории, и в панели без отдельной ветки на «пусто».
+ON_SITE_OIL_TITLE = "Подберём на месте"
+
 #: Разрешённые переходы. Всё, чего здесь нет, — ошибка бизнес-логики.
 ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     BookingStatus.PENDING: {
@@ -138,6 +142,9 @@ def create_booking(
     записи по звонку (`walk_in.book`). Проверки слота и склада — у
     вызывающего, под блокировкой точки: здесь только снимок, история и
     уведомления, чтобы запись из двух мест выглядела одинаково.
+
+    `oil=None` — масло подберут на месте: цены в снимке нулевые, их
+    поставит `set_oil`, когда мастер выберет масло вместе с клиентом.
     """
     try:
         # Точка заблокирована, но один клиент может записываться на разные
@@ -155,10 +162,10 @@ def create_booking(
                 client_phone=user.phone,
                 car_model=car_model,
                 car_plate=car_plate,
-                oil_title=str(oil),
-                oil_price=oil.price,
-                work_price=oil.work_price,
-                total_price=oil.total_price,
+                oil_title=str(oil) if oil else ON_SITE_OIL_TITLE,
+                oil_price=oil.price if oil else Decimal(0),
+                work_price=oil.work_price if oil else Decimal(0),
+                total_price=oil.total_price if oil else Decimal(0),
                 client_comment=comment or "",
             )
     except IntegrityError as exc:
@@ -276,6 +283,54 @@ def reschedule_by_client(user, booking_id, start_at) -> Booking:
 
 
 # ------------------------------------------------------------------ мастер
+def _apply_oil(booking: Booking, oil_id, *, actor) -> Booking:
+    """Поставить в запись масло: проверка наличия, снимок цен, история.
+
+    Вызывается под блокировкой строки записи. Своя запись уже держит
+    канистру прежнего масла, поэтому при замене доступность нового масла
+    считается как обычно — свою прежнюю не нужно «возвращать».
+    """
+    if booking.status in FINAL_BOOKING_STATUSES:
+        raise ConflictError(
+            "Запись уже завершена, изменить масло нельзя",
+            code="booking_final",
+            details={"status": booking.status},
+        )
+    if str(booking.oil_id) == str(oil_id):
+        return booking
+    oil = stock_service.get_available_oil(booking.service_point, oil_id)
+    old_title = booking.oil_title
+    booking.oil = oil
+    booking.oil_title = str(oil)
+    booking.oil_price = oil.price
+    booking.work_price = oil.work_price
+    booking.total_price = oil.total_price
+    booking.save(update_fields=[
+        "oil", "oil_title", "oil_price", "work_price", "total_price", "updated_at",
+    ])
+    BookingStatusLog.objects.create(
+        booking=booking,
+        from_status=booking.status,
+        to_status=booking.status,
+        actor=actor,
+        comment=f"Масло: {booking.oil_title} (было: {old_title})",
+    )
+    return booking
+
+
+@transaction.atomic
+def set_oil(master, booking_id, oil_id) -> Booking:
+    """Мастер выбрал масло: клиент просил подобрать на месте, или масло
+    заменили по согласию клиента. Запись уходит из очереди звонков."""
+    booking = Booking.objects.select_for_update().get(
+        pk=get_for_master(master, booking_id).pk
+    )
+    _apply_oil(booking, oil_id, actor=master)
+    transaction.on_commit(lambda: events.publish_booking(booking))
+    logger.info("Запись %s: мастер выбрал масло", booking.code)
+    return booking
+
+
 @transaction.atomic
 def cancel_by_master(master, booking_id, *, reason: str) -> Booking:
     """Отмена сервисом. Клиенту обязательно уходит уведомление с причиной."""
@@ -328,6 +383,7 @@ def complete(
     points: Decimal = Decimal(0),
     final_price: Decimal | None = None,
     reason: str = "",
+    oil_id=None,
 ) -> Booking:
     """Работы выполнены: расчёт, статус, склад и баллы — одной транзакцией.
 
@@ -354,6 +410,16 @@ def complete(
             "Запись уже завершена, изменить статус нельзя",
             code="booking_final",
             details={"status": booking.status},
+        )
+
+    # Масло ставится первым: от него цена записи, от цены — потолок баллов.
+    # Без масла выполнить нельзя — со склада списывается конкретная канистра.
+    if oil_id:
+        _apply_oil(booking, oil_id, actor=master)
+    elif booking.oil_id is None:
+        raise ValidationError(
+            "Укажите масло — клиент просил подобрать его на месте",
+            code="oil_required",
         )
 
     extra = {"master": booking.master or master}
