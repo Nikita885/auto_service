@@ -193,7 +193,7 @@ main:focus { outline: none; }
 
 /* --------------------------------------------------------------- макет */
 .wrap {
-  width: min(1180px, 100% - 40px);
+  width: min(1180px, 100% - 2 * var(--space-5));
   margin-inline: auto;
 }
 
@@ -461,7 +461,7 @@ input::placeholder, textarea::placeholder { color: var(--text-faint); }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: var(--space-4);
   box-shadow: var(--shadow);
 }
 
@@ -474,7 +474,7 @@ input::placeholder, textarea::placeholder { color: var(--text-faint); }
 }
 
 .stat-value {
-  margin-top: 6px;
+  margin-top: var(--space-1);
   font-size: var(--fs-title);
   font-weight: var(--fw-bold);
   letter-spacing: -.02em;
@@ -505,13 +505,13 @@ thead th {
   text-transform: uppercase;
   letter-spacing: .04em;
   color: var(--text-soft);
-  padding: 11px 14px;
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 tbody td {
-  padding: 11px 14px;
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -537,21 +537,22 @@ td.nowrap { white-space: nowrap; }
 .chart-area { fill: color-mix(in srgb, var(--info) 12%, transparent); }
 .chart-grid { stroke: var(--border); stroke-width: 1; }
 /* Исключение из шкалы: единицы SVG, график сам масштабируется под ширину. */
+/* Единицы SVG, а не пиксели экрана: график масштабируется целиком. */
 .chart-axis { fill: var(--text-faint); font-size: 10px; font-family: var(--font); }
 
 .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: var(--fs-small); color: var(--text-soft); }
-.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-item { display: inline-flex; align-items: center; gap: var(--space-2); }
 /* Исключение: квадратик 11 px со скруглением 8 превратился бы в кружок. */
-.legend-swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.legend-swatch { width: var(--space-3); height: var(--space-3); border-radius: var(--space-1); flex: none; }
 
 /* воронка */
-.funnel { display: flex; flex-direction: column; gap: 9px; }
+.funnel { display: flex; flex-direction: column; gap: var(--space-2); }
 
-.funnel-row { display: grid; grid-template-columns: 145px 1fr auto; gap: 12px; align-items: center; }
+.funnel-row { display: grid; grid-template-columns: 145px 1fr auto; gap: var(--space-3); align-items: center; }
 .funnel-label { font-size: var(--fs-ui); color: var(--text-soft); }
 
 .funnel-track {
-  height: 26px;
+  height: var(--space-6);
   border-radius: var(--radius-sm);
   background: var(--bg-soft);
   overflow: hidden;
@@ -561,15 +562,15 @@ td.nowrap { white-space: nowrap; }
   height: 100%;
   border-radius: var(--radius-sm);
   background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 62%, var(--info)));
-  min-width: 2px;
+  min-width: var(--space-0);
   transition: width .5s ease;
 }
 
 .funnel-value { font-size: var(--fs-ui); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* горизонтальный рейтинг — топ масел, точки */
-.rank { display: flex; flex-direction: column; gap: 11px; }
-.rank-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; }
+.rank { display: flex; flex-direction: column; gap: var(--space-3); }
+.rank-row { display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-3); align-items: baseline; }
 .rank-name { font-size: var(--fs-ui); font-weight: var(--fw-semibold); }
 .rank-value { font-size: var(--fs-ui); font-variant-numeric: tabular-nums; color: var(--text-soft); }
 .rank-track { grid-column: 1 / -1; height: 6px; border-radius: var(--radius-pill); background: var(--bg-soft); overflow: hidden; }
@@ -649,7 +650,7 @@ td.nowrap { white-space: nowrap; }
   border-radius: var(--radius);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--info);
+  border-left: var(--space-1) solid var(--info);
   box-shadow: var(--shadow-lg);
   font-size: var(--fs-ui);
   animation: toast-in .22s ease;
@@ -710,8 +711,10 @@ td.nowrap { white-space: nowrap; }
 
 /* Рабочее место шире витринного контейнера: таблица смены — главное на
    экране, и на ноутбуке 1280 px ей нужны все колонки без прокрутки. */
-.staff .wrap { width: min(1400px, 100% - 32px); }
+.staff .wrap { width: min(1400px, 100% - 2 * var(--space-4)); }
 .staff .page { padding-top: var(--space-5); }
+/* Ширины колонок и полей ниже — раскладка таблицы смены, а не шаг
+   отступов: подобраны под самое длинное значение и шкалой не задаются. */
 .cell-oil { min-width: 170px; }
 
 .toolbar {
@@ -721,7 +724,7 @@ td.nowrap { white-space: nowrap; }
   gap: var(--space-2);
   margin-bottom: var(--space-3);
 }
-.toolbar select, .toolbar input { width: auto; min-height: 36px; }
+.toolbar select, .toolbar input { width: auto; min-height: var(--control); }
 .toolbar .toolbar-grow { flex: 1 1 220px; }
 .toolbar-date { display: flex; align-items: center; gap: var(--space-1); }
 .toolbar-date input { width: 150px; }
@@ -770,10 +773,10 @@ tr.is-next td { background: var(--accent-soft); }
 tr.is-next td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .next-tag {
   display: inline-block;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   padding: 1px 7px;
   border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: var(--fw-bold);
   color: var(--accent-text);
   background: var(--accent);
@@ -790,9 +793,9 @@ tr.is-next td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
   cursor: pointer;
   white-space: nowrap;
 }
-.check input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.check input { width: var(--icon-sm); height: var(--icon-sm); margin: 0; accent-color: var(--accent); }
 
-.qty-input { width: 84px; min-height: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+.qty-input { width: 84px; min-height: var(--control); text-align: right; font-variant-numeric: tabular-nums; }
 .qty-input.is-low { border-color: var(--danger); color: var(--danger); }
 
 /* Окно расчёта */
@@ -803,7 +806,7 @@ tr.is-next td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .checkout-sum { border-top: 1px solid var(--border); margin-top: var(--space-1); padding-top: var(--space-2); font-weight: var(--fw-semibold); }
 .checkout-points { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius); background: var(--accent-soft); }
 .checkout-points .row { align-items: flex-end; flex-wrap: nowrap; }
-.checkout-points-head { display: flex; flex-direction: column; gap: 2px; }
+.checkout-points-head { display: flex; flex-direction: column; gap: var(--space-0); }
 .checkout-pay { font-size: var(--fs-lead); font-weight: var(--fw-semibold); }
 .checkout-total { font-size: var(--fs-h3-lg); font-weight: var(--fw-bold); color: var(--accent); font-variant-numeric: tabular-nums; }
 
@@ -841,7 +844,7 @@ tr.is-next td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
   .table-cards, .table-cards tbody, .table-cards tr, .table-cards td { display: block; }
   .table-cards tr { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
   .table-cards tr:hover { background: none; }
-  .table-cards td { padding: 2px 0; border: none; text-align: left; }
+  .table-cards td { padding: var(--space-0) 0; border: none; text-align: left; }
   .table-cards td[data-label]:not([data-label=""])::before {
     content: attr(data-label);
     display: block;
@@ -890,10 +893,10 @@ tr.is-next td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 }
 
 @media (max-width: 620px) {
-  .wrap { width: calc(100% - 28px); }
+  .wrap { width: calc(100% - 2 * var(--space-4)); }
   h1 { font-size: var(--fs-h3-lg); }
   .nav a { padding: 7px 8px; font-size: var(--fs-small); }
-  .funnel-row { grid-template-columns: 1fr; gap: 4px; }
+  .funnel-row { grid-template-columns: 1fr; gap: var(--space-1); }
   .funnel-value { justify-self: start; }
 }
 
