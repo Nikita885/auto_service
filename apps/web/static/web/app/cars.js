@@ -7,19 +7,19 @@
    вторая копия правил однажды разошлась бы с первой. */
 
 import { CarField } from "app/auth";
-import { api, call, html, toast, useEffect, useState } from "app/lib";
+import { api, call, html, toast, useEffect, useLoad, useState } from "app/lib";
 
 export const carLabel = (car) => [car.title, car.plate].filter(Boolean).join(" · ") || "Автомобиль";
 
-/** Список машин с перезагрузкой. `null` — ещё грузим. */
+/** Список машин с перезагрузкой. `null` — ещё грузим. Последний список
+    хранится: без сети гараж открывается с ним, а не с ошибкой. */
 export function useCars() {
-  const [cars, setCars] = useState(null);
+  const list = useLoad(() => api.get("/garage/cars/"), [], "cars");
+  const cars = list.data !== undefined ? list.data || [] : list.error ? [] : null;
   async function reload() {
-    const rows = await call(() => api.get("/garage/cars/"));
-    setCars(rows || []);
-    return rows || [];
+    await list.reload();
+    return list.data || [];
   }
-  useEffect(() => { reload(); }, []);
   return { cars, reload };
 }
 
@@ -56,18 +56,18 @@ export function CarForm({ car, full, onSaved, onCancel, submitLabel }) {
       onChange=${(value, id) => { setTitle(value); setModelId(id || null); }} />
     <div class="field">
       <label for=${prefix + "-plate"}>Госномер</label>
-      <input id=${prefix + "-plate"} autocapitalize="characters" placeholder="А123ВС174" value=${plate}
+      <input id=${prefix + "-plate"} autocapitalize="characters" placeholder="Например, А123ВС174" value=${plate}
         onInput=${(e) => setPlate(e.target.value)} />
     </div>
-    ${full && html`<div class="row" style="flex-wrap:nowrap">
-      <div class="field" style="flex:1">
+    ${full && html`<div class="form-pair">
+      <div class="field">
         <label for=${prefix + "-year"}>Год</label>
-        <input id=${prefix + "-year"} inputmode="numeric" placeholder="2018" value=${year}
+        <input id=${prefix + "-year"} inputmode="numeric" placeholder="Например, 2018" value=${year}
           onInput=${(e) => setYear(e.target.value)} />
       </div>
-      <div class="field" style="flex:1">
+      <div class="field">
         <label for=${prefix + "-mileage"}>Пробег, км</label>
-        <input id=${prefix + "-mileage"} inputmode="numeric" placeholder="84 300" value=${mileage}
+        <input id=${prefix + "-mileage"} inputmode="numeric" placeholder="Сколько сейчас" value=${mileage}
           onInput=${(e) => setMileage(e.target.value)} />
       </div>
     </div>
@@ -76,9 +76,9 @@ export function CarForm({ car, full, onSaved, onCancel, submitLabel }) {
       <input id=${prefix + "-vin"} autocapitalize="characters" maxlength="24" value=${vin}
         onInput=${(e) => setVin(e.target.value)} />
     </div>`}
-    <div class="row" style="flex-wrap:nowrap">
-      ${onCancel && html`<button class="btn btn-ghost" style="flex:1" type="button" onClick=${onCancel}>Отмена</button>`}
-      <button class="btn btn-primary" style="flex:1" type="submit" disabled=${busy}>
+    <div class="form-pair">
+      ${onCancel && html`<button class="btn btn-ghost" type="button" onClick=${onCancel}>Отмена</button>`}
+      <button class="btn btn-primary" type="submit" disabled=${busy}>
         ${busy ? "Сохраняем…" : submitLabel || "Сохранить"}
       </button>
     </div>

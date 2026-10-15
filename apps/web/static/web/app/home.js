@@ -258,7 +258,10 @@ function OilStrip({ data }) {
     </button>`;
   }
   const km = r.left_km != null ? (r.left_km < 0 ? "пробег превышен на " + fmt.number(-r.left_km) + " км" : "через " + fmt.number(r.left_km) + " км") : "";
-  const date = r.due_date ? new Date(r.due_date + "T12:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) : "";
+  const due = r.due_date ? new Date(r.due_date + "T12:00:00") : null;
+  const date = due ? due.toLocaleDateString("ru-RU", {
+    day: "numeric", month: "long", year: due.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+  }).replace(" г.", "") : "";
   const text = r.status === "overdue" ? "Пора менять масло" : "Замена масла " + (km || "до " + date);
   const sub = r.status === "overdue" ? (km || "срок прошёл " + date) : km && date ? "или до " + date : name;
   const urgent = r.status !== "ok";
@@ -273,6 +276,8 @@ function OilStrip({ data }) {
 function BonusStrip({ data }) {
   if (!data || !data.enabled) return null;
   const payout = Number(data.expected_payout);
+  // Нулевой баланс на главной — шум: о баллах расскажет вкладка «Бонусы».
+  if (!Number(data.balance) && !payout) return null;
   return html`<button class="strip" type="button" onClick=${() => bus.emit("goto", "bonus")}>
     <span class="strip-ico" dangerouslySetInnerHTML=${svg("wallet")}></span>
     <span class="strip-body">
