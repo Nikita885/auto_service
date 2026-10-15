@@ -34,6 +34,12 @@
   --danger-soft: #33171c;
   --info: #2ea6ff;
   --info-soft: #122a40;
+  --scrim: rgba(1, 4, 9, .72);
+  --skeleton: #0e1828;
+  --skeleton-hi: #18283f;
+  --glow-sm: 0 0 12px -4px rgba(46, 166, 255, .7);
+  --glow-md: 0 0 22px -6px rgba(46, 166, 255, .85);
+  --glow-lg: 0 0 18px rgba(46, 166, 255, .55);
   /* design-tokens: конец */
 
   --shadow: none;

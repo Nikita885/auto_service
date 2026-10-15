@@ -7,7 +7,10 @@
 
 * `apps/web/static/web/css/app.css` — шкалы (шрифт, насыщенность,
   скругления, отступы, движение) в блоке между метками `design-tokens`;
-* `apps/web/static/web/app/app.css` — цвета клиентской темы в таком же блоке;
+* `apps/web/static/web/app/app.css` — цвета клиентской темы и свечение в
+  таком же блоке;
+* `apps/web/static/web/css/landing.css` — цвета витрины (те же, что у
+  приложения) в таком же блоке;
 * `mobile/android/.../values/colors.xml` и `dimens.xml` — целиком;
 * иконки: iPhone (apple-touch-icon, иконки манифеста) и Android
   (адаптивная: фон и знак, монохромная, старые квадратные и круглые,
@@ -35,6 +38,7 @@ TOKENS = json.loads((DESIGN / "tokens.json").read_text(encoding="utf-8"))
 
 APP_CSS = ROOT / "apps/web/static/web/css/app.css"
 CLIENT_CSS = ROOT / "apps/web/static/web/app/app.css"
+LANDING_CSS = ROOT / "apps/web/static/web/css/landing.css"
 ANDROID_RES = ROOT / "mobile/android/app/src/main/res"
 WEB_ICONS = ROOT / "apps/web/static/web/app/icons"
 
@@ -55,13 +59,29 @@ def scales_css() -> str:
     lines = []
     for group in ("fs", "fw", "radius", "space", "dur"):
         lines += [f"  {_name(group, key)}: {value};" for key, value in scale[group].items()]
+    # Размеры элементов без префикса: `--touch` и `--icon` читаются в CSS
+    # как то, что они есть, а `--size-touch` — как шум.
+    lines += [f"  --{key}: {value};" for key, value in scale["size"].items()]
     lines.append(f"  --ease: {scale['ease']};")
     return "\n".join(lines)
 
 
+def _public(group: dict) -> dict:
+    return {key: value for key, value in group.items() if not key.startswith("_")}
+
+
 def client_css() -> str:
+    lines = [f"  --{key}: {value};" for key, value in _public(TOKENS["client"]).items()]
+    lines += [f"  --glow-{key}: {value};" for key, value in _public(TOKENS["glow"]).items()]
+    return "\n".join(lines)
+
+
+def landing_css() -> str:
+    """Цвета витрины из той же темы, что у приложения: копия руками в
+    landing.css однажды разошлась бы с приложением на полтона."""
+    client = TOKENS["client"]
     return "\n".join(
-        f"  --{key}: {value};" for key, value in TOKENS["client"].items() if not key.startswith("_")
+        f"  --{name}: {client[token]};" for name, token in _public(TOKENS["landing"]).items()
     )
 
 
@@ -101,10 +121,15 @@ def android_dimens() -> str:
     )
 
 
+def _block(path: Path, body: str) -> str:
+    return replace_block(path.read_text(encoding="utf-8"), body, path)
+
+
 def text_outputs() -> dict[Path, str]:
     return {
-        APP_CSS: replace_block(APP_CSS.read_text(encoding="utf-8"), scales_css(), APP_CSS),
-        CLIENT_CSS: replace_block(CLIENT_CSS.read_text(encoding="utf-8"), client_css(), CLIENT_CSS),
+        APP_CSS: _block(APP_CSS, scales_css()),
+        CLIENT_CSS: _block(CLIENT_CSS, client_css()),
+        LANDING_CSS: _block(LANDING_CSS, landing_css()),
         ANDROID_RES / "values/colors.xml": android_colors(),
         ANDROID_RES / "values/dimens.xml": android_dimens(),
         ANDROID_RES / "drawable/ic_mark.xml": vector_mark("@color/accent"),
