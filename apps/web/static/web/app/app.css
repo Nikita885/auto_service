@@ -206,22 +206,62 @@
 @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
 
 /* ---------------------------------------------------------------- вход */
+/* Блок входа прижат к верху: на телефоне снизу поднимется клавиатура, и
+   кнопка по центру экрана ушла бы под неё. */
 .auth {
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - var(--space-6));
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: var(--space-5);
+  padding-top: var(--space-6);
 }
+.auth.gate { justify-content: center; padding-top: 0; }
 .auth-brand { display: flex; align-items: center; gap: var(--space-3); }
-.auth-brand img { width: 56px; height: 56px; border-radius: 16px; }
+.auth-brand img { width: var(--control-lg); height: var(--control-lg); border-radius: var(--radius-lg); box-shadow: var(--glow-sm); }
 .auth-brand b { font-size: var(--fs-h3); }
-.auth h1 { font-size: 30px; font-weight: var(--fw-heavy); line-height: 1.1; letter-spacing: -.03em; }
-.auth h1 span { color: var(--neon-hot); text-shadow: 0 0 14px var(--accent); }
-.otp-input { text-align: center; letter-spacing: .5em; font: var(--fw-bold) 26px/1 var(--mono) !important; }
-.legal { font-size: var(--fs-caption); color: var(--text-faint); text-align: center; }
+.auth-copy { display: grid; gap: var(--space-2); }
+.auth h1 { font-size: var(--fs-title); font-weight: var(--fw-heavy); line-height: 1.1; letter-spacing: -.03em; }
+.auth h1 span { color: var(--neon-hot); text-shadow: var(--glow-lg); }
+.phone-input { font-size: var(--fs-h3) !important; font-weight: var(--fw-semibold); letter-spacing: .02em; min-height: var(--control-lg) !important; }
+.auth-link { align-self: center; color: var(--accent); }
+.legal { margin-top: auto; font-size: var(--fs-caption); color: var(--text-faint); text-align: center; }
 
+/* Код — четыре ячейки. Поле одно и настоящее (автозаполнение кода из SMS,
+   вставка, экранный диктор), лежит прозрачным поверх ячеек. */
+.code-cells { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+.code-cells input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  caret-color: transparent;
+}
+.cell {
+  display: grid;
+  place-items: center;
+  height: calc(var(--control-lg) + var(--space-3));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  font: var(--fw-bold) var(--fs-title)/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.code-cells:focus-within .cell.is-current { border-color: var(--accent); box-shadow: var(--ring), var(--glow-sm); }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Знакомство: два шага — две полоски сверху. */
+.onboard-steps { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.onboard-steps span { height: var(--space-1); border-radius: var(--radius-pill); background: var(--border); }
+.onboard-steps span.is-done { background: var(--accent); box-shadow: var(--glow-sm); }
 
 /* ------------------------------------------------------------ общее */
 .section-title {
