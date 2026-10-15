@@ -119,6 +119,10 @@ class LandingView(CompanyMixin, TemplateView):
         # SMS вообще отправляются: их можно выключить в SMS_ENABLED_KINDS.
         context["booking"] = settings.BOOKING
         context["reminder_enabled"] = "booking_reminder" in settings.SMS["ENABLED_KINDS"]
+        # Вопрос о баллах — только когда программа включена; потолок оплаты
+        # баллами — из той же настройки, по которой считает мастер.
+        context["referral_enabled"] = settings.REFERRAL["ENABLED"]
+        context["max_discount"] = settings.REFERRAL["MAX_DISCOUNT_PERCENT"]
         return context
 
 

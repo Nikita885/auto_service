@@ -18,22 +18,20 @@
 </script>
 {% endblock %}
 
-{% comment %} Витрина всегда тёмная: неон по фирменному знаку, а не тема. {% endcomment %}
+{% comment %}
+Редизайн (октябрь 2026, выбор заказчика — «короче, шесть блоков»):
+первый экран → как записаться → адреса → масла → вопросы → подвал.
+Первый экран за три секунды отвечает «что это, почему вы, как
+записаться»; адреса подняты выше — их ищут сразу после «как». Блоки
+«Что входит», «Два пути», «Приложение» и полоса контактов убраны:
+состав работ — в вопросах, установка и телефон — на первом экране и в
+шагах, телефон — в шапке. Обещаний о цене на витрине нет (решение
+заказчика): итог при расчёте мастер может изменить.
+{% endcomment %}
+
 {% block body_class %}landing{% endblock %}
 {% block theme_toggle %}{% endblock %}
 {% block theme_init %}{% endblock %}
-
-{% block topbar %}
-<div class="topbar">
-  <div class="wrap topbar-inner">
-    <span class="topbar-item">{{ company.WORKING_HOURS }}</span>
-    <span class="topbar-sep"></span>
-    <span class="topbar-item topbar-hide-sm">{{ points|length }} {{ points|length|ru_plural:"адрес,адреса,адресов" }} · запись день в день</span>
-    <span class="spacer"></span>
-    <a class="topbar-phone" href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>
-  </div>
-</div>
-{% endblock %}
 
 {% block brand %}
 <a class="brand" href="/" aria-label="{{ company.NAME }}">
@@ -42,14 +40,18 @@
 {% endblock %}
 
 {% block nav %}
-  <a href="#service">Услуга</a>
-  <a href="#oils">Расходные материалы</a>
   <a href="#how">Как записаться</a>
   <a href="#addresses">Адреса</a>
+  <a href="#oils">Масла</a>
+  <a href="#faq">Вопросы</a>
 {% endblock %}
 
 {% block header_actions %}
-  <a class="btn btn-primary btn-sm" href="{{ app_cta_url }}"><span class="label-long">Скачать приложение</span><span class="label-short">Приложение</span></a>
+  <a class="header-phone" href="tel:{{ company.PHONE|tel_href }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h4l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2.2 2A17 17 0 0 1 3 5.2 2 2 0 0 1 5 3z"/></svg>
+    <span>{{ company.PHONE }}</span>
+  </a>
+  <a class="btn btn-primary btn-sm header-app" href="{{ app_cta_url }}">Приложение</a>
 {% endblock %}
 
 {% block content %}
@@ -72,20 +74,20 @@
 
         <p class="hero-sub">
           Записываетесь в приложении или по телефону — и пост ждёт именно вас.
-          Без очереди, без «оставьте машину до вечера».
+          {{ company.WORKING_HOURS }}.
         </p>
 
         <div class="hero-cta">
           <a class="btn btn-primary btn-lg" href="{{ app_cta_url }}">Записаться в приложении</a>
           <a class="btn btn-lg btn-on-dark" href="tel:{{ company.PHONE|tel_href }}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h4l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2.2 2A17 17 0 0 1 3 5.2 2 2 0 0 1 5 3z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h4l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2.2 2A17 17 0 0 1 3 5.2 2 2 0 0 1 5 3z"/></svg>
             {{ company.PHONE }}
           </a>
         </div>
 
         <ul class="hero-list">
           <li><b>Свой пост</b> — к назначенному времени, без ожидания</li>
-          <li><b>Фиксированная цена</b> — работа входит в стоимость</li>
+          <li><b>Перенос и отмена</b> — в приложении, не позже чем за {{ booking.CANCEL_DEADLINE_MINUTES|ru_before }} до визита</li>
           {% if reminder_enabled %}<li><b>Напомним за {{ booking.REMINDER_LEAD_MINUTES|ru_before }}</b> — SMS перед визитом</li>{% endif %}
         </ul>
       </div>
@@ -123,118 +125,54 @@
   </div>
 </section>
 
-<!-- ------------------------------------------------------- что входит -->
-<section class="block" id="service">
-  <div class="block-head" data-reveal-group>
-    <span class="kicker kicker-dark" data-reveal>Одна услуга — и мы делаем её хорошо</span>
-    <h2 data-reveal>Что входит в замену масла</h2>
-  </div>
-
-  <div class="bento" data-reveal-group>
-    <article class="tile glass tile-wide" data-reveal>
-      <h3>Полный цикл за один визит</h3>
-      <ol class="tile-steps">
-        <li>Сливаем отработку, снимаем старый фильтр</li>
-        <li>Ставим новый масляный фильтр и уплотнение</li>
-        <li>Заливаем выбранное масло, проверяем уровень</li>
-        <li>Отмечаем пробег и дату следующей замены</li>
-      </ol>
-    </article>
-
-    <article class="tile glass tile-accent" data-reveal>
-      <p class="tile-claim">Ваш пост — только ваш</p>
-      <p>Пока вы на посту, туда никого не поставят: ждать, когда освободится
-        подъёмник, не придётся.</p>
-    </article>
-
-    <article class="tile glass" data-reveal>
-      <h3>Сумму называем до работ</h3>
-      <p>Итог — расходные материалы плюс работа — вы слышите при записи.
-        На месте он не меняется.</p>
-    </article>
-
-    <article class="tile glass tile-wide" data-reveal>
-      <h3>Не приехали — ничего не потеряли</h3>
-      <p>
-        Отменить запись можно самому, не позже чем за {{ booking.CANCEL_DEADLINE_MINUTES|ru_before }} до визита. Пост сразу
-        освобождается — никаких звонков и объяснений.
-      </p>
-    </article>
-  </div>
-</section>
-
-<!-- --------------------------------------------------------------- масла -->
-{% comment %}
-Цен на сайте нет вовсе — решение заказчика: стоимость называют по
-телефону и мастер на месте. Секция при этом остаётся: клиенту важно
-увидеть, что его масло есть. Данные — из таблицы `Oil`, той же, что у API.
-{% endcomment %}
-<section class="block" id="oils">
-  <div class="block-head" data-reveal-group>
-    <span class="kicker kicker-dark" data-reveal>Ассортимент</span>
-    <h2 data-reveal>Расходные материалы</h2>
-    <p data-reveal>
-      Подберём по марке автомобиля, году выпуска и пробегу.
-      Стоимость назовём по телефону.
-    </p>
-  </div>
-
-  {% if oils %}
-    <div class="oil-grid" data-reveal-group>
-      {% for oil in oils %}
-        <article class="oil-card glass" data-reveal>
-          <span class="oil-brand">{{ oil.brand }}</span>
-          <h3 class="oil-title">{{ oil.name }}</h3>
-          <div class="oil-tags">
-            <span class="chip">{{ oil.viscosity }}</span>
-            <span class="chip">{{ oil.get_oil_type_display }}</span>
-            <span class="chip">{{ oil.volume_liters }} л</span>
-          </div>
-          {% if oil.description %}<p class="oil-note">{{ oil.description }}</p>{% endif %}
-        </article>
-      {% endfor %}
-    </div>
-
-    <p class="price-foot-note" data-reveal>
-      Не нашли нужное или хотите узнать стоимость?
-      Позвоните — подберём по марке и году выпуска:
-      <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>
-    </p>
-  {% else %}
-    <p class="muted">Ассортимент уточняйте по телефону <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>.</p>
-  {% endif %}
-</section>
-
 <!-- ------------------------------------------------------ как записаться -->
+{% comment %}
+Три шага, у каждого — кусок настоящего экрана приложения (Airtasker на
+Mobbin): живой экран продаёт приложение лучше схемы. Куски нарисованы
+разметкой, а не картинками: весят байты и не расходятся с приложением
+по цветам. Звонок — равноправный путь, строкой под шагами.
+{% endcomment %}
 <section class="block" id="how">
   <div class="block-head" data-reveal-group>
-    <span class="kicker kicker-dark" data-reveal>Два пути</span>
+    <span class="kicker kicker-dark" data-reveal>Пара минут</span>
     <h2 data-reveal>Как записаться</h2>
-    <p data-reveal>Результат одинаковый: вас ждут в назначенное время, масло отложено.</p>
   </div>
 
-  <div class="ways" data-reveal-group>
-    <article class="way glass way-primary" data-reveal>
-      <span class="way-label">Быстрее</span>
-      <h3>В приложении</h3>
-      <ol class="way-steps">
-        <li><b>Вход по номеру.</b> Придёт код в SMS, пароль не нужен.</li>
-        <li><b>Адрес, материалы, время.</b> Выбираете в приложении за пару касаний.</li>
-        <li><b>Подтверждение.</b> Придёт SMS с кодом записи.</li>
-      </ol>
-      <a class="btn btn-primary btn-lg btn-block" href="#app">Скачать приложение</a>
-    </article>
+  <ol class="how-steps" data-reveal-group>
+    <li class="how-step glass" data-reveal>
+      <div class="shot" aria-hidden="true">
+        <span class="shot-title">Вход по номеру</span>
+        <span class="shot-field">+7 (900) 123-45-67</span>
+        <span class="shot-btn">Продолжить</span>
+      </div>
+      <h3><span class="how-n">1</span>Вход по номеру</h3>
+      <p>Пароль не нужен — подтвердим номер звонком.</p>
+    </li>
+    <li class="how-step glass" data-reveal>
+      <div class="shot" aria-hidden="true">
+        <span class="shot-chips"><i>{% if points %}{{ points.0.name|truncatechars:12 }}{% else %}Адрес{% endif %}</i><i>{% if oils %}{{ oils.0.brand|truncatechars:10 }}{% else %}Масло{% endif %}</i></span>
+        <span class="shot-slots"><i>09:30</i><i class="on">10:00</i><i>10:30</i><i>11:00</i></span>
+      </div>
+      <h3><span class="how-n">2</span>Адрес, масло, время</h3>
+      <p>Выбираете из того, что есть в наличии и свободно. Не знаете, какое масло, — подберём на месте.</p>
+    </li>
+    <li class="how-step glass" data-reveal>
+      <div class="shot" aria-hidden="true">
+        <span class="shot-when">10:00</span>
+        <span class="shot-code"><small>Код на посту</small><b>KX7P2M</b></span>
+      </div>
+      <h3><span class="how-n">3</span>Приезжаете к своему времени</h3>
+      <p>Пост ждёт вас. Код записи назовёте мастеру.</p>
+    </li>
+  </ol>
 
-    <article class="way glass" data-reveal>
-      <span class="way-label way-label-muted">Привычнее</span>
-      <h3>По телефону</h3>
-      <ol class="way-steps">
-        <li><b>Звоните в рабочие часы.</b> {{ company.WORKING_HOURS }}.</li>
-        <li><b>Называете марку.</b> Подскажем, какое масло подойдёт.</li>
-        <li><b>Записываем сами.</b> Скажем адрес и время, приезжайте.</li>
-      </ol>
-      <a class="btn btn-lg btn-block btn-outline" href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>
-    </article>
+  <div class="how-foot" data-reveal>
+    {% include "web/_store_buttons.html" with wrapper_class="store-row" %}
+    <p>Удобнее голосом? Позвоните — запишем сами:
+      <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>, {{ company.WORKING_HOURS|lower }}.</p>
+    {% if not company.APP_STORE_URL and platform != "android" %}
+      <p class="app-note">На iPhone приложение ставится из Safari: «Поделиться» → «На экран „Домой“».</p>
+    {% endif %}
   </div>
 </section>
 
@@ -243,44 +181,44 @@
   <div class="block-head" data-reveal-group>
     <span class="kicker kicker-dark" data-reveal>Где нас найти</span>
     <h2 data-reveal>Адреса</h2>
-    <p data-reveal>Приезжайте на любой — записи не пересекаются, пост держим за вами.</p>
   </div>
 
   <div class="address-grid" data-reveal-group>
     {% for point in points %}
       {% comment %}
-      Карточка по образцу офисных карточек Slack и Upwork на Mobbin: имя,
-      адрес, часы, внизу — действия. Статус «открыто / закрыто» считает
-      landing.js по часовому поясу точки: в разметке он один и тот же для
-      всех посетителей, а честным должен быть в момент просмотра. Без JS
-      остаются просто часы работы.
+      Схема вместо встроенной карты — решение заказчика: встроенная карта
+      тянет чужие скрипты и cookie, а это вопрос 152-ФЗ. Схема — рисунок
+      без внешних загрузок; путь до точки даёт «Маршрут» в Яндекс Картах.
+      Статус «открыто / закрыто» считает landing.js по часовому поясу
+      точки; без JS остаются часы работы.
       {% endcomment %}
       <article class="address-card glass" data-reveal
                data-tz="{{ point.timezone }}" data-opens="{{ point.opens_at|time:'H:i' }}"
                data-closes="{{ point.closes_at|time:'H:i' }}" data-days="{{ point.workdays|join:',' }}">
-        <div class="address-top">
-          <h3>{{ point.name }}</h3>
-          <span class="chip address-status" hidden></span>
-        </div>
-        <p class="address-line">{{ point.address }}</p>
-
-        <ul class="address-facts">
-          <li>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <a class="address-map" href="https://yandex.ru/maps/?{% if point.latitude and point.longitude %}rtext=~{{ point.latitude|stringformat:'s' }},{{ point.longitude|stringformat:'s' }}&amp;rtt=auto{% else %}text={{ point.address|urlencode }}{% endif %}" rel="noopener" target="_blank" aria-label="Маршрут до «{{ point.name }}» в Яндекс Картах">
+          <svg viewBox="0 0 320 140" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+            <path class="map-road" d="M-10 {% cycle '96' '40' %} C 80 {% cycle '80' '64' %}, 170 {% cycle '118' '20' %}, 330 {% cycle '74' '86' %}"/>
+            <path class="map-road" d="M{% cycle '70' '220' %} -10 C {% cycle '90' '200' %} 60, {% cycle '60' '250' %} 100, {% cycle '96' '230' %} 150"/>
+            <path class="map-street" d="M-10 24 H 330 M -10 118 H 330 M 40 -10 V 150 M 280 -10 V 150 M 150 -10 V 150"/>
+            <circle class="map-halo" cx="{% cycle '168' '150' %}" cy="{% cycle '74' '62' %}" r="26"/>
+            <path class="map-pin" transform="translate({% cycle '156' '138' %} {% cycle '48' '36' %})" d="M12 33s11-9 11-18A11 11 0 1 0 1 15c0 9 11 18 11 18z"/>
+            <circle class="map-dot" cx="{% cycle '168' '150' %}" cy="{% cycle '63' '51' %}" r="4"/>
+          </svg>
+          <span class="address-map-go">Маршрут
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
+        </a>
+        <div class="address-body">
+          <div class="address-top">
+            <h3>{{ point.name }}</h3>
+            <span class="chip address-status" hidden></span>
+          </div>
+          <p class="address-line">{{ point.address }}</p>
+          <p class="address-hours">
             {% if point.workdays %}По графику{% else %}Ежедневно{% endif %}, {{ point.opens_at|time:"H:i" }}–{{ point.closes_at|time:"H:i" }}
-          </li>
-          <li>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-6h6v6"/></svg>
-            {{ point.posts_count }} {{ point.posts_count|ru_plural:"пост,поста,постов" }} — записи не пересекаются
-          </li>
-        </ul>
-
-        <div class="address-actions">
-          {% if point.phone %}<a class="btn btn-sm" href="tel:{{ point.phone|tel_href }}">{{ point.phone }}</a>{% endif %}
-          <a class="address-route" href="https://yandex.ru/maps/?{% if point.latitude and point.longitude %}pt={{ point.longitude|stringformat:'s' }},{{ point.latitude|stringformat:'s' }}&amp;z=16&amp;l=map{% else %}text={{ point.address|urlencode }}{% endif %}" rel="noopener" target="_blank">
-            Маршрут
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-          </a>
+            · {{ point.posts_count }} {{ point.posts_count|ru_plural:"пост,поста,постов" }}
+          </p>
+          {% if point.phone %}<a class="address-phone" href="tel:{{ point.phone|tel_href }}">{{ point.phone }}</a>{% endif %}
         </div>
       </article>
     {% empty %}
@@ -289,31 +227,32 @@
   </div>
 </section>
 
-<!-- ---------------------------------------------------------- приложение -->
-<section class="block" id="app">
-  <div class="app-panel glass" data-reveal>
-    <div class="app-copy">
-      <span class="kicker">Приложение {{ company.NAME }}</span>
-      <h2>Запись за четыре касания</h2>
-      <p>
-        История визитов, напоминание перед приездом и отмена в одно касание.
-        Вход по номеру телефона — регистрироваться отдельно не нужно.
-      </p>
-
-      {% include "web/_store_buttons.html" with wrapper_class="store-row" %}
-
-      {% if not company.APP_STORE_URL and platform != "android" %}
-        <p class="app-note">На iPhone откройте веб-приложение в Safari и нажмите «Поделиться» → «На экран „Домой“» — оно встанет рядом с остальными.</p>
-      {% endif %}
-    </div>
-
-    <ul class="app-features">
-      <li><b>Свободное время</b><span>только реально свободные слоты</span></li>
-      <li><b>Расходные материалы</b><span>выбираете при записи</span></li>
-      <li><b>Код записи</b><span>назовёте его на посту</span></li>
-      <li><b>Отмена в касание</b><span>за {{ booking.CANCEL_DEADLINE_MINUTES|ru_before }} до визита</span></li>
-    </ul>
+<!-- --------------------------------------------------------------- масла -->
+{% comment %}
+Цен на сайте нет вовсе — решение заказчика: стоимость называют по
+телефону и мастер на месте. Ассортимент — строкой: клиенту важно
+увидеть, что его масло есть. Данные — из таблицы `Oil`, той же, что у API.
+{% endcomment %}
+<section class="block" id="oils">
+  <div class="block-head" data-reveal-group>
+    <span class="kicker kicker-dark" data-reveal>В наличии</span>
+    <h2 data-reveal>Масла</h2>
+    <p data-reveal>Подберём по марке, году и пробегу. Стоимость назовём по телефону.</p>
   </div>
+
+  {% if oils %}
+    <ul class="oil-list" data-reveal-group>
+      {% for oil in oils %}
+        <li class="oil-item glass" data-reveal>
+          <span class="oil-brand">{{ oil.brand }}</span>
+          <b class="oil-title">{{ oil.name }}</b>
+          <span class="oil-meta">{{ oil.viscosity }} · {{ oil.get_oil_type_display|lower }} · {{ oil.volume_liters|floatformat:"-1" }} л</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">Ассортимент уточняйте по телефону <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>.</p>
+  {% endif %}
 </section>
 
 <!-- ----------------------------------------------------------------- FAQ -->
@@ -329,9 +268,33 @@
   {% endcomment %}
   <div class="faq" data-reveal>
     <details>
+      <summary>Что входит в замену масла?</summary>
+      <div class="faq-answer"><div>
+        <p>Сливаем отработку, ставим новый масляный фильтр, заливаем выбранное масло и проверяем уровень. Пока вы на посту, туда никого не ставят.</p>
+      </div></div>
+    </details>
+    <details>
+      <summary>Не знаю, какое масло нужно</summary>
+      <div class="faq-answer"><div>
+        <p>При записи выберите «Подберите на месте» — мастер позвонит и поможет выбрать: в рабочее время в течение 30 минут, вне рабочих часов — утром. Или позвоните нам сами: <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>.</p>
+      </div></div>
+    </details>
+    <details>
       <summary>Можно приехать без записи?</summary>
       <div class="faq-answer"><div>
         <p>Можно, но придётся ждать свободный пост. По записи вас примут в назначенное время — это и есть смысл записи.</p>
+      </div></div>
+    </details>
+    <details>
+      <summary>Как перенести или отменить запись?</summary>
+      <div class="faq-answer"><div>
+        <p>В приложении, не позже чем за {{ booking.CANCEL_DEADLINE_MINUTES|ru_before }} до визита. Позже — звонком на адрес.</p>
+      </div></div>
+    </details>
+    <details>
+      <summary>Опаздываю — что делать?</summary>
+      <div class="faq-answer"><div>
+        <p>Позвоните на адрес — постараемся подвинуть. Если не предупредить, пост через какое-то время отдадут следующему.</p>
       </div></div>
     </details>
     <details>
@@ -340,38 +303,20 @@
         <p>Позвоните и уточните: работа считается отдельно, а гарантию на само масло в этом случае мы не даём.</p>
       </div></div>
     </details>
+    {% if referral_enabled %}
     <details>
-      <summary>Сколько действует запись, если опаздываю?</summary>
+      <summary>Что за баллы в приложении?</summary>
       <div class="faq-answer"><div>
-        <p>Позвоните на адрес — постараемся подвинуть. Если не предупредить, пост через какое-то время отдадут следующему.</p>
+        <p>Приглашайте друзей по своему коду: с их замен вам приходят баллы. Баллами можно оплатить до {{ max_discount }}% чека, 1 балл — 1 рубль.</p>
       </div></div>
     </details>
-    <details>
-      <summary>Как отменить запись?</summary>
-      <div class="faq-answer"><div>
-        <p>В приложении — кнопкой, не позже чем за {{ booking.CANCEL_DEADLINE_MINUTES|ru_before }} до визита. Позже — звонком на адрес.</p>
-      </div></div>
-    </details>
+    {% endif %}
     <details>
       <summary>Чем платить?</summary>
       <div class="faq-answer"><div>
         <p>Оплата на месте после работ: наличными или картой. Онлайн-оплаты пока нет.</p>
       </div></div>
     </details>
-  </div>
-</section>
-
-<!-- ------------------------------------------------------------ контакты -->
-<section class="block" id="contacts">
-  <div class="cta-band glass" data-reveal>
-    <div>
-      <h2>Записать вас на замену?</h2>
-      <p>{{ company.WORKING_HOURS }}. Подберём масло по марке и назовём ближайшее свободное время.</p>
-    </div>
-    <div class="cta-side">
-      <a class="phone-big" href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>
-      <a class="cta-mail" href="mailto:{{ company.EMAIL }}">{{ company.EMAIL }}</a>
-    </div>
   </div>
 </section>
 
@@ -383,14 +328,6 @@
     <div class="footer-col footer-brand-col">
       {% include "web/_logo.html" with logo_class="logo-sm" %}
       <p>{{ company.TAGLINE }}. {{ company.WORKING_HOURS }}.</p>
-    </div>
-
-    <div class="footer-col">
-      <h4>Разделы</h4>
-      <a href="#service">Услуга</a>
-      <a href="#oils">Расходные материалы</a>
-      <a href="#how">Как записаться</a>
-      <a href="#faq">Вопросы</a>
     </div>
 
     <div class="footer-col">
@@ -417,7 +354,6 @@
 
   <div class="wrap footer-bottom">
     <span>© {{ company.NAME }}</span>
-    <span>Цены на сайте справочные и не являются публичной офертой.</span>
   </div>
 </footer>
 {% endblock %}

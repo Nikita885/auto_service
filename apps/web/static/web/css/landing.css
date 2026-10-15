@@ -275,31 +275,6 @@
    заголовок и кнопки уезжали за нижний край. */
 .logo-hero { --logo-w: min(540px, 80vw); }
 
-/* ------------------------------------------------------- верхняя полоса */
-.topbar {
-  position: relative;
-  z-index: 60;
-  background: var(--bar);
-  border-bottom: 1px solid var(--tint);
-  color: var(--text-soft);
-  font-size: var(--fs-small);
-}
-
-.topbar-inner { display: flex; align-items: center; gap: 14px; height: 44px; }
-.topbar-sep { width: 1px; height: 14px; background: var(--line-mid); }
-
-.topbar-phone {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--text);
-  font-weight: var(--fw-bold);
-  font-size: var(--fs-ui);
-  letter-spacing: -.01em;
-  transition: color .2s, text-shadow .2s;
-}
-.topbar-phone:hover { color: var(--neon); text-shadow: 0 0 14px var(--neon-dim); text-decoration: none; }
-
 /* --------------------------------------------------------------- шапка */
 .landing .header {
   background: var(--bar-clear);
@@ -322,7 +297,9 @@
    когда вывеска ушла под шапку (`is-past-sign` ставит landing.js). Только
    при JS: без него класс не ставится, и знак пропал бы навсегда. */
 .landing .header .brand { transition: opacity var(--dur) var(--ease), visibility var(--dur); }
-.has-js .landing .header:not(.is-past-sign) .brand { opacity: 0; visibility: hidden; }
+/* Только там, где вывеска есть: на странице приглашения её нет, и знак
+   в шапке пропадал навсегда — шапка стояла пустой. */
+.has-js .landing:has(.hero-sign) .header:not(.is-past-sign) .brand { opacity: 0; visibility: hidden; }
 
 .landing .nav a {
   position: relative;
@@ -376,7 +353,23 @@
 .landing .btn { backdrop-filter: blur(6px); }
 /* Маленькая кнопка на витрине всё равно нажимается пальцем: 40 px — нижняя
    граница, при которой по ней не промахиваются. */
-.landing .btn-sm { min-height: 40px; padding-inline: var(--space-4); }
+.landing .btn-sm { min-height: var(--control); padding-inline: var(--space-4); }
+
+/* Телефон в шапке — второй путь записи всегда под рукой (раньше он жил в
+   отдельной верхней полосе, которая съедала первый экран). */
+.header-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch);
+  color: var(--text);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-ui);
+  white-space: nowrap;
+  transition: color var(--dur-fast), text-shadow var(--dur-fast);
+}
+.header-phone svg { width: var(--icon-sm); height: var(--icon-sm); color: var(--neon); }
+.header-phone:hover { color: var(--neon-hot); text-shadow: 0 0 14px var(--neon-dim); text-decoration: none; }
 
 /* --------------------------------------------------------- первый экран */
 .hero-full {
@@ -653,9 +646,7 @@
 }
 
 /* --------------------------------------------------------------- плитки */
-.bento { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap-grid); }
-
-/* Стеклянная карточка — общий вид для плиток, адресов и способов записи.
+/* Стеклянная карточка — общий вид для шагов, адресов и масел.
    Волосяная рамка сделана градиентом в псевдоэлементе: обычный border
    одного цвета на тёмном фоне выглядит нарисованным. */
 .glass {
@@ -695,44 +686,20 @@
 
 .glass:hover::after { opacity: 1; }
 
-.tile { padding: var(--pad-card); }
-.tile h3 { font-size: var(--fs-h3); font-weight: var(--fw-bold); letter-spacing: -.02em; margin-bottom: 10px; }
-.tile p { color: var(--text-soft); font-size: var(--fs-body); }
-.tile-wide { grid-column: span 2; }
-
-.tile-steps {
-  margin: 0;
-  padding-left: 20px;
+/* Масла — строкой карточек: бренд, название, вязкость. Без цен (решение
+   заказчика) и без таблицы: таблица без столбца суммы читается как прайс,
+   у которого забыли последний столбец. */
+.oil-list {
   display: grid;
-  gap: 10px;
-  color: var(--text-soft);
-  font-size: var(--fs-body);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--gap-grid);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-.tile-steps li::marker { color: var(--neon); font-weight: var(--fw-bold); }
-
-/* Выделенное стекло: якорь секции светится сильнее соседей. Одно правило
-   на плитку-утверждение и основной способ записи — раньше это были две
-   почти одинаковые копии с разными цифрами в градиентах. */
-.tile-accent,
-.way-primary {
-  background:
-    radial-gradient(120% 100% at 0% 0%, var(--glow), transparent 62%),
-    linear-gradient(168deg, var(--glass-accent-top), var(--glass-accent-bottom));
-}
-.tile-accent::before,
-.way-primary::before { background: linear-gradient(160deg, var(--line-bright), var(--tint-strong)); }
-
-/* Селектор с .tile намеренно: правило `.tile p` выше по специфичности и
-   иначе перебивает и размер, и цвет — утверждение теряет и вес, и свечение. */
-.tile .tile-claim {
-  font-size: var(--fs-h3-lg);
-  font-weight: var(--fw-heavy);
-  line-height: 1.1;
-  letter-spacing: -.03em;
-  margin-bottom: 12px;
-  color: var(--neon-hot);
-  text-shadow: 0 0 22px var(--neon), 0 0 60px var(--deep-glow);
-}
+.oil-item { display: grid; gap: var(--space-1); padding: var(--space-4) var(--space-5); }
+.oil-item .oil-title { font-size: var(--fs-lead); font-weight: var(--fw-bold); }
+.oil-meta { font-size: var(--fs-ui); color: var(--text-soft); }
 
 .oil-brand {
   display: block;
@@ -758,129 +725,135 @@
 
 .chip-ok { background: var(--ok-soft); border-color: var(--ok-line); color: var(--ok); font-size: var(--fs-caption); }
 
-.price-foot-note { margin-top: 18px; color: var(--text-soft); font-size: var(--fs-body); }
-
-/* Ассортимент без цен. Карточками, а не таблицей: таблица с колонками
-   «вязкость, тип, объём» и без суммы читается как прайс, у которого забыли
-   последний столбец. Карточка же честно говорит «вот что у нас есть». */
-.oil-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
-  gap: var(--gap-grid);
-}
-
-.oil-card { padding: var(--pad-card-sm); }
-.oil-card .oil-brand { margin-bottom: 4px; }
-
-.oil-title {
-  font-size: var(--fs-lead);
-  font-weight: var(--fw-bold);
-  letter-spacing: -.02em;
-  color: var(--text);
-  margin-bottom: 14px;
-}
-
-.oil-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.oil-tags .chip { font-size: var(--fs-caption); padding: 3px 9px; }
-.oil-note { margin-top: 12px; font-size: var(--fs-ui); color: var(--text-faint); }
-
 /* --------------------------------------------------------- как записаться */
-.ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--gap-grid); }
-
-.way { display: flex; flex-direction: column; padding: var(--pad-card); }
-
-.way-label {
-  align-self: flex-start;
-  padding: 5px 12px;
-  border-radius: var(--radius-pill);
+/* Три шага, у каждого — кусок настоящего экрана приложения (Airtasker на
+   Mobbin). Номер шага — это порядок действий, а не украшение. */
+.how-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--gap-grid);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.how-step { display: grid; align-content: start; gap: var(--space-3); padding: var(--space-5); }
+.how-step h3 { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-h3); font-weight: var(--fw-heavy); letter-spacing: -.02em; }
+.how-step p { color: var(--text-soft); font-size: var(--fs-body); }
+.how-n {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--control-sm);
+  height: var(--control-sm);
+  border-radius: 50%;
   background: var(--neon);
   color: var(--accent-text);
-  font-size: var(--fs-caption);
+  font-size: var(--fs-ui);
   font-weight: var(--fw-heavy);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  box-shadow: 0 0 22px -4px var(--neon);
+  box-shadow: 0 0 18px -4px var(--neon);
 }
 
-.way-label-muted { background: var(--tint-strong); color: var(--text-soft); box-shadow: none; }
-
-.way h3 { font-size: var(--fs-h3-lg); font-weight: var(--fw-heavy); letter-spacing: -.03em; margin: 18px 0 20px; }
-
-.way-steps {
-  margin: 0 0 28px;
-  padding-left: 20px;
+/* Кусок экрана: тот же тёмный фон и те же элементы, что в приложении. */
+.shot {
   display: grid;
-  gap: 13px;
-  font-size: var(--fs-body);
-  color: var(--text-soft);
-  flex: 1;
+  align-content: center;
+  gap: var(--space-2);
+  min-height: calc(var(--space-9) * 2);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--void);
+  font-size: var(--fs-small);
 }
-.way-steps b { color: var(--text); font-weight: var(--fw-semibold); }
-.way-steps li::marker { color: var(--neon); font-weight: var(--fw-heavy); }
+.shot-title { font-weight: var(--fw-heavy); font-size: var(--fs-body); }
+.shot-field { padding: var(--space-2) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); font-weight: var(--fw-semibold); }
+.shot-btn {
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--neon);
+  color: var(--accent-text);
+  font-weight: var(--fw-bold);
+  text-align: center;
+  box-shadow: 0 0 18px -6px var(--neon);
+}
+.shot-chips, .shot-slots { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.shot-chips i, .shot-slots i {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  font-style: normal;
+  font-weight: var(--fw-semibold);
+}
+.shot-chips i { border-color: var(--ok-line); color: var(--ok); }
+.shot-slots i.on { background: var(--neon); border-color: var(--neon); color: var(--accent-text); }
+.shot-when {
+  font-size: var(--fs-title);
+  font-weight: var(--fw-heavy);
+  color: var(--neon-hot);
+  text-shadow: 0 0 16px var(--glow-strong);
+  font-variant-numeric: tabular-nums;
+}
+.shot-code { display: flex; align-items: center; justify-content: space-between; padding-top: var(--space-2); border-top: 1px dashed var(--line-strong); }
+.shot-code small { color: var(--text-faint); font-size: var(--fs-caption); }
+.shot-code b { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .14em; color: var(--neon); }
 
-.btn-outline { border-color: var(--border-strong); color: var(--text); font-weight: var(--fw-bold); background: transparent; }
-.btn-outline:hover { border-color: var(--neon); color: var(--neon-hot); background: var(--glow-faint); }
+.how-foot { display: grid; justify-items: start; gap: var(--space-3); margin-top: var(--space-6); color: var(--text-soft); font-size: var(--fs-body); }
+.how-foot .store-row { margin-top: 0; }
+.how-foot a { color: var(--neon-hot); }
 
 /* --------------------------------------------------------------- адреса */
 .address-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--gap-grid); }
 
-.address-card { padding: var(--pad-card); }
-.address-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.address-top h3 { font-size: var(--fs-h3); font-weight: var(--fw-heavy); letter-spacing: -.02em; }
-.address-line { margin-top: 9px; color: var(--text-soft); font-size: var(--fs-body); }
-
-.address-facts {
-  display: grid;
-  gap: 10px;
-  margin: 20px 0 22px;
-  padding: 16px 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  list-style: none;
+.address-card { display: grid; overflow: hidden; }
+/* Схема вместо встроенной карты (решение заказчика: без чужих скриптов и
+   cookie). Целиком — ссылка «Маршрут» в Яндекс Картах. */
+.address-map {
+  position: relative;
+  display: block;
+  height: calc(var(--space-9) * 2);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: radial-gradient(70% 90% at 50% 45%, var(--deep-haze), transparent 70%), var(--void);
+  overflow: hidden;
 }
+.address-map svg { display: block; width: 100%; height: 100%; }
+.map-street { fill: none; stroke: var(--line); stroke-width: 1; }
+.map-road { fill: none; stroke: var(--line-strong); stroke-width: 6; stroke-linecap: round; }
+.map-halo { fill: var(--glow); }
+.map-pin { fill: var(--neon); filter: drop-shadow(0 0 8px var(--neon)); }
+.map-dot { fill: var(--void); }
+.address-map-go {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--bar);
+  border: 1px solid var(--line-strong);
+  color: var(--neon-hot);
+  font-size: var(--fs-ui);
+  font-weight: var(--fw-bold);
+}
+.address-map-go svg { width: var(--icon-sm); height: var(--icon-sm); transition: transform var(--dur-fast) var(--ease); }
+.address-map:hover { text-decoration: none; }
+.address-map:hover .address-map-go svg { transform: translateX(var(--space-1)); }
 
-.address-facts li { display: flex; align-items: center; gap: 10px; font-size: var(--fs-ui); color: var(--text-soft); }
-.address-facts svg { flex: none; width: 18px; height: 18px; color: var(--neon); }
+.address-body { display: grid; gap: var(--space-1); padding: var(--space-4) var(--space-5) var(--space-5); }
+.address-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.address-top h3 { font-size: var(--fs-h3); font-weight: var(--fw-heavy); letter-spacing: -.02em; }
+.address-line { color: var(--text); font-size: var(--fs-body); }
+.address-hours { color: var(--text-soft); font-size: var(--fs-ui); }
+.address-phone { justify-self: start; margin-top: var(--space-2); color: var(--neon-hot); font-weight: var(--fw-bold); font-size: var(--fs-ui); }
 
 /* Закрыто — тихим серым, а не тревожным красным: это не ошибка. */
 .chip-off { background: transparent; border-color: var(--border-strong); color: var(--text-faint); font-size: var(--fs-caption); }
 
-.address-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.address-actions { align-items: center; justify-content: space-between; }
+/* ------------------------------------------------- кнопки магазинов */
+.app-note { font-size: var(--fs-ui); color: var(--text-soft); }
 
-/* «Маршрут →» — ссылкой, как «Get directions →» у Slack: вторая кнопка
-   рядом с телефоном спорила с ним за внимание. */
-.address-route {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  font-size: var(--fs-ui);
-  font-weight: var(--fw-bold);
-  color: var(--neon-hot);
-  text-decoration: none;
-}
-.address-route svg { width: 16px; height: 16px; transition: transform var(--dur-fast) var(--ease); }
-.address-route:hover svg { transform: translateX(3px); }
-
-/* ----------------------------------------------------------- приложение */
-.app-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
-  gap: 44px;
-  align-items: center;
-  padding: var(--pad-panel);
-  border-radius: var(--radius-xl);
-  background:
-    radial-gradient(90% 130% at 6% 0%, var(--glow), transparent 58%),
-    linear-gradient(168deg, var(--glass-accent-top), var(--glass-accent-bottom));
-}
-
-.app-copy h2 { font-size: var(--fs-h2); font-weight: var(--fw-heavy); letter-spacing: -.035em; margin-bottom: 14px; }
-.app-copy p { color: var(--text-soft); font-size: var(--fs-lead); max-width: 46ch; }
-.app-note { margin-top: 16px; font-size: var(--fs-ui); color: var(--text-soft); }
-
-.store-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+.store-row { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-7); }
 
 .store-btn {
   display: inline-flex;
@@ -917,26 +890,6 @@
 }
 .store-btn.is-soon:hover { transform: none; box-shadow: none; border-color: var(--line); background: transparent; }
 .store-btn.is-soon svg { color: var(--text-faint); }
-
-.app-features {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 1px;
-  background: var(--line);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-.app-features li {
-  background: var(--glass-bottom);
-  padding: var(--space-4) var(--space-5);
-  transition: background .25s;
-}
-.app-features li:hover { background: var(--glass-accent-top); }
-.app-features b { display: block; font-size: var(--fs-body); font-weight: var(--fw-bold); }
-.app-features span { display: block; margin-top: 3px; font-size: var(--fs-ui); color: var(--text-soft); }
 
 /* ------------------------------------------------------------------ FAQ */
 .faq { border-top: 1px solid var(--border); }
@@ -986,41 +939,6 @@
 .faq details[open] .faq-answer { grid-template-rows: 1fr; }
 .faq p { padding: 0 44px 24px 0; color: var(--text-soft); font-size: var(--fs-body); max-width: 76ch; }
 
-/* -------------------------------------------------------------- контакты */
-.cta-band {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 34px;
-  flex-wrap: wrap;
-  padding: var(--pad-panel);
-  border-radius: var(--radius-xl);
-  background:
-    radial-gradient(80% 160% at 80% 50%, var(--glow), transparent 62%),
-    linear-gradient(120deg, var(--deep-haze), var(--glass-accent-bottom));
-}
-
-.cta-band::before { background: linear-gradient(120deg, var(--line-bright), var(--tint-strong)); }
-.cta-band h2 { font-size: var(--fs-h2); font-weight: var(--fw-heavy); letter-spacing: -.035em; margin-bottom: 12px; }
-.cta-band p { font-size: var(--fs-lead); color: var(--text-soft); max-width: 52ch; }
-
-.cta-side { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-
-.phone-big {
-  font-size: var(--fs-h2);
-  font-weight: var(--fw-heavy);
-  letter-spacing: -.035em;
-  white-space: nowrap;
-  color: var(--neon-hot);
-  text-shadow: 0 0 18px var(--neon), 0 0 50px var(--deep-glow);
-  text-decoration: none !important;
-  transition: text-shadow .25s;
-}
-.phone-big:hover { text-shadow: 0 0 26px var(--neon-hot), 0 0 70px var(--neon); }
-
-.cta-mail { color: var(--text-soft); font-size: var(--fs-body); text-decoration: underline; text-underline-offset: 3px; }
-.cta-mail:hover { color: var(--text); }
-
 /* --------------------------------------------------------------- подвал */
 .footer {
   margin-top: var(--section-gap);
@@ -1032,7 +950,7 @@
 
 .footer-grid {
   display: grid;
-  grid-template-columns: 1.4fr repeat(3, 1fr);
+  grid-template-columns: 1.4fr repeat(2, 1fr);
   gap: 36px;
   padding-bottom: 36px;
   border-bottom: 1px solid var(--border);
@@ -1149,8 +1067,9 @@
 
 /* -------------------------------------------------------------- адаптив */
 @media (max-width: 1000px) {
-  .bento { grid-template-columns: repeat(2, 1fr); }
-  .tile-wide { grid-column: span 2; }
+  .how-steps { grid-template-columns: 1fr; }
+  .how-step { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; column-gap: var(--space-5); }
+  .how-step .shot { grid-row: span 2; }
   .footer-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -1166,14 +1085,13 @@
   .hero-stats { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); }
   .hstat + .hstat { border-left: none; padding-left: 8px; }
   .hstat:nth-child(n + 3) { border-top: 1px solid var(--line); }
-  .app-panel { grid-template-columns: 1fr; }
   .landing { --section-gap: 88px; --pad-panel: var(--space-7); }
 }
 
-@media (max-width: 760px) {
-  /* Меню не помещается, а прокрутка вбок читалась как обрезанная вёрстка.
-     На телефоне разделы и так идут подряд одной лентой — в шапке остаются
-     знак и главное действие. */
+@media (max-width: 1000px) {
+  /* Меню не помещается рядом с телефоном и кнопкой, а прокрутка вбок
+     читалась как обрезанная вёрстка. Разделы и так идут подряд одной
+     лентой — в шапке остаются знак, телефон и главное действие. */
   .landing .nav { display: none; }
   .landing .header .spacer { flex: 1; }
 }
@@ -1185,14 +1103,14 @@
   .landing { --header-h: 66px; }
   .logo-sm { --logo-w: 172px; }
   .block { width: calc(100% - 28px); }
-  .bento { grid-template-columns: 1fr; }
-  .tile-wide { grid-column: span 1; }
+  .how-step { grid-template-columns: 1fr; }
+  .how-step .shot { grid-row: auto; }
   .hero-cta .btn { width: 100%; }
+  /* Узко: в шапке знак и «Приложение», телефон — на первом экране. */
+  .header-phone span { display: none; }
   /* Разрядка .18em на узком экране переносила надрубрику на вторую строку. */
   .kicker { letter-spacing: .1em; }
-  .hide-sm, .topbar-hide-sm { display: none; }
-  .price-table { min-width: 0; }
-  .price-table th, .price-table td { padding: 14px; }
+  .hide-sm { display: none; }
   .landing { --pad-card: var(--space-6); --pad-panel: var(--space-6); }
   .footer-grid { grid-template-columns: 1fr; gap: 26px; }
 }
@@ -1216,7 +1134,7 @@
   min-height: 62vh;
   display: grid;
   place-items: center;
-  padding: 56px 0 72px;
+  padding: var(--space-8) var(--space-4) var(--space-9);
 }
 
 .invite-card {
@@ -1273,7 +1191,17 @@
   text-align: left;
 }
 
-.invite-stores { justify-content: center; margin-bottom: 22px; }
+.invite-stores { justify-content: center; margin: 0 0 var(--space-5); }
+/* Установить — главное действие страницы, поэтому неоном, а не стеклом. */
+.invite-stores .store-btn:not(.is-soon) {
+  width: 100%;
+  justify-content: center;
+  background: var(--neon);
+  border-color: var(--neon);
+  color: var(--accent-text);
+  box-shadow: 0 8px 28px -10px var(--neon);
+}
+.invite-stores .store-btn:not(.is-soon) svg, .invite-stores .store-btn:not(.is-soon) small { color: var(--accent-text); }
 
 .invite-foot { margin: 0; font-size: var(--fs-ui); color: var(--text-faint); }
 .invite-foot a { color: var(--text-soft); }
