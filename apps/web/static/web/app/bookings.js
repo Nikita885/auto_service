@@ -25,8 +25,8 @@ const rows = (data) => (data ? data.results || data : []);
 const icon = (name) => ({ __html: window.App.icon(name, 18) });
 
 export function Bookings() {
-  const upcoming = useLoad(() => api.get("/bookings/?scope=upcoming"));
-  const history = useLoad(() => api.get("/bookings/?scope=history"));
+  const upcoming = useLoad(() => api.get("/bookings/?scope=upcoming"), [], "upcoming");
+  const history = useLoad(() => api.get("/bookings/?scope=history"), [], "history");
   const draft = useLoad(() => api.get("/bookings/drafts/current/"));
   // «Записаться» нажали на другом экране (гараж) — мастер открыт сразу.
   const [wizard, setWizard] = useState(() => takeBookingRequest());
@@ -47,7 +47,7 @@ export function Bookings() {
       title: "Отменить запись " + booking.code + "?",
       text: "Время сразу освободится — его смогут занять другие.",
       placeholder: "Причина (необязательно)",
-      confirmLabel: "Отменить запись", danger: true, withInput: true,
+      confirmLabel: "Отменить запись", cancelLabel: "Оставить запись", danger: true, withInput: true,
     });
     // `ask` с полем возвращает строку (в том числе пустую) или null при «Отмена».
     if (reason === null) return;
@@ -106,10 +106,10 @@ export function Bookings() {
   return html`<main class="screen">
     <div class="screen-head"><h1>Записи</h1></div>
     ${body}
-    ${wizard && html`<${Sheet} title="Запись на замену масла" onClose=${closeWizard}>
+    ${wizard && html`<${Sheet} tall title="Запись на замену масла" onClose=${closeWizard}>
       <${BookingWizard} onClose=${closeWizard} onBooked=${() => bus.emit("bookings:changed")} />
     </${Sheet}>`}
-    ${moving && html`<${Sheet} title="Перенести запись" onClose=${() => setMoving(null)}>
+    ${moving && html`<${Sheet} tall title="Перенести запись" onClose=${() => setMoving(null)}>
       <div class="stack">
         <p class="muted">Сейчас: ${visitTime(moving.start_at, moving.service_point.timezone)}, ${moving.service_point.address}.
           Выберите новое время на том же адресе.</p>

@@ -46,7 +46,7 @@ export function Garage() {
     if (!carId || !cars.some((c) => c.id === carId)) setCarId((cars.find((c) => c.is_primary) || cars[0]).id);
   }, [cars]);
 
-  const summary = useLoad(() => (carId ? api.get("/garage/cars/" + carId + "/summary/") : Promise.resolve(null)), [carId]);
+  const summary = useLoad(() => (carId ? api.get("/garage/cars/" + carId + "/summary/") : Promise.resolve(null)), [carId], carId && "garage." + carId);
   const s = summary.data;
 
   function done(message) {

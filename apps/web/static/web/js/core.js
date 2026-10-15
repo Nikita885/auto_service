@@ -281,6 +281,18 @@
     car: '<path d="M3 16v-3l2.2-5.2A2 2 0 0 1 7 6.5h10a2 2 0 0 1 1.8 1.3L21 13v3a1 1 0 0 1-1 1h-1.5M5.5 17H4a1 1 0 0 1-1-1"/><path d="M3 13h18M9.5 17h5"/><circle cx="7.5" cy="17" r="2"/><circle cx="16.5" cy="17" r="2"/>',
     fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16M3 21h13M4 10h11"/><path d="M15 8h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V9l-3-3"/>',
     wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+    home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+    "wifi-off": '<path d="M2 8.5a15 15 0 0 1 4.2-2.8M10 4.6A15 15 0 0 1 22 8.5M5.5 12a10 10 0 0 1 3.2-2M14.8 9.6A10 10 0 0 1 18.5 12M9 15.5a5 5 0 0 1 6 0M12 19h.01M3 3l18 18"/>',
+    more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+    qr: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M20 20h-3v-3"/>',
+    wash: '<path d="M7 4c0 2-2 3-2 5a2 2 0 0 0 4 0c0-2-2-3-2-5zM17 4c0 2-2 3-2 5a2 2 0 0 0 4 0c0-2-2-3-2-5zM4 15h16M6 15v4h12v-4"/>',
+    tire: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M12 3v5.5M12 15.5V21M3 12h5.5M15.5 12H21"/>',
+    shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+    doc: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+    down: '<path d="M6 9l6 6 6-6"/>',
+    share: '<path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/>',
+    gift: '<rect x="3" y="8" width="18" height="5" rx="1"/><path d="M5 13v8h14v-8M12 8v13M12 8S10 3 7.5 4.5 9 8 12 8zm0 0s2-5 4.5-3.5S15 8 12 8z"/>',
   };
 
   function icon(name, size) {
@@ -334,14 +346,16 @@
   }
 
   /** Подтверждение в стиле сайта вместо системного confirm/prompt. */
-  function ask({ title, text, placeholder, confirmLabel, danger, withInput, required }) {
+  function ask({ title, text, placeholder, confirmLabel, cancelLabel, danger, withInput, required }) {
     return new Promise((resolve) => {
       const input = withInput
         ? el("input", { type: "text", placeholder: placeholder || "", id: "ask-input" })
         : null;
 
       const backdrop = el("div", { class: "modal-backdrop" });
-      const cancel = el("button", { class: "btn", type: "button", text: "Отмена" });
+      // «Отмена» рядом с «Отменить запись» путает — вызывающий может назвать
+      // кнопку отказа по-своему («Оставить запись»).
+      const cancel = el("button", { class: "btn", type: "button", text: cancelLabel || "Отмена" });
       const ok = el("button", {
         class: "btn " + (danger ? "btn-danger" : "btn-primary"),
         type: "button",
@@ -380,7 +394,9 @@
 
       backdrop.append(modal);
       document.body.append(backdrop);
-      (input || ok).focus();
+      // Необязательное поле не хватает фокус: на телефоне оно подняло бы
+      // клавиатуру над окном, где человеку нужно только нажать кнопку.
+      (input && required ? input : ok).focus();
     });
   }
 

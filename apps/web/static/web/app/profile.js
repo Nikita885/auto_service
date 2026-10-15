@@ -3,7 +3,7 @@
 import { CONFIG, LoadError, api, ask, bus, call, html, toast, useEffect, useLoad, useState } from "app/lib";
 
 export function Profile() {
-  const me = useLoad(() => api.get("/auth/me/"));
+  const me = useLoad(() => api.get("/auth/me/"), [], "me");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 

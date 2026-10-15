@@ -18,7 +18,7 @@ import { canScan, inviteFromText, scanInvite } from "app/scan";
 const points = (n) => fmt.number(n) + " " + fmt.plural(Math.floor(Number(n)), "балл", "балла", "баллов");
 
 export function Bonus() {
-  const summary = useLoad(() => api.get("/referral/"));
+  const summary = useLoad(() => api.get("/referral/"), [], "referral");
   const s = summary.data;
 
   let body;

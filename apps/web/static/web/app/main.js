@@ -5,7 +5,9 @@ import { Bookings } from "app/bookings";
 import { Bonus } from "app/bonus";
 import { Garage } from "app/garage";
 import { InstallGate, NotIphoneGate, gate } from "app/install";
-import { CONFIG, api, bus, errorText, html, invite, render, toast, useEffect, useState } from "app/lib";
+import {
+  CONFIG, OfflineBanner, api, bus, cache, errorText, html, invite, isNetworkError, render, toast, useEffect, useState,
+} from "app/lib";
 import { Profile } from "app/profile";
 
 invite.capture();
@@ -56,18 +58,24 @@ function Root() {
           setUser(null);
           return;
         }
+        cache.write("me", me);
         setUser(me);
         attachPendingInvite();
       })
       .catch((err) => {
         if (err.status === 401) { setUser(null); return; }
-        // Нет сети — не выкидываем из аккаунта: токен цел, покажем экраны.
-        toast(errorText(err), "error");
-        setUser({ full_name: "—", role: "client", offline: true });
+        // Нет сети — не выкидываем из аккаунта: токен цел, покажем экраны
+        // с последними данными, а строка «нет сети» скажет, от какого они
+        // времени. Уведомление здесь лишнее — та же новость дважды.
+        const saved = cache.read("me");
+        if (!isNetworkError(err)) toast(errorText(err), "error");
+        setUser({ ...(saved ? saved.data : { full_name: "", role: "client" }), offline: true });
       });
   }, [user]);
 
-  useEffect(() => bus.on("signout", () => setUser(null)), []);
+  // Выход — сам или по протухшему refresh: последние данные экранов
+  // чистим вместе с токенами, чужие записи на телефоне не остаются.
+  useEffect(() => bus.on("signout", () => { cache.clear(); setUser(null); }), []);
 
   // Android: ссылку-приглашение открыли, пока приложение уже работало, —
   // оболочка отложила код и сообщает об этом. Вошедшего привязываем сразу,
@@ -120,6 +128,7 @@ function Root() {
 
   const Screen = (TABS.find(([key]) => key === tab) || TABS[0])[3];
   return html`
+    <${OfflineBanner} />
     <${Screen} key=${tab} />
     <nav class="tabbar" aria-label="Разделы">
       ${TABS.map(([key, label, iconName]) => html`<button type="button" key=${key}

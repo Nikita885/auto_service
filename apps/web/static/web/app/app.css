@@ -46,7 +46,9 @@
   --shadow-lg: 0 18px 50px rgba(0, 0, 0, .6);
   --ring: 0 0 0 3px rgba(46, 166, 255, .35);
 
-  --nav-h: 64px;
+  /* Высота таб-бара без отступа под полоску «Домой»: иконка в подложке,
+     подпись и поля вокруг. */
+  --nav-h: calc(var(--control-lg) + var(--space-3));
   /* На iPhone отступы даёт `env()`, в Android-оболочке — сама оболочка
      (`--native-safe-*`, см. app/lib.js): в WebView `env()` всегда ноль. */
   --safe-top: var(--native-safe-top, env(safe-area-inset-top, 0px));
@@ -64,16 +66,23 @@
 }
 
 /* iOS увеличивает страницу при фокусе на поле с шрифтом меньше 16 px. */
-.pwa input, .pwa select, .pwa textarea { font-size: 16px; min-height: 44px; }
-.pwa .btn { min-height: 44px; }
-.pwa .btn-sm { min-height: 36px; }
+/* 16 px — не ступень шкалы, а порог iOS: меньше — и Safari увеличивает
+   страницу при фокусе на поле. */
+.pwa input, .pwa select, .pwa textarea { font-size: 16px; min-height: var(--touch); }
+.pwa .btn { min-height: var(--touch); }
+.pwa .btn-sm { min-height: var(--control-sm); }
+.pwa .btn-lg { min-height: var(--control-lg); }
+.pwa .btn-primary { box-shadow: var(--glow-md); }
+.pwa .btn-primary[disabled] { box-shadow: none; }
+.pwa .btn:active:not([disabled]) { transform: scale(.98); }
+.pwa .icon-btn { width: var(--touch); height: var(--touch); border-radius: var(--radius); }
 
 .pwa-splash {
   min-height: 100vh;
   display: grid;
   place-items: center;
 }
-.pwa-splash img { border-radius: 22px; animation: pulse 1.6s ease-in-out infinite; }
+.pwa-splash img { border-radius: var(--radius-xl); animation: pulse 1.6s ease-in-out infinite; }
 .pwa-noscript { padding: var(--space-6); text-align: center; }
 
 /* ---------------------------------------------------------------- каркас */
@@ -86,7 +95,7 @@
 .screen-plain { padding-bottom: calc(var(--safe-bottom) + var(--space-6)); }
 
 .screen-head { margin-bottom: var(--space-4); }
-.screen-head h1 { font-size: var(--fs-h3-lg); font-weight: var(--fw-heavy); letter-spacing: -.02em; }
+.screen-head h1 { font-size: var(--fs-title); font-weight: var(--fw-heavy); letter-spacing: -.02em; }
 .screen-head p { margin-top: var(--space-1); color: var(--text-soft); font-size: var(--fs-ui); }
 
 .stack-lg { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -102,11 +111,12 @@
 .muted { color: var(--text-soft); font-size: var(--fs-ui); }
 .center { text-align: center; }
 .big-number {
-  font-size: 34px;
+  font-size: var(--fs-number);
+  line-height: 1.05;
   font-weight: var(--fw-heavy);
   letter-spacing: -.03em;
   color: var(--neon-hot);
-  text-shadow: 0 0 18px rgba(46, 166, 255, .55);
+  text-shadow: var(--glow-lg);
   font-variant-numeric: tabular-nums;
 }
 
@@ -118,7 +128,7 @@
   bottom: 0;
   z-index: 40;
   display: grid;
-  /* Столько колонок, сколько вкладок: их число меняется (Гараж и т. п.). */
+  /* Столько колонок, сколько вкладок. */
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
   height: calc(var(--nav-h) + var(--safe-bottom));
@@ -132,29 +142,68 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: var(--space-1);
   border: none;
   background: none;
   color: var(--text-faint);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: var(--fw-semibold);
   cursor: pointer;
 }
 .tabbar button[aria-current="page"] { color: var(--accent); }
-.tabbar button[aria-current="page"] .tab-ico {
-  background: var(--accent-soft);
-  box-shadow: 0 0 18px -6px var(--accent);
-}
+/* Активная вкладка «зажигается»: подложка и свечение иконки. Сами экраны
+   переключаются без анимации — так быстрее. */
+.tabbar button[aria-current="page"] .tab-ico { background: var(--accent-soft); box-shadow: var(--glow-sm); }
 .tab-ico {
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 30px;
+  width: var(--control-lg);
+  height: var(--control-sm);
   border-radius: var(--radius-pill);
-  transition: background var(--dur);
+  transition: background var(--dur-fast), box-shadow var(--dur-fast);
 }
-.tab-ico svg { width: 22px; height: 22px; }
+.tab-ico svg { width: var(--icon-lg); height: var(--icon-lg); }
+.tabbar button:focus-visible { outline: none; }
+.tabbar button:focus-visible .tab-ico { box-shadow: var(--ring); }
+
+/* «Нет сети»: последние известные данные остаются на экране, строка над
+   ними честно говорит, от какого они времени. */
+.offline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: var(--fs-ui);
+  font-weight: var(--fw-semibold);
+}
+.offline span:first-child { display: grid; }
+/* Над экраном, а не внутри: строка общая для всех вкладок. */
+.pwa > #root > .offline {
+  position: fixed;
+  top: calc(var(--safe-top) + var(--space-2));
+  left: 50%;
+  z-index: 45;
+  width: min(560px - 2 * var(--space-4), 100% - 2 * var(--space-4));
+  transform: translateX(-50%);
+  box-shadow: var(--shadow-lg);
+}
+.pwa:has(#root > .offline) .screen { padding-top: calc(var(--safe-top) + var(--space-5) + var(--control)); }
+
+/* Скелетон: форма будущего блока, мерцает слева направо. */
+.skel {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--skeleton) 0%, var(--skeleton-hi) 50%, var(--skeleton) 100%);
+  background-size: 200% 100%;
+  animation: skel 1.4s linear infinite;
+}
+@keyframes skel { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
 
 /* ---------------------------------------------------------------- вход */
 .auth {
@@ -402,29 +451,86 @@
 .seg-sm { padding: 2px; margin-bottom: 0; }
 .seg-sm button { min-height: var(--space-7); padding: 0 var(--space-3); }
 
-/* Окно во весь экран поверх вкладки (мастер записи, перенос). */
-.sheet {
+/* Окно снизу (мастер записи, перенос, формы гаража): выезжает, затемняет
+   экран под собой, смахивается вниз. Почти во весь экран — сверху виден
+   край вкладки, и понятно, что это окно поверх, а не новый экран. */
+.sheet-layer {
   position: fixed;
   inset: 0;
   z-index: 100;
   display: flex;
+  align-items: flex-end;
+  background: var(--scrim);
+  transition: opacity var(--dur-sheet) var(--ease);
+}
+.sheet-layer.is-in, .sheet-layer.is-out { opacity: 0; }
+.sheet {
+  position: relative;
+  display: flex;
   flex-direction: column;
+  width: min(560px, 100%);
+  max-height: calc(100% - var(--safe-top) - var(--space-3));
+  margin-inline: auto;
+  border: 1px solid var(--border-strong);
+  border-bottom: none;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: var(--bg);
+  box-shadow: var(--shadow-lg);
+  transition: transform var(--dur-sheet) var(--ease);
+}
+.sheet-tall { height: calc(100% - var(--safe-top) - var(--space-3)); }
+.sheet-layer.is-in .sheet, .sheet-layer.is-out .sheet { transform: translateY(100%); }
+@media (prefers-reduced-motion: reduce) {
+  .sheet-layer, .sheet { transition: none; }
+}
+.sheet-grab {
+  align-self: center;
+  flex: none;
+  width: var(--space-7);
+  height: var(--space-1);
+  margin-top: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
 }
 .sheet-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: calc(var(--safe-top) + var(--space-3)) var(--space-4) var(--space-3);
-  border-bottom: 1px solid var(--border);
+  padding: var(--space-2) var(--space-4) var(--space-3);
   font-size: var(--fs-lead);
 }
+.sheet-x {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--control-sm);
+  height: var(--control-sm);
+  border: none;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-soft);
+  cursor: pointer;
+}
+/* Видимый кружок 32, а нажимается 44 — как у системных крестиков. */
+.sheet-x::after { content: ""; position: absolute; inset: calc((var(--control-sm) - var(--touch)) / 2); }
+.sheet-x:focus-visible { outline: none; box-shadow: var(--ring); }
 .sheet-body {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-4) var(--space-4) calc(var(--safe-bottom) + var(--space-6));
+  overscroll-behavior: contain;
+  padding: 0 var(--space-4) calc(var(--safe-bottom) + var(--space-6));
   -webkit-overflow-scrolling: touch;
+}
+.sheet-body:has(+ .sheet-actions) { padding-bottom: var(--space-4); }
+.sheet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) calc(var(--safe-bottom) + var(--space-3));
+  border-top: 1px solid var(--border);
+  background: var(--bg);
 }
 .sheet .sticky-actions { bottom: var(--space-2); }
 body.sheet-open { overflow: hidden; }
@@ -517,20 +623,22 @@ body.sheet-open { overflow: hidden; }
 }
 .suggest button:last-child { border-bottom: none; }
 
-.empty-state { padding: var(--space-7) var(--space-4); text-align: center; color: var(--text-soft); }
-.empty-state b { display: block; margin-bottom: var(--space-2); color: var(--text); font-size: var(--fs-lead); }
+.empty-state { display: grid; justify-items: center; gap: var(--space-2); padding: var(--space-7) var(--space-4); text-align: center; color: var(--text-soft); }
+.empty-state b { color: var(--text); font-size: var(--fs-lead); }
+.empty-state p { max-width: 32ch; }
+.empty-state .btn { margin-top: var(--space-2); }
 .empty-ico {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
-  margin: 0 auto var(--space-4);
-  border-radius: 20px;
+  width: var(--control-lg);
+  height: var(--control-lg);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-lg);
   color: var(--accent);
   background: var(--accent-soft);
-  box-shadow: 0 0 32px var(--accent-soft);
+  box-shadow: var(--glow-sm);
 }
-.empty-ico svg { width: 30px; height: 30px; }
+.empty-ico svg { width: var(--icon-lg); height: var(--icon-lg); }
 
 /* Уведомления и модалки над нижней панелью, а не под ней. */
 .pwa .toasts { bottom: calc(var(--nav-h) + var(--safe-bottom) + var(--space-3)); left: var(--space-3); right: var(--space-3); }
@@ -540,6 +648,13 @@ body.sheet-open { overflow: hidden; }
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding-bottom: calc(var(--space-6) + var(--safe-bottom));
 }
+/* Подтверждение — окно снизу с кнопками друг под другом: главная сверху,
+   под большой палец, отказ — под ней. Рядом в строку «Отмена» и
+   «Отменить запись» читались как одно и то же. */
+.pwa .modal-actions { flex-direction: column-reverse; align-items: stretch; }
+.pwa .modal-actions .btn { width: 100%; }
+.pwa .modal-actions .btn-danger { background: var(--danger); border-color: var(--danger); color: var(--accent-text); }
+.pwa .modal-backdrop { background: var(--scrim); }
 @media (min-width: 600px) {
   .pwa .modal-backdrop { align-items: center; padding: var(--space-5); }
   .pwa .modal { width: min(440px, 100%); border-radius: var(--radius-lg); }
