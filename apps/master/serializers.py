@@ -66,6 +66,7 @@ class MasterBookingSerializer(serializers.ModelSerializer):
             "client_phone",
             "car_model",
             "car_plate",
+            "service_category",
             "category_title",
             "service_title",
             "services",
@@ -291,6 +292,22 @@ class MasterServiceCategorySerializer(serializers.Serializer):
         return MasterServiceSerializer(obj.services.all(), many=True).data
 
 
+class MasterPointShortSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+
+
+class MasterServiceCatalogSerializer(serializers.Serializer):
+    """Каталог одним ответом: точки сотрудника и категории с услугами.
+
+    Точки отдельным списком, а не из категорий: на новой точке категорий
+    ещё нет, а первую завести как-то надо.
+    """
+
+    points = MasterPointShortSerializer(many=True)
+    categories = MasterServiceCategorySerializer(many=True)
+
+
 class MasterCategoryUpdateSerializer(MasterServiceCategorySerializer):
     """Правка категории: точку у категории не меняют — каталог у точки свой."""
 
@@ -352,11 +369,6 @@ class MasterOilCreateSerializer(MasterOilSerializer):
     initial_stock = OilStockRowSerializer(many=True, required=False, write_only=True)
 
 
-class MasterPointShortSerializer(serializers.Serializer):
-    id = serializers.UUIDField()
-    name = serializers.CharField()
-
-
 class MasterCatalogSerializer(serializers.Serializer):
     points = MasterPointShortSerializer(many=True)
     oils = MasterOilSerializer(many=True)
@@ -371,7 +383,10 @@ class LiveDraftSerializer(serializers.ModelSerializer):
 
     client_name = serializers.CharField(source="user.display_name", read_only=True)
     client_phone = serializers.CharField(source="user.phone", read_only=True)
-    oil_title = serializers.SerializerMethodField()
+    service_title = serializers.SerializerMethodField(
+        help_text="Что выбрано: услуга, «подберём на месте» или пока только категория"
+    )
+    oil_title = serializers.SerializerMethodField(help_text="Устарело: то же, что service_title")
     seconds_left = serializers.IntegerField(read_only=True)
 
     class Meta:
@@ -381,16 +396,23 @@ class LiveDraftSerializer(serializers.ModelSerializer):
             "step",
             "client_name",
             "client_phone",
+            "service_title",
             "oil_title",
             "slot_start",
             "seconds_left",
             "created_at",
         )
 
+    def get_service_title(self, obj: BookingDraft) -> str | None:
+        category = obj.service_category.name if obj.service_category_id else ""
+        if obj.on_site:
+            return "Подберём на месте" + (f" · {category}" if category else "")
+        if obj.service_id:
+            return obj.service.name
+        return f"{category} · услуга не выбрана" if category else None
+
     def get_oil_title(self, obj: BookingDraft) -> str | None:
-        if obj.oil_on_site:
-            return "Подберём на месте"
-        return str(obj.oil) if obj.oil_id else None
+        return self.get_service_title(obj)
 
 
 class DaySummarySerializer(serializers.Serializer):

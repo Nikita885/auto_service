@@ -706,7 +706,7 @@ td.nowrap { white-space: nowrap; }
    фильтрам: вкладки → одна строка инструментов → полоса сводки → таблица
    и колонка «записываются сейчас». */
 .ws-tabs { margin-bottom: var(--space-4); }
-/* Очередь звонков «подберите масло на месте» — над сводкой смены. */
+/* Очередь звонков «подберите на месте» — над сводкой смены. */
 #call-queue { margin-bottom: var(--space-3); align-items: center; }
 
 /* Рабочее место шире витринного контейнера: таблица смены — главное на
@@ -715,7 +715,7 @@ td.nowrap { white-space: nowrap; }
 .staff .page { padding-top: var(--space-5); }
 /* Ширины колонок и полей ниже — раскладка таблицы смены, а не шаг
    отступов: подобраны под самое длинное значение и шкалой не задаются. */
-.cell-oil { min-width: 170px; }
+.cell-service { min-width: 170px; }
 
 .toolbar {
   display: flex;
@@ -798,6 +798,22 @@ tr.is-next td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .qty-input { width: 84px; min-height: var(--control); text-align: right; font-variant-numeric: tabular-nums; }
 .qty-input.is-low { border-color: var(--danger); color: var(--danger); }
 
+/* Раздел «Услуги»: категории — колонкой слева, услуги выбранной — таблицей.
+   300px — та же раскладочная ширина, что у колонки «записываются сейчас»;
+   выбранная категория подсвечена правилом .choice-row ниже. */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+.cat-list { flex-direction: column; flex-wrap: nowrap; }
+.cat-item { display: flex; align-items: center; gap: var(--space-1); }
+.cat-item .btn { flex: 1; min-width: 0; justify-content: space-between; text-align: left; }
+/* Число услуг на выбранной (залитой акцентом) категории — цветом кнопки:
+   серый --text-soft на акценте не читается. */
+.cat-item .btn[aria-pressed="true"] .cell-sub { color: inherit; }
+
 /* Окно расчёта */
 .modal-wide { width: min(640px, 100%); }
 .checkout-lines { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-2) var(--space-4); }
@@ -832,6 +848,7 @@ tr.is-next td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 }
 
 @media (max-width: 1100px) {
+  .catalog-grid { grid-template-columns: 1fr; }
   .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .kpi:nth-child(4) { border-left: none; }
   .kpi:nth-child(n + 4) { border-top: 1px solid var(--border); }
@@ -861,7 +878,7 @@ tr.is-next td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
   .kpi-label { white-space: normal; }
 
   /* Карточка записи на телефоне — четыре строки без подписей: время и
-     статус, клиент с машиной, масло и сумма, кнопки. Подписи к полям тут
+     статус, клиент с машиной, услуга и сумма, кнопки. Подписи к полям тут
      лишние — по содержимому и так понятно, что где. */
   .shift-table tr:not(.row-empty) {
     display: grid;

@@ -1786,7 +1786,7 @@ paths:
         Клиенты, которые записываются прямо сейчас.
 
         Не обязательный экран, но полезный: видно, что через минуту приедет
-        ещё одна заявка, и на какое масло.
+        ещё одна заявка, и на какую услугу.
       tags:
       - Мастер
       security:
@@ -1962,7 +1962,7 @@ paths:
   /api/v1/master/service-categories/:
     get:
       operationId: master_service_categories_list
-      description: Категории точек сотрудника вместе с услугами внутри.
+      description: Точки сотрудника и категории этих точек вместе с услугами внутри.
       summary: Категории и услуги
       tags:
       - Мастер
@@ -1975,7 +1975,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/MasterServiceCategory'
+                  $ref: '#/components/schemas/MasterServiceCatalog'
           description: ''
     post:
       operationId: master_service_categories_create
@@ -3601,10 +3601,16 @@ components:
         client_phone:
           type: string
           readOnly: true
+        service_title:
+          type: string
+          nullable: true
+          readOnly: true
+          description: 'Что выбрано: услуга, «подберём на месте» или пока только категория'
         oil_title:
           type: string
           nullable: true
           readOnly: true
+          description: 'Устарело: то же, что service_title'
         slot_start:
           type: string
           format: date-time
@@ -3625,6 +3631,7 @@ components:
       - id
       - oil_title
       - seconds_left
+      - service_title
     MasterAvailableOil:
       type: object
       description: |-
@@ -3808,6 +3815,11 @@ components:
           type: string
           title: Госномер
           maxLength: 16
+        service_category:
+          type: string
+          format: uuid
+          nullable: true
+          title: Категория услуги
         category_title:
           type: string
           title: Категория (снимок)
@@ -4014,6 +4026,11 @@ components:
           type: string
           title: Госномер
           maxLength: 16
+        service_category:
+          type: string
+          format: uuid
+          nullable: true
+          title: Категория услуги
         category_title:
           type: string
           title: Категория (снимок)
@@ -4161,6 +4178,11 @@ components:
           type: string
           title: Госномер
           maxLength: 16
+        service_category:
+          type: string
+          format: uuid
+          nullable: true
+          title: Категория услуги
         category_title:
           type: string
           title: Категория (снимок)
@@ -4447,6 +4469,25 @@ components:
       - name
       - price
       - work_price
+    MasterServiceCatalog:
+      type: object
+      description: |-
+        Каталог одним ответом: точки сотрудника и категории с услугами.
+
+        Точки отдельным списком, а не из категорий: на новой точке категорий
+        ещё нет, а первую завести как-то надо.
+      properties:
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/MasterPointShort'
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/MasterServiceCategory'
+      required:
+      - categories
+      - points
     MasterServiceCategory:
       type: object
       description: Категория точки со своими услугами.

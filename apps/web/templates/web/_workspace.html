@@ -1,7 +1,7 @@
 {% comment %}
 Рабочее место сотрудника — общее для мастера и администратора: вкладки
-«Записи» и «Масла и склад», у администратора ещё «Метрики» (панель метрик
-лежит в admin.html, здесь только кнопка вкладки).
+«Записи» и «Услуги», у администратора ещё «Метрики» (панель метрик лежит в
+admin.html, здесь только кнопка вкладки).
 
 Всё, что мастер делает за смену, — на одном экране без прокрутки к
 фильтрам: дата и фильтры в одной строке, сводка — полосой над таблицей,
@@ -10,7 +10,7 @@
 
 <div class="ws-tabs tabs" role="tablist">
   <button class="tab" type="button" role="tab" data-tab="shift" aria-selected="true">Записи</button>
-  <button class="tab" type="button" role="tab" data-tab="oils" aria-selected="false">Масла и склад</button>
+  <button class="tab" type="button" role="tab" data-tab="services" aria-selected="false">Услуги</button>
   {% if with_metrics %}
   <button class="tab" type="button" role="tab" data-tab="metrics" aria-selected="false">Метрики</button>
   {% endif %}
@@ -51,7 +51,7 @@
           <tr>
             <th>Время</th>
             <th>Клиент и машина</th>
-            <th>Масло</th>
+            <th>Услуга</th>
             <th class="num">Сумма</th>
             <th>Статус</th>
             <th class="num">Действия</th>
@@ -74,19 +74,44 @@
   </div>
 </div>
 
-<!-- ------------------------------------------------------ масла и склад -->
-<div data-panel="oils" hidden>
+<!-- ------------------------------------------------------------- услуги -->
+<!-- Каталог у каждой точки свой: точка выбирается сверху, категории —
+     колонкой слева, услуги выбранной категории — таблицей справа. -->
+<div data-panel="services" hidden>
   <div class="toolbar">
-    <input id="o-search" class="toolbar-grow" type="search" placeholder="Бренд, название, вязкость" aria-label="Поиск масла">
-    <label class="check"><input id="o-inactive" type="checkbox"> Показывать снятые с продажи</label>
-    <button class="btn btn-primary" id="btn-add-oil" type="button">Добавить масло</button>
+    <select id="s-point" aria-label="Точка"></select>
+    <input id="s-search" class="toolbar-grow" type="search" placeholder="Название услуги" aria-label="Поиск услуги">
+    <label class="check"><input id="s-inactive" type="checkbox"> Показывать выключенные</label>
+    <button class="btn" id="btn-add-category" type="button">Новая категория</button>
+    <button class="btn btn-primary" id="btn-add-service" type="button">Новая услуга</button>
   </div>
-  <p class="hint panel-hint">Остаток — сколько канистр на полке сейчас. Меняйте число после прихода или пересчёта: сохраняется сразу.</p>
+  <p class="hint panel-hint">Выключенная услуга сразу пропадает у клиента, уже созданные записи не меняются. Остаток — сколько есть сейчас: меняйте после прихода или пересчёта, сохраняется сразу.</p>
 
-  <div class="table-wrap">
-    <table class="table-cards">
-      <thead id="oils-head"></thead>
-      <tbody id="oils-rows"></tbody>
-    </table>
+  <div class="catalog-grid">
+    <aside class="card side-card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Категории</div>
+          <div class="card-sub">В этом порядке их видит клиент</div>
+        </div>
+      </div>
+      <div class="choice-row cat-list" id="s-categories" role="group" aria-label="Категории услуг"></div>
+    </aside>
+
+    <div class="table-wrap">
+      <table class="table-cards">
+        <thead>
+          <tr>
+            <th>Услуга</th>
+            <th class="num">Цена</th>
+            <th class="num">Из них материал</th>
+            <th>Количество</th>
+            <th>В работе</th>
+            <th class="num"></th>
+          </tr>
+        </thead>
+        <tbody id="s-rows"></tbody>
+      </table>
+    </div>
   </div>
 </div>

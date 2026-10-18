@@ -51,6 +51,7 @@ from apps.master.serializers import (
     MasterCompleteSerializer,
     MasterOilCreateSerializer,
     MasterOilSerializer,
+    MasterServiceCatalogSerializer,
     MasterServiceCategorySerializer,
     MasterServiceCreateSerializer,
     MasterServiceSerializer,
@@ -444,7 +445,7 @@ class LiveDraftListView(mixins.ListModelMixin, viewsets.GenericViewSet):
     """Клиенты, которые записываются прямо сейчас.
 
     Не обязательный экран, но полезный: видно, что через минуту приедет
-    ещё одна заявка, и на какое масло.
+    ещё одна заявка, и на какую услугу.
     """
 
     permission_classes = [IsMaster]
@@ -456,7 +457,9 @@ class LiveDraftListView(mixins.ListModelMixin, viewsets.GenericViewSet):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return self.queryset
-        qs = BookingDraft.objects.alive().select_related("user", "oil", "service_point")
+        qs = BookingDraft.objects.alive().select_related(
+            "user", "service_point", "service_category", "service"
+        )
         allowed = self.request.user.accessible_point_ids()
         if allowed is not None:
             qs = qs.filter(service_point_id__in=allowed)
@@ -516,13 +519,16 @@ class MasterServiceCategoryViewSet(viewsets.ViewSet):
     permission_classes = [IsMaster]
 
     @extend_schema(
-        responses={200: MasterServiceCategorySerializer(many=True)},
+        responses={200: MasterServiceCatalogSerializer},
         summary="Категории и услуги",
-        description="Категории точек сотрудника вместе с услугами внутри.",
+        description="Точки сотрудника и категории этих точек вместе с услугами внутри.",
     )
     def list(self, request: Request) -> Response:
-        categories = services_service.catalog_for(request.user)
-        return Response(MasterServiceCategorySerializer(categories, many=True).data)
+        catalog = {
+            "points": services_service.points_for(request.user),
+            "categories": services_service.catalog_for(request.user),
+        }
+        return Response(MasterServiceCatalogSerializer(catalog).data)
 
     @extend_schema(
         request=MasterServiceCategorySerializer,

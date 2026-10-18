@@ -257,7 +257,7 @@ def test_master_creates_category_and_service_on_own_point(auth, master_user, poi
     assert created.status_code == 201, created.content
     assert created.json()["work_price"] == "2400.00"
 
-    listing = api.get(master_url("master-service-category-list")).json()
+    listing = api.get(master_url("master-service-category-list")).json()["categories"]
     tires = next(c for c in listing if c["name"] == "Замена резины")
     assert [s["name"] for s in tires["services"]] == ["Шиномонтаж R16"]
 
@@ -295,7 +295,10 @@ def test_admin_works_on_any_point_and_master_listing_is_scoped(
     master_user.service_points.add(point)
 
     names = [
-        c["name"] for c in auth(master_user).get(master_url("master-service-category-list")).json()
+        c["name"]
+        for c in auth(master_user)
+        .get(master_url("master-service-category-list"))
+        .json()["categories"]
     ]
 
     assert names == ["Первая"]  # категория чужой точки мастеру не видна
@@ -518,3 +521,44 @@ def test_booking_model_reads_unchanged_for_existing_rows(booking):
 
     assert fresh.oil_id is not None
     assert fresh.oil_title == fresh.service_title
+
+
+# ----------------------------------------------- панель мастера: каталог
+def test_catalog_lists_points_even_without_categories(auth, master_user, point, second_point):
+    """На новой точке категорий ещё нет, а первую завести надо — панель
+    должна знать точку и без них."""
+    body = auth(master_user).get(master_url("master-service-category-list")).json()
+
+    assert {p["name"] for p in body["points"]} == {point.name, second_point.name}
+    assert body["categories"] == []
+
+
+def test_catalog_points_are_scoped_for_a_master(auth, master_user, point, second_point):
+    master_user.service_points.add(point)
+
+    body = auth(master_user).get(master_url("master-service-category-list")).json()
+
+    assert [p["name"] for p in body["points"]] == [point.name]
+
+
+def test_master_booking_carries_category_id(auth, master_user, booking):
+    """По id категории панель открывает «Выбрать услугу» сразу на ней."""
+    body = auth(master_user).get(master_url("master-booking-detail", booking.pk)).json()
+
+    assert body["service_category"] == str(booking.service_category_id)
+
+
+def test_live_drafts_show_what_is_chosen(auth, master_user, client_user, point, category, service):
+    draft = draft_service.start_draft(client_user)
+    draft_service.select_point(client_user, draft.pk, point.pk)
+    draft_service.select_category(client_user, draft.pk, category.pk)
+    api = auth(master_user)
+
+    def title():
+        return api.get(reverse("v1:master:master-live-draft-list")).json()[0]["service_title"]
+
+    assert title() == "Замена масла · услуга не выбрана"
+    draft_service.select_service(client_user, draft.pk, on_site=True)
+    assert title() == "Подберём на месте · Замена масла"
+    draft_service.select_service(client_user, draft.pk, service.pk)
+    assert title() == service.name

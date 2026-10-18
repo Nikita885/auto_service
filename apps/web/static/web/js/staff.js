@@ -30,7 +30,11 @@
     socket: null,
     reconnectAt: null,
     onReady: null,
-    catalog: null,
+    // Каталог услуг: точки сотрудника и категории с услугами. Им же
+    // пользуется окно «Записать клиента» — за списком своих точек.
+    services: null,
+    servicePoint: null,
+    categoryId: null,
   };
 
   const STATUS_BADGE = {
@@ -244,18 +248,21 @@
             car ? document.createTextNode(" · " + car) : null,
           ]),
         ]),
-        el("td", { class: "cell-oil", "data-label": "Масло" }, [
-          // «Подберите на месте»: клиент ждёт звонка — мастер выбирает масло
+        el("td", { class: "cell-service", "data-label": "Услуга" }, [
+          // «Подберите на месте»: клиент ждёт звонка — мастер выбирает услугу
           // вместе с ним (решение заказчика: в течение 30 минут в рабочее время).
           isWaitingCall(booking)
-            ? el("span", { class: "badge badge-warn", text: "Позвонить, подобрать масло" })
-            : el("div", { text: booking.oil_title }),
-          state.points.length > 1 ? el("div", { class: "cell-sub", text: booking.service_point_name }) : null,
+            ? el("span", { class: "badge badge-warn", text: "Позвонить, подобрать услугу" })
+            : el("div", { text: booking.service_title }),
+          el("div", { class: "cell-sub", text: [
+            booking.category_title,
+            state.points.length > 1 ? booking.service_point_name : "",
+          ].filter(Boolean).join(" · ") }),
         ]),
         el("td", { class: "num nowrap", "data-label": "Сумма" }, [
           // Итог к оплате: если мастер поправил его при расчёте, рядом —
           // цена записи, чтобы разница была видна без открытия истории.
-          el("div", { class: "cell-main", text: booking.needs_oil ? "—" : fmt.money(booking.final_price) }),
+          el("div", { class: "cell-main", text: booking.needs_service ? "—" : fmt.money(booking.final_price) }),
           booking.final_price !== booking.total_price
             ? el("div", { class: "cell-sub", text: "по записи " + fmt.money(booking.total_price) })
             : null,
@@ -289,42 +296,48 @@
     note.innerHTML = icon("phone");
     note.append(el("span", {
       text: waiting.length === 1
-        ? "Клиент ждёт звонка: подобрать масло — " + waiting[0].local_time.split(" ")[1] + ", " + (waiting[0].client_name || waiting[0].client_phone) + "."
-        : waiting.length + " " + fmt.plural(waiting.length, "клиент ждёт", "клиента ждут", "клиентов ждут") + " звонка: подобрать масло.",
+        ? "Клиент ждёт звонка: подобрать услугу" +
+          (waiting[0].category_title ? " («" + waiting[0].category_title + "»)" : "") +
+          " — " + waiting[0].local_time.split(" ")[1] + ", " + (waiting[0].client_name || waiting[0].client_phone) + "."
+        : waiting.length + " " + fmt.plural(waiting.length, "клиент ждёт", "клиента ждут", "клиентов ждут") + " звонка: подобрать услугу.",
     }));
   }
 
   const isWaitingCall = (booking) =>
-    booking.needs_oil && (booking.status === "pending" || booking.status === "in_progress");
+    booking.needs_service && (booking.status === "pending" || booking.status === "in_progress");
 
-  /** Масло после звонка: клиент просил подобрать на месте. Список — то, что
-      есть на точке записи; цены записи поставит сервер. */
-  async function openSetOil(booking) {
-    const rows = await guard(() => api.get("/master/walk-in/oils/?service_point=" + booking.service_point));
+  /** Услуга после звонка: клиент просил подобрать на месте. Список — то,
+      что доступно на точке записи в её категории; цены записи поставит
+      сервер. */
+  async function openSetService(booking) {
+    const query = "?service_point=" + booking.service_point +
+      (booking.service_category ? "&category=" + booking.service_category : "");
+    const rows = await guard(() => api.get("/master/walk-in/services/" + query));
     if (!rows) return;
-    if (!rows.length) { toast("На этой точке нет масла в наличии.", "error"); return; }
-    const select = el("select", { id: "set-oil" }, rows.map((oil) =>
-      el("option", { value: oil.id, text: oil.brand + " " + oil.name + " " + oil.viscosity + " · " + fmt.money(oil.total_price) })));
+    if (!rows.length) { toast("В этой категории сейчас нечего выбрать.", "error"); return; }
+    const select = el("select", { id: "set-service" }, rows.map((row) =>
+      el("option", { value: row.id, text: row.name + " · " + fmt.money(row.total_price) })));
+    const car = [booking.car_model, booking.car_plate].filter(Boolean).join(" ");
     const body = el("div", { class: "stack" }, [
       el("p", { class: "hint" }, [
-        document.createTextNode("Клиент просил подобрать масло. Позвоните: "),
+        document.createTextNode("Клиент просил подобрать услугу" +
+          (booking.category_title ? " («" + booking.category_title + "»)" : "") + ". Позвоните: "),
         el("a", { href: "tel:" + booking.client_phone, text: booking.client_phone }),
-        document.createTextNode([booking.car_model, booking.car_plate].filter(Boolean).length
-          ? " · " + [booking.car_model, booking.car_plate].filter(Boolean).join(" ") : ""),
+        document.createTextNode(car ? " · " + car : ""),
       ]),
-      el("div", { class: "field" }, [el("label", { for: "set-oil", text: "Масло" }), select]),
+      el("div", { class: "field" }, [el("label", { for: "set-service", text: "Услуга" }), select]),
     ]);
     const cancel = el("button", { class: "btn", type: "button", text: "Отмена" });
-    const save = el("button", { class: "btn btn-primary", type: "button", text: "Сохранить масло" });
-    const dlg = App.dialog({ title: "Масло · " + booking.code, sub: booking.client_name || "Клиент", body, actions: [cancel, save] });
+    const save = el("button", { class: "btn btn-primary", type: "button", text: "Сохранить услугу" });
+    const dlg = App.dialog({ title: "Услуга · " + booking.code, sub: booking.client_name || "Клиент", body, actions: [cancel, save] });
     cancel.onclick = dlg.close;
     save.onclick = async () => {
       save.disabled = true;
-      const ok = await guard(() => api.post("/master/bookings/" + booking.id + "/set-oil/", { oil: select.value }));
+      const ok = await guard(() => api.post("/master/bookings/" + booking.id + "/set-service/", { service: select.value }));
       save.disabled = false;
       if (!ok) return;
       dlg.close();
-      toast("Масло выбрано: " + ok.oil_title, "ok");
+      toast("Услуга выбрана: " + ok.service_title, "ok");
       await reload();
     };
   }
@@ -341,9 +354,9 @@
     const btn = (label, cls, onClick) =>
       el("button", { class: "btn btn-sm " + cls, type: "button", text: label, onClick });
 
-    // Клиент ждёт звонка про масло — это первым: без масла не выполнить.
+    // Клиент ждёт звонка — это первым: без услуги запись не выполнить.
     if (isWaitingCall(booking)) {
-      box.append(btn("Выбрать масло", "btn-primary", () => openSetOil(booking)));
+      box.append(btn("Выбрать услугу", "btn-primary", () => openSetService(booking)));
     }
     // Главное действие по статусу — одно и первое: «в работу», потом «выполнено».
     if (booking.status === "pending" && !isWaitingCall(booking)) {
@@ -394,7 +407,7 @@
     const percent = Number(quote.max_discount_percent);
     const alreadySpent = Number(booking.points_spent) || 0;
 
-    // Итог мастер правит, если долил масла, добавил работу или уступил.
+    // Итог мастер правит, если добавил работу, долил материала или уступил.
     // Сервер считает потолок баллов от итога — окно считает так же, чтобы
     // мастер видел лимит до нажатия, а не из ошибки.
     const finalInput = el("input", {
@@ -471,8 +484,10 @@
 
     const body = el("div", { class: "stack" }, [
       el("div", { class: "checkout-lines" }, [
-        line("Масло · " + booking.oil_title, fmt.money(booking.oil_price)),
-        line("Работа", fmt.money(booking.work_price)),
+        // Позиции чека по записи: услуга и её цена на момент брони.
+        ...(booking.services || []).map((item) => line(
+          item.title + (item.quantity > 1 ? " × " + item.quantity : ""),
+          fmt.money(Number(item.price) * item.quantity))),
         line("По записи", fmt.money(bookedPrice), "checkout-sum"),
       ]),
       el("div", { class: "form-grid" }, [
@@ -488,8 +503,9 @@
     const cancel = el("button", { class: "btn", type: "button", text: "Отмена" });
     const dlg = App.dialog({
       title: "Расчёт · " + booking.code,
-      sub: (booking.client_name || "Клиент") + " · " + (booking.car_model || "") +
-        (booking.car_plate ? " " + booking.car_plate : ""),
+      // Без машины в записи точка-разделитель повисала бы в конце строки.
+      sub: [booking.client_name || "Клиент",
+        [booking.car_model, booking.car_plate].filter(Boolean).join(" ")].filter(Boolean).join(" · "),
       body, actions: [cancel, confirm], wide: true,
     });
     cancel.onclick = dlg.close;
@@ -519,18 +535,18 @@
   /** Окно «Записать клиента»: позвонил или приехал без записи.
 
       Проверки — на сервере, те же, что у записи из приложения; окно только
-      показывает то, что реально можно выбрать: масла в наличии и свободное
+      показывает то, что реально можно выбрать: услуги в наличии и свободное
       время точки. Время — без запаса до начала: мастер ставит и в слот,
       который уже идёт, если пост свободен. */
   async function openWalkIn() {
-    if (!state.catalog) {
-      // Свои точки сотрудника приходят вместе с каталогом масел: список
+    if (!state.services) {
+      // Свои точки сотрудника приходят вместе с каталогом услуг: список
       // /service-points/ публичный и отдаёт все адреса сети.
-      const data = await guard(() => api.get("/master/oils/"));
+      const data = await guard(() => api.get("/master/service-categories/"));
       if (!data) return;
-      state.catalog = data;
+      state.services = data;
     }
-    const points = state.catalog.points;
+    const points = state.services.points;
     if (!points.length) { toast("У вас нет доступных точек.", "error"); return; }
 
     // carId — машина клиента, выбранная кнопкой из подсказки. Пусто —
@@ -594,7 +610,7 @@
     }
     const point = el("select", { id: "wi-point" },
       points.map((p) => el("option", { value: p.id, text: p.name })));
-    const oil = el("select", { id: "wi-oil" });
+    const service = el("select", { id: "wi-service" });
     const date = input("wi-date", { type: "date", value: fmt.isoDate(), min: fmt.isoDate() });
     const slotBox = el("div", { class: "slot-grid", role: "group", "aria-label": "Свободное время" });
     const comment = input("wi-comment", { placeholder: "Необязательно", maxlength: "500" });
@@ -633,19 +649,29 @@
     phone.onblur = lookup;
     phone.oninput = () => { if (phone.value.replace(/\D/g, "").length >= 11) lookup(); };
 
-    async function loadOils() {
-      oil.innerHTML = "";
-      oil.append(el("option", { value: "", text: "Загружаем…" }));
-      const rows = await guard(() => api.get("/master/walk-in/oils/?service_point=" + point.value));
-      oil.innerHTML = "";
+    /* Услуги — одним списком, сгруппированным по категориям: мастер на
+       телефоне с клиентом ищет глазами, а не листает два выпадающих. */
+    async function loadOptions() {
+      service.innerHTML = "";
+      service.append(el("option", { value: "", text: "Загружаем…" }));
+      const rows = await guard(() => api.get("/master/walk-in/services/?service_point=" + point.value));
+      service.innerHTML = "";
       if (!rows || !rows.length) {
-        oil.append(el("option", { value: "", text: "Нет масла в наличии" }));
+        service.append(el("option", { value: "", text: "Нечего выбрать на этой точке" }));
         return;
       }
-      rows.forEach((row) => oil.append(el("option", {
-        value: row.id,
-        text: row.title + " · " + fmt.money(row.total_price) + " · " + row.available_quantity + " шт.",
-      })));
+      const groups = new Map();
+      rows.forEach((row) => {
+        if (!groups.has(row.category_title)) {
+          groups.set(row.category_title, el("optgroup", { label: row.category_title }));
+          service.append(groups.get(row.category_title));
+        }
+        groups.get(row.category_title).append(el("option", {
+          value: row.id,
+          text: row.name + " · " + fmt.money(row.total_price) +
+            (row.available_quantity === null ? "" : " · " + row.available_quantity + " шт."),
+        }));
+      });
     }
 
     async function loadSlots() {
@@ -679,7 +705,7 @@
       await loadSlots();
     }
 
-    point.onchange = () => { loadOils(); pickFirstDay(); };
+    point.onchange = () => { loadOptions(); pickFirstDay(); };
     date.onchange = loadSlots;
 
     const body = el("div", { class: "form-grid" }, [
@@ -689,7 +715,7 @@
       field("Машина", car),
       field("Госномер", plate),
       field("Адрес", point),
-      field("Масло", oil),
+      field("Услуга", service),
       el("div", { class: "field field-wide" }, [
         el("label", { for: "wi-date", text: "День и время" }),
         el("div", { class: "stack-sm" }, [date, slotBox]),
@@ -709,7 +735,7 @@
     save.onclick = async () => {
       const missing = [
         [!phone.value.trim(), "телефон"], [!name.value.trim(), "имя"],
-        [!oil.value, "масло"], [!form.slot, "время"],
+        [!service.value, "услугу"], [!form.slot, "время"],
       ].filter(([bad]) => bad).map(([, label]) => label);
       if (missing.length) { toast("Укажите: " + missing.join(", ") + ".", "error"); return; }
 
@@ -719,7 +745,7 @@
           phone: phone.value.trim(), full_name: name.value.trim(),
           car_model: car.value.trim(), car_plate: plate.value.trim().toUpperCase(),
           car_id: form.carId,
-          service_point: point.value, oil: oil.value, start_at: form.slot,
+          service_point: point.value, service: service.value, start_at: form.slot,
           comment: comment.value.trim(),
         });
         dlg.close();
@@ -731,186 +757,289 @@
         await reload();
       } catch (err) {
         toast(err.message || "Что-то пошло не так. Попробуйте ещё раз.", "error", "Не получилось");
-        // Пока мастер заполнял окно, время или последнюю канистру могли
-        // занять из приложения — показываем то, что осталось.
+        // Пока мастер заполнял окно, время или последнюю единицу услуги
+        // могли занять из приложения — показываем то, что осталось.
         if (err.code === "slot_taken" || err.code === "slot_too_soon") loadSlots();
-        if (err.code === "oil_out_of_stock") loadOils();
+        if (err.code === "service_out_of_stock") loadOptions();
       } finally {
         save.disabled = false;
       }
     };
 
     phone.focus();
-    loadOils();
+    loadOptions();
     pickFirstDay();
   }
 
-  /* ------------------------------------------------------- масла и склад */
+  /* -------------------------------------------------------------- услуги */
 
-  const OIL_TYPES = [
-    ["synthetic", "Синтетическое"],
-    ["semi_synthetic", "Полусинтетическое"],
-    ["mineral", "Минеральное"],
+  /** Вид для дневника клиента — те же значения, что `ServiceJournalKind`. */
+  const JOURNAL_KINDS = [
+    ["oil", "Замена масла"],
+    ["tires", "Шиномонтаж"],
+    ["wash", "Мойка"],
+    ["service", "ТО и ремонт"],
+    ["other", "Другое"],
   ];
 
-  async function loadOils() {
-    const data = await guard(() => api.get("/master/oils/"));
+  async function loadServices() {
+    const data = await guard(() => api.get("/master/service-categories/"));
     if (!data) return;
-    state.catalog = data;
-    renderOils();
+    state.services = data;
+
+    const select = $("#s-point");
+    const ids = data.points.map((p) => p.id);
+    if (!ids.includes(state.servicePoint)) state.servicePoint = ids[0] || null;
+    select.innerHTML = "";
+    data.points.forEach((p) => select.append(el("option", { value: p.id, text: p.name, selected: p.id === state.servicePoint })));
+    // Одна точка — выбирать не из чего, поле только занимает место.
+    select.hidden = data.points.length < 2;
+    renderServices();
   }
 
-  function renderOils() {
-    const data = state.catalog;
-    if (!data) return;
-    const query = $("#o-search").value.trim().toLowerCase();
-    const showInactive = $("#o-inactive").checked;
+  const pointCategories = () => (state.services ? state.services.categories : [])
+    .filter((c) => c.service_point === state.servicePoint);
 
-    const head = $("#oils-head");
-    head.innerHTML = "";
-    head.append(el("tr", {}, [
-      el("th", { text: "Масло" }),
-      el("th", { class: "num", text: "Масло, ₽" }),
-      el("th", { class: "num", text: "Работа, ₽" }),
-      el("th", { class: "num", text: "Итого" }),
-      ...data.points.map((point) => el("th", { class: "num", text: "Остаток · " + point.name })),
-      el("th", { text: "В продаже" }),
-      el("th", { class: "num", text: "" }),
-    ]));
+  function renderServices() {
+    if (!state.services) return;
+    const showInactive = $("#s-inactive").checked;
+    const query = $("#s-search").value.trim().toLowerCase();
+    const categories = pointCategories().filter((c) => showInactive || c.is_active);
+    if (!categories.some((c) => c.id === state.categoryId)) {
+      state.categoryId = categories.length ? categories[0].id : null;
+    }
 
-    const rows = data.oils.filter((oil) =>
-      (showInactive || oil.is_active) &&
-      (!query || oil.title.toLowerCase().includes(query)));
+    const list = $("#s-categories");
+    list.innerHTML = "";
+    if (!categories.length) {
+      list.append(el("p", { class: "hint", text: state.services.points.length
+        ? "Категорий пока нет — заведите первую: «Замена масла», «Шиномонтаж», «Мойка»."
+        : "У вас нет доступных точек." }));
+    }
+    categories.forEach((category) => {
+      const active = category.services.filter((s) => s.is_active).length;
+      const pick = el("button", {
+        class: "btn", type: "button", "aria-pressed": String(category.id === state.categoryId),
+        "aria-label": "Категория " + category.name + (category.is_active
+          ? ", " + active + " " + fmt.plural(active, "услуга", "услуги", "услуг") : ", выключена"),
+      }, [
+        el("span", { class: "cell-main", text: category.name }),
+        el("span", { class: "cell-sub", text: category.is_active
+          ? active + " " + fmt.plural(active, "услуга", "услуги", "услуг")
+          : "выключена" }),
+      ]);
+      pick.onclick = () => { state.categoryId = category.id; renderServices(); };
+      list.append(el("div", { class: "cat-item" + (category.is_active ? "" : " is-muted") }, [
+        pick,
+        el("button", { class: "icon-btn", type: "button", title: "Изменить категорию",
+          "aria-label": "Изменить категорию " + category.name, html: icon("edit", 16),
+          onClick: () => openCategoryForm(category) }),
+      ]));
+    });
 
-    const tbody = $("#oils-rows");
+    $("#btn-add-service").disabled = !state.categoryId;
+    const category = categories.find((c) => c.id === state.categoryId);
+    const rows = (category ? category.services : []).filter((s) =>
+      (showInactive || s.is_active) && (!query || s.name.toLowerCase().includes(query)));
+
+    const tbody = $("#s-rows");
     tbody.innerHTML = "";
     if (!rows.length) {
       tbody.append(el("tr", { class: "row-empty" }, [
-        el("td", { colspan: String(6 + data.points.length) }, [
-          empty(query ? "Ничего не нашлось." : "Масел пока нет — добавьте первое.", "drop"),
-        ]),
+        el("td", { colspan: "6" }, [empty(
+          !category ? "Выберите или заведите категорию."
+            : query ? "Ничего не нашлось."
+              : "В этой категории пока нет услуг — добавьте первую.", "drop")]),
       ]));
       return;
     }
-
-    rows.forEach((oil) => {
-      tbody.append(el("tr", { class: oil.is_active ? "" : "is-muted" }, [
-        el("td", { "data-label": "Масло" }, [
-          el("div", { class: "cell-main", text: oil.brand + " " + oil.name }),
-          el("div", { class: "cell-sub", text: oil.viscosity + " · " + oil.oil_type_display + " · " + oil.volume_liters + " л" }),
+    rows.forEach((service) => {
+      tbody.append(el("tr", { class: service.is_active ? "" : "is-muted" }, [
+        el("td", { "data-label": "Услуга" }, [
+          el("div", { class: "cell-main", text: service.name }),
+          service.description ? el("div", { class: "cell-sub", text: service.description }) : null,
         ]),
-        el("td", { class: "num", "data-label": "Масло, ₽", text: fmt.money(oil.price) }),
-        el("td", { class: "num", "data-label": "Работа, ₽", text: fmt.money(oil.work_price) }),
-        el("td", { class: "num cell-main", "data-label": "Итого", text: fmt.money(oil.total_price) }),
-        ...data.points.map((point) => el("td", { class: "num", "data-label": "Остаток · " + point.name }, [
-          stockInput(oil, point),
-        ])),
-        el("td", { "data-label": "В продаже" }, [activeToggle(oil)]),
+        el("td", { class: "num", "data-label": "Цена", text: fmt.money(service.price) }),
+        el("td", { class: "num", "data-label": "Из них материал" }, [
+          el("div", { text: Number(service.material_price) ? fmt.money(service.material_price) : "—" }),
+          Number(service.material_price)
+            ? el("div", { class: "cell-sub", text: "работа " + fmt.money(service.work_price) })
+            : null,
+        ]),
+        el("td", { "data-label": "Количество" }, [
+          service.is_limited ? quantityInput(service) : el("span", { class: "cell-sub", text: "без учёта" }),
+        ]),
+        el("td", { "data-label": "В работе" }, [activeToggle(service)]),
         el("td", { class: "num", "data-label": "" }, [
-          el("button", { class: "icon-btn", type: "button", title: "Изменить", "aria-label": "Изменить " + oil.title,
-            html: icon("edit", 16), onClick: () => openOilForm(oil) }),
+          el("button", { class: "icon-btn", type: "button", title: "Изменить",
+            "aria-label": "Изменить " + service.name, html: icon("edit", 16),
+            onClick: () => openServiceForm(service) }),
         ]),
       ]));
     });
   }
 
-  function stockInput(oil, point) {
-    const current = oil.stock[point.id] || 0;
+  async function patchService(service, body) {
+    return guard(() => api.patch("/master/services/" + service.id + "/", body));
+  }
+
+  /** Остаток — абсолютное число после пересчёта, сохраняется сразу. */
+  function quantityInput(service) {
+    const current = service.quantity;
     const input = el("input", {
       class: "qty-input" + (current <= 2 ? " is-low" : ""), type: "number", min: "0", step: "1",
-      value: String(current), inputmode: "numeric", "aria-label": "Остаток " + oil.title + " на " + point.name,
+      value: String(current), inputmode: "numeric", "aria-label": "Остаток: " + service.name,
     });
     input.onchange = async () => {
       const quantity = Math.max(0, Math.floor(Number(input.value) || 0));
-      const ok = await guard(() => api.post("/master/oils/" + oil.id + "/stock/", {
-        service_point: point.id, quantity,
-      }));
+      const ok = await patchService(service, { quantity });
       if (!ok) { input.value = String(current); return; }
-      oil.stock[point.id] = quantity;
-      input.classList.toggle("is-low", quantity <= 2);
-      toast(oil.brand + " " + oil.name + ": " + quantity + " шт. на " + point.name, "ok", "Остаток сохранён");
+      service.quantity = ok.quantity;
+      input.classList.toggle("is-low", ok.quantity <= 2);
+      toast(service.name + ": " + ok.quantity + " шт.", "ok", "Остаток сохранён");
     };
     return input;
   }
 
-  function activeToggle(oil) {
-    const box = el("input", { type: "checkbox", checked: oil.is_active, "aria-label": "В продаже: " + oil.title });
+  function activeToggle(service) {
+    const box = el("input", { type: "checkbox", checked: service.is_active, "aria-label": "В работе: " + service.name });
     box.onchange = async () => {
-      const ok = await guard(() => api.patch("/master/oils/" + oil.id + "/", { is_active: box.checked }));
+      const ok = await patchService(service, { is_active: box.checked });
       if (!ok) { box.checked = !box.checked; return; }
-      oil.is_active = box.checked;
-      renderOils();
+      service.is_active = ok.is_active;
+      renderServices();
     };
     return el("label", { class: "check" }, [box, el("span", { text: box.checked ? "да" : "нет" })]);
   }
 
-  /** Форма масла: новое или правка существующего. */
-  function openOilForm(oil) {
-    const isNew = !oil;
-    const field = (id, label, attrs) => {
-      const input = el("input", Object.assign({ id }, attrs));
-      return [el("div", { class: "field" }, [el("label", { for: id, text: label }), input]), input];
-    };
+  const formField = (id, label, control, extra) => el("div", { class: "field" + (extra ? " " + extra : "") }, [
+    el("label", { for: id, text: label }), control,
+  ]);
+  // Не `.field`: его подписи — заглавные, как у полей ввода, а подпись
+  // галочки — это фраза, и капсом она читается как крик.
+  const checkField = (id, label, checked, hint) => {
+    const box = el("input", { id, type: "checkbox", checked });
+    return [el("div", { class: "field-wide stack-sm" }, [
+      el("label", { class: "check" }, [box, el("span", { text: label })]),
+      hint ? el("span", { class: "hint", text: hint }) : null,
+    ]), box];
+  };
 
-    const [fBrand, brand] = field("oil-brand", "Бренд", { value: oil ? oil.brand : "", placeholder: "Shell", required: true });
-    const [fName, name] = field("oil-name", "Название", { value: oil ? oil.name : "", placeholder: "Helix HX8", required: true });
-    const [fVisc, visc] = field("oil-visc", "Вязкость", { value: oil ? oil.viscosity : "", placeholder: "5W-30", required: true });
-    const [fVol, vol] = field("oil-vol", "Объём канистры, л", { type: "number", step: "0.1", min: "0.1", value: oil ? oil.volume_liters : "4" });
-    const [fPrice, price] = field("oil-price", "Цена масла, ₽", { type: "number", step: "1", min: "0", value: oil ? Math.round(oil.price) : "" });
-    const [fWork, work] = field("oil-work", "Стоимость работы, ₽", { type: "number", step: "1", min: "0", value: oil ? Math.round(oil.work_price) : "" });
+  /** Категория: новая на выбранной точке или правка существующей. */
+  function openCategoryForm(category) {
+    const isNew = !category;
+    const pointId = isNew ? state.servicePoint : category.service_point;
+    if (!pointId) { toast("Нет точки, на которой завести категорию.", "error"); return; }
+    const point = state.services.points.find((p) => p.id === pointId);
 
-    const type = el("select", { id: "oil-type" },
-      OIL_TYPES.map(([value, label]) => el("option", { value, text: label, selected: oil ? oil.oil_type === value : value === "synthetic" })));
-
-    const stockInputs = isNew
-      ? state.catalog.points.map((point) => {
-        const input = el("input", { id: "oil-stock-" + point.id, type: "number", min: "0", step: "1", value: "0" });
-        return [point, input, el("div", { class: "field" }, [
-          el("label", { for: input.id, text: "Остаток · " + point.name }), input,
-        ])];
-      })
-      : [];
+    const name = el("input", { id: "cat-name", value: isNew ? "" : category.name, placeholder: "Например: Шиномонтаж", maxlength: "120" });
+    const order = el("input", { id: "cat-order", type: "number", min: "0", step: "1", value: String(isNew ? 100 : category.sort_order) });
+    const kind = el("select", { id: "cat-kind" }, JOURNAL_KINDS.map(([value, label]) =>
+      el("option", { value, text: label, selected: (isNew ? "other" : category.journal_kind) === value })));
+    const [onSiteField, onSite] = checkField("cat-on-site", "Можно записаться, не выбрав услугу",
+      isNew ? true : category.allow_on_site, "Клиент выберет «подберите на месте», мастер перезвонит и подберёт услугу.");
+    const [activeField, active] = checkField("cat-active", "Включена — видна клиенту", isNew ? true : category.is_active);
 
     const body = el("div", { class: "form-grid" }, [
-      fBrand, fName, fVisc,
-      el("div", { class: "field" }, [el("label", { for: "oil-type", text: "Тип" }), type]),
-      fVol, fPrice, fWork,
-      ...stockInputs.map((row) => row[2]),
+      formField("cat-name", "Название", name),
+      formField("cat-order", "Порядок показа", order),
+      formField("cat-kind", "Вид в дневнике клиента", kind, "field-wide"),
+      el("p", { class: "hint field-wide", text: "Напоминание о замене масла у клиента двигают только категории вида «Замена масла»." }),
+      onSiteField, activeField,
     ]);
-
     const save = el("button", { class: "btn btn-primary", type: "button", text: isNew ? "Добавить" : "Сохранить" });
     const cancel = el("button", { class: "btn", type: "button", text: "Отмена" });
     const dlg = App.dialog({
-      title: isNew ? "Новое масло" : "Изменить масло",
-      sub: isNew ? "Появится в приложении на точках, где остаток больше нуля." : "Уже созданные записи не изменятся — в них цена на момент брони.",
+      title: isNew ? "Новая категория" : "Изменить категорию",
+      sub: point ? "Точка: " + point.name : "",
       body, actions: [cancel, save], wide: true,
     });
     cancel.onclick = dlg.close;
-
     save.onclick = async () => {
-      if (!brand.value.trim() || !name.value.trim() || !visc.value.trim() || price.value === "" || work.value === "") {
-        toast("Заполните бренд, название, вязкость и обе цены.", "error");
-        return;
-      }
+      if (!name.value.trim()) { toast("Назовите категорию.", "error"); return; }
       const payload = {
-        brand: brand.value.trim(), name: name.value.trim(), viscosity: visc.value.trim().toUpperCase(),
-        oil_type: type.value, volume_liters: vol.value, price: price.value, work_price: work.value,
+        name: name.value.trim(), sort_order: Math.max(0, Math.floor(Number(order.value) || 0)),
+        journal_kind: kind.value, allow_on_site: onSite.checked, is_active: active.checked,
       };
-      if (isNew) {
-        payload.initial_stock = stockInputs.map(([point, input]) => ({
-          service_point: point.id, quantity: Math.max(0, Math.floor(Number(input.value) || 0)),
-        }));
-      }
+      if (isNew) payload.service_point = pointId;
       save.disabled = true;
       const ok = await guard(() => isNew
-        ? api.post("/master/oils/", payload)
-        : api.patch("/master/oils/" + oil.id + "/", payload));
+        ? api.post("/master/service-categories/", payload)
+        : api.patch("/master/service-categories/" + category.id + "/", payload));
       save.disabled = false;
       if (!ok) return;
       dlg.close();
-      toast(payload.brand + " " + payload.name, "ok", isNew ? "Масло добавлено" : "Сохранено");
-      await loadOils();
+      state.categoryId = ok.id;
+      toast(ok.name, "ok", isNew ? "Категория добавлена" : "Сохранено");
+      await loadServices();
     };
+    name.focus();
+  }
+
+  /** Услуга: новая в выбранной категории или правка существующей. */
+  function openServiceForm(service) {
+    const isNew = !service;
+    const category = pointCategories().find((c) => c.id === (isNew ? state.categoryId : service.category));
+    if (!category) { toast("Сначала выберите категорию.", "error"); return; }
+
+    const name = el("input", { id: "svc-name", value: isNew ? "" : service.name, maxlength: "160", placeholder: "Например: Шиномонтаж R16" });
+    const price = el("input", { id: "svc-price", type: "number", min: "0", step: "1", inputmode: "numeric", value: isNew ? "" : String(Math.round(service.price)) });
+    const material = el("input", { id: "svc-material", type: "number", min: "0", step: "1", inputmode: "numeric", value: isNew ? "0" : String(Math.round(service.material_price)) });
+    const description = el("input", { id: "svc-description", maxlength: "500", value: isNew ? "" : service.description, placeholder: "Необязательно" });
+    const order = el("input", { id: "svc-order", type: "number", min: "0", step: "1", value: String(isNew ? 100 : service.sort_order) });
+    const quantity = el("input", { id: "svc-quantity", type: "number", min: "0", step: "1", inputmode: "numeric", value: String(isNew ? 0 : service.quantity) });
+    const [limitedField, limited] = checkField("svc-limited", "Количество ограничено",
+      isNew ? false : service.is_limited, "Ведём остаток: услуга пропадает у клиента, когда он кончился. Мойку не отмечайте.");
+    const quantityField = formField("svc-quantity", "Остаток сейчас", quantity);
+    const [activeField, active] = checkField("svc-active", "Включена в работу — видна клиенту", isNew ? true : service.is_active);
+    const workText = el("span", { class: "hint" });
+
+    const refresh = () => {
+      quantityField.hidden = !limited.checked;
+      const p = Number(price.value) || 0;
+      const m = Number(material.value) || 0;
+      workText.textContent = m > p ? "Материал не может стоить больше услуги." : "Работа: " + fmt.money(p - m);
+      workText.classList.toggle("hint-error", m > p);
+    };
+    [price, material].forEach((box) => { box.oninput = refresh; });
+    limited.onchange = refresh;
+
+    const body = el("div", { class: "form-grid" }, [
+      formField("svc-name", "Название", name, "field-wide"),
+      formField("svc-price", "Цена, ₽ — её называете клиенту", price),
+      el("div", { class: "field" }, [el("label", { for: "svc-material", text: "Из них материал, ₽" }), material, workText]),
+      formField("svc-description", "Описание", description),
+      formField("svc-order", "Порядок показа", order),
+      limitedField, quantityField, activeField,
+    ]);
+    const save = el("button", { class: "btn btn-primary", type: "button", text: isNew ? "Добавить" : "Сохранить" });
+    const cancel = el("button", { class: "btn", type: "button", text: "Отмена" });
+    const dlg = App.dialog({
+      title: isNew ? "Новая услуга" : "Изменить услугу",
+      sub: isNew ? "Категория: " + category.name : "Уже созданные записи не изменятся — в них цена на момент брони.",
+      body, actions: [cancel, save], wide: true,
+    });
+    cancel.onclick = dlg.close;
+    save.onclick = async () => {
+      if (!name.value.trim() || price.value === "") { toast("Укажите название и цену.", "error"); return; }
+      if ((Number(material.value) || 0) > Number(price.value)) { toast("Материал не может стоить больше услуги.", "error"); return; }
+      const payload = {
+        name: name.value.trim(), description: description.value.trim(),
+        price: String(Math.round(Number(price.value))), material_price: String(Math.round(Number(material.value) || 0)),
+        is_limited: limited.checked, quantity: Math.max(0, Math.floor(Number(quantity.value) || 0)),
+        is_active: active.checked, sort_order: Math.max(0, Math.floor(Number(order.value) || 0)),
+      };
+      if (isNew) payload.category = category.id;
+      save.disabled = true;
+      const ok = await guard(() => isNew ? api.post("/master/services/", payload) : patchService(service, payload));
+      save.disabled = false;
+      if (!ok) return;
+      dlg.close();
+      toast(ok.name, "ok", isNew ? "Услуга добавлена" : "Сохранено");
+      await loadServices();
+    };
+    refresh();
+    name.focus();
   }
 
   /* ---------------------------------------------------------- черновики */
@@ -937,7 +1066,7 @@
         el("div", { style: "flex:1;min-width:0" }, [
           el("div", { class: "cell-main", text: draft.client_name || "Без имени" }),
           el("div", { class: "cell-sub",
-            text: (draft.oil_title || "масло не выбрано") +
+            text: (draft.service_title || "услуга не выбрана") +
               (draft.slot_start ? " · " + fmt.dateTime(draft.slot_start) : "") }),
         ]),
         el("span", { class: "badge " + (low ? "badge-danger" : "badge-accent") }, [
@@ -1066,10 +1195,16 @@
     $("#day-next").onclick = () => shiftDay(1);
     $("#day-today").onclick = () => { $("#f-date").value = fmt.isoDate(); reload(); };
 
-    $("#btn-add-oil").onclick = () => openOilForm(null);
+    $("#btn-add-category").onclick = () => openCategoryForm(null);
+    $("#btn-add-service").onclick = () => openServiceForm(null);
     $("#btn-walk-in").onclick = openWalkIn;
-    $("#o-search").oninput = renderOils;
-    $("#o-inactive").onchange = renderOils;
+    $("#s-search").oninput = renderServices;
+    $("#s-inactive").onchange = renderServices;
+    $("#s-point").onchange = () => {
+      state.servicePoint = $("#s-point").value;
+      state.categoryId = null;
+      renderServices();
+    };
 
     ["#f-date", "#f-point", "#f-status"].forEach((sel) => { $(sel).onchange = reload; });
 
@@ -1079,15 +1214,15 @@
       searchTimer = setTimeout(reload, 350);
     };
 
-    // Вкладки «Записи» / «Масла и склад» (и «Метрики» у администратора).
-    // Масла загружаются при первом открытии вкладки — смене они не нужны.
+    // Вкладки «Записи» / «Услуги» (и «Метрики» у администратора). Каталог
+    // загружается при открытии вкладки — смене он не нужен.
     $$(".tab[data-tab]").forEach((tab) => {
       tab.onclick = () => {
         $$(".tab[data-tab]").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
         $$("[data-panel]").forEach((panel) => {
           panel.hidden = panel.dataset.panel !== tab.dataset.tab;
         });
-        if (tab.dataset.tab === "oils") loadOils();
+        if (tab.dataset.tab === "services") loadServices();
       };
     });
   }
