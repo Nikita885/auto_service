@@ -504,13 +504,16 @@
 .wizard-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 /* Шаги чипами: подпись шага сверху, выбранное — под ней. Пройденный
    открывается касанием, будущий недоступен. */
-.step-chips { min-width: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-1); }
+/* Пять шагов: адрес, категория, услуга, время, машина. */
+.step-chips { min-width: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-1); }
 .step-chip {
   display: grid;
   gap: var(--space-0);
   min-width: 0;
   min-height: var(--touch);
-  padding: var(--space-1) var(--space-2);
+  /* Пять чипов в строку на 375 px: боковой отступ — меньшая ступень,
+     иначе подпись «Категория» и значения обрезаются на первых буквах. */
+  padding: var(--space-1);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -519,7 +522,9 @@
   text-align: left;
   cursor: pointer;
 }
-.step-chip small { font-size: var(--fs-caption); font-weight: var(--fw-semibold); white-space: nowrap; }
+/* На 375 px пятая часть строки уже «Категории»: подпись обрезается, а не
+   распирает чип и не уводит сетку вбок. */
+.step-chip small { font-size: var(--fs-caption); font-weight: var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .step-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-small); font-weight: var(--fw-semibold); }
 .step-chip.is-done { color: var(--text); border-color: var(--border-strong); }
 .step-chip.is-done small { color: var(--ok); }
@@ -565,6 +570,18 @@
 .choice:disabled { opacity: .5; }
 .choice:focus-visible { outline: none; box-shadow: var(--ring); }
 .choice-body { flex: 1; min-width: 0; }
+/* Значок вида категории — масло, шины, мойка: искать глазами быстрее,
+   чем читать. Та же плашка, что у полосок на «Главной». */
+.choice-ico {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--control);
+  height: var(--control);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
 .choice-title { display: block; font-weight: var(--fw-semibold); }
 .choice-meta { display: block; margin-top: var(--space-0); font-size: var(--fs-small); color: var(--text-soft); }
 .choice-side { text-align: right; font-weight: var(--fw-bold); white-space: nowrap; }

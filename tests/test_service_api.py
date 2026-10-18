@@ -562,3 +562,18 @@ def test_live_drafts_show_what_is_chosen(auth, master_user, client_user, point, 
     assert title() == "Подберём на месте · Замена масла"
     draft_service.select_service(client_user, draft.pk, service.pk)
     assert title() == service.name
+
+
+# ------------------------------------------- приложение: значок категории
+def test_client_gets_category_kind_for_icons_but_no_prices(auth, client_user, point, service, wash):
+    body = auth(client_user).get(url("point-categories", point.pk)).json()
+
+    assert {c["name"]: c["journal_kind"] for c in body} == {"Замена масла": "oil", "Мойка": "wash"}
+    assert "price" not in json.dumps(body)
+
+
+def test_client_booking_carries_category_kind(auth, client_user, booking):
+    body = auth(client_user).get(url("booking-detail", booking.pk)).json()
+
+    assert (body["category_title"], body["category_kind"]) == ("Замена масла", "oil")
+    assert body["service_title"] == booking.service_title

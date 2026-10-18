@@ -1,14 +1,15 @@
-/* Мастер записи: адрес → масло → время → машина и подтверждение.
+/* Мастер записи: адрес → категория → услуга → время → машина и подтверждение.
 
    Открывается окном снизу на «Главной» (`BookingWizard` в `Sheet`).
    Черновик живёт на сервере, поэтому окно можно закрыть в любой момент:
    «Главная» покажет «Продолжить запись», и мастер откроется на том же
    шаге с тем же таймером.
 
-   Шаги — те же четыре, по порядку (выбор заказчика), но сверху видно, что
-   уже выбрано, и на любой пройденный шаг можно вернуться касанием: сервер
-   это разрешает и сам сбрасывает то, что зависит от изменённого (другой
-   адрес — заново масло и время). Вперёд — только по порядку: какой шаг
+   Шаги идут по порядку, сверху видно, что уже выбрано, и на любой
+   пройденный шаг можно вернуться касанием: сервер это разрешает и сам
+   сбрасывает то, что зависит от изменённого (другой адрес — заново
+   категория, услуга и время; другая категория — заново услуга). Цен
+   клиент не видит нигде: ни в списках, ни в подтверждении. Вперёд — только по порядку: какой шаг
    следующий, говорит сервер (`next_action`); своего конечного автомата
    здесь нет — вторая копия правил однажды разошлась бы с первой. Таймер
    тоже серверный: `seconds_left` при каждом ответе, локально только
@@ -31,18 +32,16 @@ export const CALLBACK_TEXT = "Мастер позвонит и поможет в
 /** Шаги по порядку: ключ вида, действие сервера и подпись чипа. */
 const STEPS = [
   ["point", "select_point", "Адрес"],
-  ["oil", "select_oil", "Масло"],
+  ["category", "select_category", "Категория"],
+  ["service", "select_service", "Услуга"],
   ["slot", "select_slot", "Время"],
   ["confirm", "confirm", "Машина"],
 ];
-// Сервер с категориями называет шаги select_category и select_service. Пока
-// экран выбирает масло (его заменит выбор категории и услуги), оба — шаг
-// «Масло»: select-oil на сервере сам ставит категорию. Без этой строки
-// незнакомое действие откатывало бы мастер записи на «Адрес».
-const viewOf = (action) => {
-  if (action === "select_category" || action === "select_service") return "oil";
-  return (STEPS.find((s) => s[1] === action) || STEPS[0])[0];
-};
+const viewOf = (action) => (STEPS.find((s) => s[1] === action) || STEPS[0])[0];
+
+/** Значок категории по её виду — тому же, что попадает в дневник. */
+const KIND_ICON = { oil: "drop", tires: "tire", wash: "wash", service: "wrench", other: "list" };
+export const kindIcon = (kind) => KIND_ICON[kind] || "list";
 const indexOf = (view) => STEPS.findIndex((s) => s[0] === view);
 
 /** Весь сценарий записи. `onClose` — закрыть окно (черновик остаётся),
@@ -99,8 +98,8 @@ export function BookingWizard({ onClose, onBooked }) {
         setExpired(true);
       } else {
         toast(errorText(err), "error");
-        // Слот заняли или масло разобрали — черновик жив, перечитываем его.
-        if (err.code === "slot_taken" || err.code === "oil_out_of_stock") reload();
+        // Слот заняли или услугу разобрали — черновик жив, перечитываем его.
+        if (err.code === "slot_taken" || err.code === "service_out_of_stock") reload();
       }
       return undefined;
     } finally {
@@ -122,7 +121,7 @@ export function BookingWizard({ onClose, onBooked }) {
       else {
         toast(errorText(err), "error");
         // Машину удалили на другом устройстве — черновик жив, выбор
-        // перечитается; остальное (слот, масло) — перечитываем черновик.
+        // перечитается; остальное (слот, услуга) — перечитываем черновик.
         if (err.code !== "car_not_found") reload();
       }
     } finally {
@@ -162,7 +161,8 @@ export function BookingWizard({ onClose, onBooked }) {
   const point = draft.service_point;
   let content;
   if (view === "point") content = html`<${PointStep} draft=${draft} busy=${busy} step=${step} />`;
-  else if (view === "oil") content = html`<${OilStep} draft=${draft} busy=${busy} step=${step} />`;
+  else if (view === "category") content = html`<${CategoryStep} draft=${draft} busy=${busy} step=${step} />`;
+  else if (view === "service") content = html`<${ServiceStep} draft=${draft} busy=${busy} step=${step} />`;
   else if (view === "slot") {
     content = html`<${SlotPicker} pointId=${point.id} zone=${point.timezone} pointName=${point.name}
       initial=${draft.slot_start} busy=${busy} actionLabel="Дальше"
@@ -191,7 +191,8 @@ function StepChips({ draft, view, onPick, onExpire }) {
   const reached = indexOf(viewOf(draft.next_action));
   const value = {
     point: draft.service_point && draft.service_point.name,
-    oil: draft.oil_on_site ? "Подберём на месте" : draft.oil && draft.oil.brand,
+    category: draft.service_category && draft.service_category.name,
+    service: draft.on_site ? "На месте" : draft.service && draft.service.name,
     slot: draft.slot_start && visitTime(draft.slot_start, draft.service_point.timezone),
     confirm: null,
   };
@@ -239,8 +240,9 @@ export function Timer({ seconds, stamp, onExpire }) {
     aria-label=${"На запись осталось " + fmt.clock(left)}>${fmt.clock(left)}</span>`;
 }
 
-function Choice({ selected, disabled, onClick, title, meta, side }) {
+function Choice({ selected, disabled, onClick, title, meta, side, icon }) {
   return html`<button class="choice" type="button" aria-pressed=${String(Boolean(selected))} disabled=${disabled} onClick=${onClick}>
+    ${icon && html`<span class="choice-ico" aria-hidden="true" dangerouslySetInnerHTML=${{ __html: window.App.icon(icon, 20) }}></span>`}
     <span class="choice-body">
       <span class="choice-title">${title}</span>
       ${meta && html`<span class="choice-meta">${meta}</span>`}
@@ -263,30 +265,58 @@ function PointStep({ draft, busy, step }) {
       : html`<div class="stack-sm">${points.map((p) => html`<${Choice} key=${p.id} selected=${p.id === chosen} disabled=${busy}
           title=${p.name} meta=${p.address + " · " + hours(p)}
           onClick=${() => step("select-point", { service_point_id: p.id })} />`)}</div>`}
-    ${chosen && html`<p class="hint">Другой адрес — масло и время выберете заново: на нём своё наличие и своё расписание.</p>`}
+    ${chosen && html`<p class="hint">Другой адрес — услугу и время выберете заново: на нём свои услуги и своё расписание.</p>`}
   </section>`;
 }
 
-const liters = (v) => String(Number(v)).replace(".", ",") + " л";
+/** Что входит в категорию — первые услуги по названию, без цен. */
+function categoryMeta(category) {
+  const names = category.services.map((s) => s.name);
+  if (!names.length) return "Мастер подберёт на месте";
+  const shown = names.slice(0, 2).join(" · ");
+  return names.length > 2 ? shown + " и ещё " + (names.length - 2) : shown;
+}
 
-function OilStep({ draft, busy, step }) {
-  const [oils, setOils] = useState(null);
+function CategoryStep({ draft, busy, step }) {
+  const [categories, setCategories] = useState(null);
   useEffect(() => {
-    call(() => api.get("/service-points/" + draft.service_point.id + "/oils/")).then((o) => setOils(o || []));
+    call(() => api.get("/service-points/" + draft.service_point.id + "/categories/"))
+      .then((rows) => setCategories(rows || []));
   }, [draft.service_point.id]);
-  const chosen = draft.oil && draft.oil.id;
+  const chosen = draft.service_category && draft.service_category.id;
   return html`<section class="stack">
-    <h3 class="step-title">Какое масло?</h3>
-    ${!oils ? html`<${Skel} h="var(--control-lg)" r="var(--radius)" /><${Skel} h="var(--control-lg)" r="var(--radius)" />`
+    <h3 class="step-title">Что нужно сделать?</h3>
+    ${!categories ? html`<${Skel} h="var(--control-lg)" r="var(--radius)" /><${Skel} h="var(--control-lg)" r="var(--radius)" />`
+      : !categories.length ? html`<p class="muted">На этом адресе сейчас не записаться — выберите другой или позвоните: ${CONFIG.phone}.</p>`
+      : html`<div class="stack-sm">${categories.map((c) => html`<${Choice} key=${c.id} selected=${c.id === chosen}
+          disabled=${busy} icon=${kindIcon(c.journal_kind)} title=${c.name} meta=${categoryMeta(c)}
+          onClick=${() => step("select-category", { category_id: c.id })} />`)}</div>`}
+    ${chosen && html`<p class="hint">Другая категория — услугу выберете заново, время останется за вами.</p>`}
+  </section>`;
+}
+
+function ServiceStep({ draft, busy, step }) {
+  const category = draft.service_category;
+  const [services, setServices] = useState(null);
+  useEffect(() => {
+    setServices(null);
+    call(() => api.get("/service-points/" + draft.service_point.id + "/services/?category=" + category.id))
+      .then((rows) => setServices(rows || []));
+  }, [category.id]);
+  const chosen = draft.service && draft.service.id;
+  return html`<section class="stack">
+    <h3 class="step-title">${category.name}: что именно?</h3>
+    ${!services ? html`<${Skel} h="var(--control-lg)" r="var(--radius)" /><${Skel} h="var(--control-lg)" r="var(--radius)" />`
       : html`<div class="stack-sm">
-          ${oils.map((oil) => html`<${Choice} key=${oil.id} selected=${oil.id === chosen} disabled=${busy}
-            title=${oil.brand + " " + oil.name} meta=${[oil.viscosity, oil.oil_type_display, liters(oil.volume_liters)].join(" · ")}
-            onClick=${() => step("select-oil", { oil_id: oil.id })} />`)}
-          <${Choice} selected=${draft.oil_on_site} disabled=${busy} title="Не знаю — подберите на месте"
-            meta=${CALLBACK_TEXT}
-            onClick=${() => step("select-oil", { on_site: true })} />
+          ${services.map((s) => html`<${Choice} key=${s.id} selected=${s.id === chosen} disabled=${busy}
+            title=${s.name} meta=${s.description} onClick=${() => step("select-service", { service_id: s.id })} />`)}
+          ${category.allow_on_site && html`<${Choice} selected=${draft.on_site} disabled=${busy}
+            title="Не знаю — подберите на месте" meta=${CALLBACK_TEXT}
+            onClick=${() => step("select-service", { on_site: true })} />`}
         </div>`}
-    ${oils && !oils.length && html`<p class="hint">На этом адресе сейчас нет масла в наличии — выберите «Подберите на месте» или другой адрес.</p>`}
+    ${services && !services.length && html`<p class="hint">${category.allow_on_site
+      ? "Сейчас здесь нечего выбрать — нажмите «Подберите на месте» или выберите другой адрес."
+      : "Сейчас здесь нечего выбрать — выберите другую категорию или адрес."}</p>`}
   </section>`;
 }
 
@@ -383,7 +413,7 @@ function ConfirmStep({ draft, busy, confirm }) {
     <div class="card pad info-list">
       <${InfoRow} icon="calendar" label="Когда">${visitTime(draft.slot_start, point.timezone)}</${InfoRow}>
       <${InfoRow} icon="pin" label=${point.name}>${point.address}</${InfoRow}>
-      <${InfoRow} icon="drop" label="Масло">${draft.oil_on_site ? "Подберём на месте — мастер позвонит" : draft.oil.title}</${InfoRow}>
+      <${InfoRow} icon=${kindIcon(draft.service_category.journal_kind)} label=${draft.service_category.name}>${draft.on_site ? "Подберём на месте — мастер позвонит" : draft.service.name}</${InfoRow}>
     </div>
     <span class="label">Какую машину привезёте</span>
     <${CarPicker} value=${carId} onChange=${setCarId} />
@@ -417,7 +447,7 @@ function Created({ booking, onDone }) {
     </div>
     <div class="card pad info-list">
       <${InfoRow} icon="pin" label=${point.name}>${point.address}</${InfoRow}>
-      <${InfoRow} icon="drop" label="Масло">${booking.oil_title}</${InfoRow}>
+      <${InfoRow} icon=${kindIcon(booking.category_kind)} label=${booking.category_title || "Услуга"}>${booking.service_title}</${InfoRow}>
       ${booking.car && html`<${InfoRow} icon="car" label="Машина">${carLabel(booking.car)}</${InfoRow}>`}
     </div>
     ${booking.oil_on_site && html`<p class="hint">${CALLBACK_TEXT}.</p>`}

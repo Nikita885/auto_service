@@ -183,6 +183,9 @@ class BookingSerializer(serializers.ModelSerializer):
     services = serializers.SerializerMethodField(
         help_text="Услуги записи — только названия: цен клиенту не показываем"
     )
+    category_kind = serializers.SerializerMethodField(
+        help_text="Вид категории (oil, tires, wash, service, other) — для значка в приложении"
+    )
 
     class Meta:
         model = Booking
@@ -193,6 +196,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "status_display",
             "service_point",
             "category_title",
+            "category_kind",
             "service_title",
             "services",
             # Прежнее название осталось в ответе, пока обновляются
@@ -222,6 +226,10 @@ class BookingSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_services(self, obj: Booking) -> list[str]:
         return [item.title for item in obj.items.all()]
+
+    def get_category_kind(self, obj: Booking) -> str:
+        category = obj.service_category
+        return category.journal_kind if category is not None else "other"
 
     @staticmethod
     def _completed(obj: Booking) -> bool:

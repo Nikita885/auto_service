@@ -2625,6 +2625,11 @@ components:
           type: string
           title: Категория (снимок)
           maxLength: 120
+        category_kind:
+          type: string
+          readOnly: true
+          description: Вид категории (oil, tires, wash, service, other) — для значка
+            в приложении
         service_title:
           type: string
           title: Услуги (снимок)
@@ -2712,6 +2717,7 @@ components:
       - can_cancel
       - can_reschedule
       - car
+      - category_kind
       - created_at
       - end_at
       - final_price
@@ -2755,6 +2761,11 @@ components:
           type: string
           title: Категория (снимок)
           maxLength: 120
+        category_kind:
+          type: string
+          readOnly: true
+          description: Вид категории (oil, tires, wash, service, other) — для значка
+            в приложении
         service_title:
           type: string
           title: Услуги (снимок)
@@ -2851,6 +2862,7 @@ components:
       - can_cancel
       - can_reschedule
       - car
+      - category_kind
       - created_at
       - end_at
       - final_price
@@ -5764,6 +5776,18 @@ components:
           type: string
           title: Название
           maxLength: 120
+        journal_kind:
+          allOf:
+          - $ref: '#/components/schemas/JournalKindEnum'
+          title: Вид для дневника
+          description: |-
+            Чем выполненная запись станет в дневнике клиента. Напоминание о масле двигают только категории вида «Замена масла».
+
+            * `oil` - Замена масла
+            * `tires` - Шиномонтаж
+            * `wash` - Мойка
+            * `service` - ТО и ремонт
+            * `other` - Другое
         allow_on_site:
           type: boolean
           title: Можно подобрать на месте
@@ -5791,6 +5815,18 @@ components:
           minLength: 1
           title: Название
           maxLength: 120
+        journal_kind:
+          allOf:
+          - $ref: '#/components/schemas/JournalKindEnum'
+          title: Вид для дневника
+          description: |-
+            Чем выполненная запись станет в дневнике клиента. Напоминание о масле двигают только категории вида «Замена масла».
+
+            * `oil` - Замена масла
+            * `tires` - Шиномонтаж
+            * `wash` - Мойка
+            * `service` - ТО и ремонт
+            * `other` - Другое
         allow_on_site:
           type: boolean
           title: Можно подобрать на месте

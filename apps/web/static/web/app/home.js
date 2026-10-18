@@ -7,7 +7,7 @@
    снизу; черновик живёт на сервере, поэтому закрытое окно его не теряет —
    здесь появляется «Продолжить запись». */
 
-import { BookingWizard, SlotPicker, Timer } from "app/booking";
+import { BookingWizard, SlotPicker, Timer, kindIcon } from "app/booking";
 import {
   CONFIG, InfoRow, LoadError, Sheet, Skel, api, bus, call, daysUntil, fmt, formatPhone, html, money,
   startBooking, takeBookingRequest, toast, useEffect, useLoad, useNet, useState, visitTime,
@@ -89,7 +89,7 @@ export function Home({ user }) {
         : html`<section class="card pad invite-book">
             <span class="empty-ico" dangerouslySetInnerHTML=${svg("calendar", 24)}></span>
             <div>
-              <b>Запишитесь на замену масла</b>
+              <b>Запишитесь в сервис</b>
               <p class="muted">Выберите адрес и время — пост будет ждать вас, без очереди.</p>
             </div>
             ${!liveDraft && html`<button class="btn btn-primary btn-block btn-lg" type="button" disabled=${!canBook}
@@ -113,7 +113,7 @@ export function Home({ user }) {
   return html`<main class="screen">
     <div class="screen-head"><h1>${greeting(user && user.full_name)}</h1></div>
     ${body}
-    ${wizard && html`<${Sheet} tall title="Запись на замену масла" onClose=${closeWizard}>
+    ${wizard && html`<${Sheet} tall title="Запись" onClose=${closeWizard}>
       <${BookingWizard} onClose=${closeWizard} onBooked=${() => bus.emit("bookings:changed")} />
     </${Sheet}>`}
     ${moving && html`<${Sheet} tall title="Перенести запись" onClose=${() => setMoving(null)}>
@@ -216,8 +216,8 @@ function Ticket({ booking, onMove, onMore }) {
       <div class="info-list">
         <${InfoRow} icon="pin" label=${point.name}>${point.address}</${InfoRow}>
         ${booking.oil_on_site
-          ? html`<${InfoRow} icon="drop" label="Масло подберём на месте">Мастер позвонит и поможет выбрать</${InfoRow}>`
-          : html`<${InfoRow} icon="drop">${booking.oil_title}</${InfoRow}>`}
+          ? html`<${InfoRow} icon=${kindIcon(booking.category_kind)} label=${(booking.category_title || "Услуга") + ": подберём на месте"}>Мастер позвонит и поможет выбрать</${InfoRow}>`
+          : html`<${InfoRow} icon=${kindIcon(booking.category_kind)} label=${booking.category_title}>${booking.service_title}</${InfoRow}>`}
         ${carLine(booking) && html`<${InfoRow} icon="car">${carLine(booking)}</${InfoRow}>`}
       </div>
       <div class="ticket-actions">
@@ -282,7 +282,7 @@ function BonusStrip({ data }) {
     <span class="strip-ico" dangerouslySetInnerHTML=${svg("wallet")}></span>
     <span class="strip-body">
       <b>${points(Math.floor(Number(data.balance)))}</b>
-      <span class="muted">${payout > 0 ? "ночью придёт ещё " + fmt.number(payout) : "можно оплатить часть замены"}</span>
+      <span class="muted">${payout > 0 ? "ночью придёт ещё " + fmt.number(payout) : "можно оплатить часть чека"}</span>
     </span>
     <span class="chev" dangerouslySetInnerHTML=${svg("right", 18)}></span>
   </button>`;
@@ -312,7 +312,7 @@ function BookingSheet({ booking, onClose }) {
       <span class=${"status " + cls}>${label}</span>
       <div class="card pad info-list">
         <${InfoRow} icon="pin" label=${point.name}>${point.address}</${InfoRow}>
-        <${InfoRow} icon="drop" label="Масло">${booking.oil_title}</${InfoRow}>
+        <${InfoRow} icon=${kindIcon(booking.category_kind)} label=${booking.category_title || "Услуга"}>${booking.service_title}</${InfoRow}>
         ${carLine(booking) && html`<${InfoRow} icon="car" label="Машина">${carLine(booking)}</${InfoRow}>`}
       </div>
       ${booking.cancel_reason && html`<p class="muted">Причина отмены: ${booking.cancel_reason}</p>`}

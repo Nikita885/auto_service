@@ -55,7 +55,9 @@ class ServiceCategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ServiceCategory
-        fields = ("id", "name", "allow_on_site", "services")
+        # `journal_kind` — только чтобы приложение нарисовало значок
+        # категории (масло, шины, мойка); цен и остатков здесь нет.
+        fields = ("id", "name", "journal_kind", "allow_on_site", "services")
 
     @extend_schema_field(ServiceSerializer(many=True))
     def get_services(self, obj: ServiceCategory):
