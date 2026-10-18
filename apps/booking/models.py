@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -89,6 +90,31 @@ class BookingDraft(BaseModel):
     # (решение заказчика, октябрь 2026). Отдельный флаг, а не пустой `oil`:
     # пустое масло значит ещё и «до этого шага не дошли».
     oil_on_site = models.BooleanField("масло подберут на месте", default=False)
+
+    # Услуги по категориям: клиент выбирает сначала категорию, потом
+    # услугу внутри неё. Поля масла выше остаются, пока обновляются
+    # приложения, и больше не читаются — удалим их отдельной выкаткой.
+    service_category = models.ForeignKey(
+        "catalog.ServiceCategory",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="drafts",
+        verbose_name="категория услуги",
+    )
+    service = models.ForeignKey(
+        "catalog.Service",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="drafts",
+        verbose_name="услуга",
+    )
+    # «Не знаю, что нужно — подберите на месте»: шаг услуги пройден без
+    # услуги. Отдельный флаг, а не пустая ссылка: пустая значит ещё и
+    # «до этого шага не дошли».
+    on_site = models.BooleanField("услугу подберут на месте", default=False)
+
     slot_start = models.DateTimeField("начало слота", null=True, blank=True)
 
     expires_at = models.DateTimeField("истекает", db_index=True)
@@ -119,6 +145,10 @@ class BookingDraft(BaseModel):
         indexes = [
             models.Index(fields=["service_point", "slot_start", "is_open"]),
             models.Index(fields=["is_open", "expires_at"]),
+            # Доступность услуги считается по живым черновикам, которые её
+            # держат: без индекса это перебор всех черновиков на каждый
+            # показ списка услуг.
+            models.Index(fields=["service", "is_open"]),
         ]
 
     def __str__(self) -> str:
@@ -205,6 +235,23 @@ class Booking(BaseModel):
         related_name="bookings",
         verbose_name="масло",
     )
+    # Категория услуги записи. У записи «подберут на месте» она —
+    # единственное, что известно: мастер перезванивает и выбирает услугу
+    # внутри неё. Сами услуги лежат позициями (`BookingItem`).
+    service_category = models.ForeignKey(
+        "catalog.ServiceCategory",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="bookings",
+        verbose_name="категория услуги",
+    )
+    # Услугу подберёт мастер после звонка. Не выводится из «нет позиций»:
+    # позиций нет и у записи, которую только что создали, а разница между
+    # «ещё не выбрали» и «выбирать будет мастер» видна в очереди звонков.
+    service_on_site = models.BooleanField(
+        "услугу подберут на месте", default=False
+    )
     # Какую машину обслуживали. Ссылка — для гаража и истории по машине;
     # что показывать, решает снимок `car_model`/`car_plate` ниже: клиент
     # может переименовать или удалить машину, а запись не должна поехать.
@@ -234,6 +281,13 @@ class Booking(BaseModel):
     car_plate = models.CharField("госномер", max_length=16, blank=True)
     oil_title = models.CharField("масло (снимок)", max_length=255)
     oil_price = models.DecimalField("цена масла", max_digits=10, decimal_places=2)
+    category_title = models.CharField("категория (снимок)", max_length=120, blank=True)
+    service_title = models.CharField("услуги (снимок)", max_length=255, blank=True)
+    # Сколько из итога ушло на расходники — сумма материалов позиций.
+    # Нужна метрикам: доля материала и доля работы в выручке.
+    material_price = models.DecimalField(
+        "материал", max_digits=10, decimal_places=2, default=0
+    )
     work_price = models.DecimalField("цена работ", max_digits=10, decimal_places=2)
     total_price = models.DecimalField("итого", max_digits=10, decimal_places=2)
     # Сколько чека клиент закрыл баллами при расчёте. Решает клиент, вводит
@@ -321,6 +375,64 @@ class Booking(BaseModel):
 
     def local_start(self):
         return self.start_at.astimezone(self.service_point.tz)
+
+
+class BookingItem(BaseModel):
+    """Услуга в записи — позиция чека.
+
+    Таблица позиций, а не одна ссылка в записи: в одной записи может быть
+    несколько услуг (решение заказчика). Пока интерфейс выбирает одну,
+    но история и деньги уже лежат позициями — иначе «несколько» однажды
+    потребовало бы второй миграции данных на живой базе.
+
+    Цены — снимок на момент записи: прайс поменяется, а чек не поедет.
+    Ссылка на услугу — `PROTECT`: выключить услугу можно, а удалить ту,
+    по которой кого-то обслужили, нельзя, иначе история опустеет.
+    """
+
+    booking = models.ForeignKey(
+        Booking, on_delete=models.CASCADE, related_name="items", verbose_name="запись"
+    )
+    service = models.ForeignKey(
+        "catalog.Service",
+        on_delete=models.PROTECT,
+        related_name="booking_items",
+        verbose_name="услуга",
+    )
+    title = models.CharField("услуга (снимок)", max_length=255)
+    category_title = models.CharField("категория (снимок)", max_length=120, blank=True)
+    price = models.DecimalField("цена", max_digits=10, decimal_places=2)
+    material_price = models.DecimalField(
+        "из них материал", max_digits=10, decimal_places=2, default=0
+    )
+    quantity = models.PositiveSmallIntegerField(
+        "количество", default=1, validators=[MinValueValidator(1)]
+    )
+
+    class Meta:
+        verbose_name = "услуга записи"
+        verbose_name_plural = "услуги записи"
+        # По возрастанию создания: позиции читаются в том порядке, в
+        # котором их выбирали, и чек не перетасовывается между показами.
+        ordering = ["created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(material_price__lte=models.F("price")),
+                name="item_material_not_above_price",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.title} x{self.quantity}"
+
+    @property
+    def total(self):
+        """Сумма позиции: цена за единицу на количество."""
+        return self.price * self.quantity
+
+    @property
+    def work_price(self):
+        return (self.price - self.material_price) * self.quantity
 
 
 class BookingStatusLog(BaseModel):

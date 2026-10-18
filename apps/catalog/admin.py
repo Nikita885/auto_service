@@ -1,7 +1,15 @@
 from django import forms
 from django.contrib import admin
 
-from apps.catalog.models import CarMake, CarModel, Oil, OilStock, ServicePoint
+from apps.catalog.models import (
+    CarMake,
+    CarModel,
+    Oil,
+    OilStock,
+    Service,
+    ServiceCategory,
+    ServicePoint,
+)
 
 WEEKDAYS = [(0, "Пн"), (1, "Вт"), (2, "Ср"), (3, "Чт"), (4, "Пт"), (5, "Сб"), (6, "Вс")]
 
@@ -68,6 +76,35 @@ class OilStockAdmin(admin.ModelAdmin):
     list_filter = ("service_point",)
     search_fields = ("oil__brand", "oil__name")
     autocomplete_fields = ("oil", "service_point")
+
+
+class ServiceInline(admin.TabularInline):
+    model = Service
+    extra = 0
+    fields = ("name", "price", "material_price", "is_limited", "quantity",
+              "is_active", "sort_order")
+
+
+@admin.register(ServiceCategory)
+class ServiceCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "service_point", "sort_order", "journal_kind",
+                    "allow_on_site", "is_active")
+    list_filter = ("service_point", "is_active", "journal_kind")
+    list_editable = ("sort_order", "is_active")
+    search_fields = ("name", "service_point__name")
+    autocomplete_fields = ("service_point",)
+    inlines = [ServiceInline]
+
+
+@admin.register(Service)
+class ServiceAdmin(admin.ModelAdmin):
+    list_display = ("name", "category", "price", "material_price", "is_limited",
+                    "quantity", "is_active")
+    list_filter = ("category__service_point", "is_active", "is_limited")
+    list_editable = ("price", "quantity", "is_active")
+    # Поиск нужен и сам по себе, и для autocomplete в позициях записи.
+    search_fields = ("name", "category__name", "category__service_point__name")
+    autocomplete_fields = ("category", "oil")
 
 
 class CarModelInline(admin.TabularInline):

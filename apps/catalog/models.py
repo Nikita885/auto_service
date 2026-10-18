@@ -240,6 +240,174 @@ class OilStock(BaseModel):
         return f"{self.oil} @ {self.service_point.name}: {self.quantity} шт."
 
 
+class ServiceJournalKind(models.TextChoices):
+    """Чем выполненная запись станет в дневнике водителя.
+
+    Значения совпадают с `garage.EntryKind`: дневник и напоминания
+    считаются по ним. Перечисление повторено здесь, а не импортировано:
+    `garage` зависит от `catalog` (машина ссылается на справочник марок),
+    и обратный импорт замкнул бы приложения друг на друга. Совпадение
+    значений держит тест `tests/test_services.py`.
+    """
+
+    OIL = "oil", "Замена масла"
+    TIRES = "tires", "Шиномонтаж"
+    WASH = "wash", "Мойка"
+    SERVICE = "service", "ТО и ремонт"
+    OTHER = "other", "Другое"
+
+
+class ServiceCategory(BaseModel):
+    """Категория услуг одной точки: «Замена масла», «Замена резины», «Мойка».
+
+    Каталог у каждой точки свой (решение заказчика, октябрь 2026): у
+    адресов разный набор работ и свои цены, а мастер ведёт только свою
+    точку. Цена этого решения — одно и то же масло заводится на каждой
+    точке отдельно; зато ни одна правка на одном адресе не меняет
+    прайс другого.
+    """
+
+    service_point = models.ForeignKey(
+        ServicePoint,
+        on_delete=models.CASCADE,
+        related_name="service_categories",
+        verbose_name="точка",
+    )
+    name = models.CharField("название", max_length=120)
+    sort_order = models.PositiveSmallIntegerField("порядок показа", default=100)
+    is_active = models.BooleanField("включена", default=True)
+    # Внутри категории клиент может не знать, что именно ему нужно
+    # («подберите на месте»): тогда он записывается без услуги, а мастер
+    # перезванивает и выбирает её вместе с ним. Для мойки такой выбор
+    # бессмысленен, поэтому это галочка категории, а не правило на всю сеть.
+    allow_on_site = models.BooleanField(
+        "можно подобрать на месте",
+        default=True,
+        help_text="Клиент сможет записаться, не выбрав услугу: мастер перезвонит и подберёт её.",
+    )
+    # Дневник водителя берёт замены масла из выполненных записей. Пока
+    # услуга была одна, годилась любая запись; с мойкой и шиномонтажом
+    # нужен вид — иначе мойка сбрасывала бы напоминание о масле.
+    journal_kind = models.CharField(
+        "вид для дневника",
+        max_length=16,
+        choices=ServiceJournalKind.choices,
+        default=ServiceJournalKind.OTHER,
+        help_text="Чем выполненная запись станет в дневнике клиента. "
+        "Напоминание о масле двигают только категории вида «Замена масла».",
+    )
+
+    class Meta:
+        verbose_name = "категория услуг"
+        verbose_name_plural = "категории услуг"
+        ordering = ["service_point", "sort_order", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["service_point", "name"], name="uniq_category_per_point"
+            )
+        ]
+        indexes = [models.Index(fields=["service_point", "is_active", "sort_order"])]
+
+    def __str__(self) -> str:
+        return f"{self.name} @ {self.service_point.name}"
+
+
+class Service(BaseModel):
+    """Услуга внутри категории: что делаем и сколько это стоит.
+
+    Цена — одной суммой (решение заказчика): мастер называет клиенту
+    итог, а не слагаемые. `material_price` — та часть суммы, которая
+    ушла на расходник; по ней считается разбивка «материал и работа» в
+    метриках и база баллов в режиме `REFERRAL_BASE=work`. Ноль —
+    услуга без материала, и тогда вся цена считается работой.
+
+    Количество учитывается только у услуг с галочкой «ограничено»:
+    канистры кончаются, мойка — нет. Остаток лежит прямо здесь, а не
+    отдельной таблицей по точкам, потому что услуга и так принадлежит
+    одной точке — через свою категорию.
+    """
+
+    category = models.ForeignKey(
+        ServiceCategory,
+        on_delete=models.CASCADE,
+        related_name="services",
+        verbose_name="категория",
+    )
+    name = models.CharField("название", max_length=160)
+    description = models.TextField("описание", blank=True)
+    price = models.DecimalField(
+        "цена, ₽", max_digits=10, decimal_places=2, validators=[MinValueValidator(0)]
+    )
+    material_price = models.DecimalField(
+        "из них материал, ₽",
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Часть цены, которая ушла на расходник. Ноль — услуга без материала.",
+    )
+    is_limited = models.BooleanField(
+        "количество ограничено",
+        default=False,
+        help_text="Отмечено — ведём остаток: услуга пропадает у клиента, когда он кончился.",
+    )
+    quantity = models.PositiveIntegerField(
+        "остаток",
+        default=0,
+        help_text="Сколько есть сейчас. Учитывается только при «количество ограничено».",
+    )
+    is_active = models.BooleanField("включена в работу", default=True)
+    sort_order = models.PositiveSmallIntegerField("порядок показа", default=100)
+    # Из какой позиции масла выросла услуга. Нужна двум местам: старому
+    # API масел, которое остаётся работать, пока обновляются приложения,
+    # и панели — показать вязкость и объём канистры. Пусто — услугу
+    # сразу завели услугой.
+    oil = models.ForeignKey(
+        Oil,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="services",
+        verbose_name="масло",
+    )
+
+    class Meta:
+        verbose_name = "услуга"
+        verbose_name_plural = "услуги"
+        ordering = ["category", "sort_order", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["category", "name"], name="uniq_service_per_category"
+            ),
+            # Материал — часть цены, а не добавка к ней: иначе «работа»
+            # уходила бы в минус и утягивала за собой метрики и баллы.
+            models.CheckConstraint(
+                condition=models.Q(material_price__lte=models.F("price")),
+                name="service_material_not_above_price",
+            ),
+        ]
+        indexes = [models.Index(fields=["category", "is_active", "sort_order"])]
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def service_point_id(self):
+        return self.category.service_point_id
+
+    @property
+    def work_price(self):
+        """Работа — остаток цены после материала: от неё считаются баллы
+        в режиме `REFERRAL_BASE=work` и доля работ в метриках."""
+        return self.price - self.material_price
+
+    @property
+    def total_price(self):
+        """Итог за услугу. Имя общее с `Oil`, чтобы сериализаторы и
+        шаблоны не разбирались, что перед ними."""
+        return self.price
+
+
 def _with_index(kwargs: dict) -> dict:
     """Дописать `search_index` в `update_fields`, если он там задан.
 

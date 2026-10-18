@@ -8,13 +8,80 @@ from __future__ import annotations
 
 from django.db import IntegrityError, transaction
 
-from apps.catalog.models import Oil, OilStock, ServicePoint
+from apps.catalog.models import (
+    Oil,
+    OilStock,
+    Service,
+    ServiceCategory,
+    ServiceJournalKind,
+    ServicePoint,
+)
 from apps.common.exceptions import ConflictError, NotFoundError, PermissionError_
 
 #: Поля масла, которые можно задать с сайта. Остальное (описание) — в админке.
 EDITABLE_FIELDS = (
     "brand", "name", "viscosity", "oil_type", "volume_liters", "price", "work_price", "is_active",
 )
+
+#: Категория, в которую легли масла при переносе (`catalog.0005`).
+OIL_CATEGORY_NAME = "Замена масла"
+#: Порядок показа: «Замена масла» — первая категория у всех точек.
+OIL_CATEGORY_ORDER = 10
+
+
+def _oil_category(point: ServicePoint) -> ServiceCategory:
+    """Категория масел точки. Нет — создаём: масло не должно упираться в
+    то, что категорию кто-то удалил из админки."""
+    category, _ = ServiceCategory.objects.get_or_create(
+        service_point=point,
+        name=OIL_CATEGORY_NAME,
+        defaults={
+            "sort_order": OIL_CATEGORY_ORDER,
+            "allow_on_site": True,
+            "journal_kind": ServiceJournalKind.OIL,
+        },
+    )
+    return category
+
+
+def mirror_oil(oil: Oil, *, quantity_by_point: dict | None = None) -> None:
+    """Отразить масло в услугах категории «Замена масла» на каждой точке.
+
+    Пока панель мастера правит масла, а запись и доступность читают уже
+    услуги, у одних и тех же цифр два места хранения. Если не писать в
+    оба, мастер поменяет цену или пересчитает полку в старом разделе, а
+    клиент увидит прежнее — то есть выкатка переноса в одиночку сломала
+    бы работу. Этот мост уйдёт вместе со старым разделом масел.
+
+    Услуга создаётся на всех точках, а не только на точках мастера:
+    раньше новое масло появлялось в общем каталоге сети, и ни один адрес
+    не должен потерять позицию прайса из-за того, что её завёл сосед.
+    """
+    title = str(oil)
+    price = oil.price + oil.work_price
+    quantities = quantity_by_point or {}
+    for point in ServicePoint.objects.all():
+        service = Service.objects.filter(category__service_point=point, oil=oil).first()
+        fields = {
+            "name": title,
+            "price": price,
+            # Канистра — материал внутри цены; работа считается как остаток.
+            "material_price": oil.price,
+            "is_limited": True,
+            "is_active": oil.is_active,
+            "description": oil.description,
+        }
+        if service is None:
+            category = _oil_category(point)
+            Service.objects.create(
+                category=category, oil=oil, quantity=quantities.get(point.pk, 0), **fields
+            )
+            continue
+        if point.pk in quantities:
+            fields["quantity"] = quantities[point.pk]
+        for key, value in fields.items():
+            setattr(service, key, value)
+        service.save(update_fields=[*fields, "updated_at"])
 
 
 def _points_for(staff):
@@ -68,6 +135,8 @@ def create_oil(staff, *, stock: dict | None = None, **fields) -> Oil:
 
     for point_id, quantity in (stock or {}).items():
         set_stock(staff, oil.pk, point_id, quantity)
+    # Точки, которым остаток не задали, тоже должны увидеть позицию — с нулём.
+    mirror_oil(oil)
     return oil
 
 
@@ -89,6 +158,7 @@ def update_oil(staff, oil_id, **fields) -> Oil:
             raise ConflictError(
                 "Такое масло уже есть в каталоге", code="oil_exists"
             ) from exc
+        mirror_oil(oil)
     return oil
 
 
@@ -107,4 +177,5 @@ def set_stock(staff, oil_id, point_id, quantity: int) -> OilStock:
     )
     stock.quantity = quantity
     stock.save(update_fields=["quantity", "updated_at"])
+    mirror_oil(Oil.objects.get(pk=oil_id), quantity_by_point={point.pk: quantity})
     return stock

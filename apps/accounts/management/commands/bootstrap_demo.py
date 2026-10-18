@@ -15,6 +15,7 @@ from django.db import transaction
 from apps.accounts.constants import UserRole
 from apps.accounts.models import User
 from apps.catalog.models import Oil, OilStock, OilType, ServicePoint
+from apps.catalog.services.oils import mirror_oil
 
 POINTS = [
     {
@@ -113,6 +114,19 @@ class Command(BaseCommand):
                     oil=oil,
                     defaults={"quantity": 10 - index * 2},
                 )
+
+        # Свежая база должна выглядеть так же, как база после переноса масел
+        # в услуги: иначе на новой установке запись не нашла бы ни одной
+        # услуги. Остатки берём из базы, а не из чисел выше: их мог
+        # пересчитать мастер, и демо-команда не должна это затирать.
+        quantities: dict = {}
+        rows = OilStock.objects.filter(oil__in=oils).values_list(
+            "oil_id", "service_point_id", "quantity"
+        )
+        for oil_id, point_id, quantity in rows:
+            quantities.setdefault(oil_id, {})[point_id] = quantity
+        for oil in oils:
+            mirror_oil(oil, quantity_by_point=quantities.get(oil.pk, {}))
 
         master, created = User.objects.get_or_create(
             phone="+79000000001",
