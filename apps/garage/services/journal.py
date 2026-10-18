@@ -140,21 +140,28 @@ def delete_entry(user, entry_id) -> None:
 
 
 # ------------------------------------------------------------- дневник
-def _our_oil_changes(car: Car) -> list[Item]:
-    bookings = Booking.objects.filter(car=car, status=BookingStatus.COMPLETED).select_related(
-        "service_point"
-    )
+def _our_visits(car: Car) -> list[Item]:
+    """Выполненные записи этой машины — строками дневника.
+
+    Вид строки берётся у категории услуги: мойка не должна попадать в
+    дневник заменой масла и двигать напоминание о ней. Категория без
+    явного вида ложится «прочим» — так же, как запись, созданная до
+    появления категорий.
+    """
+    bookings = Booking.objects.filter(
+        car=car, status=BookingStatus.COMPLETED
+    ).select_related("service_point", "service_category")
     return [
         Item(
             id=f"booking-{b.pk}",
-            kind=EntryKind.OIL,
+            kind=b.service_category.journal_kind if b.service_category_id else EntryKind.OTHER,
             date=b.local_start().date(),
             mileage=None,
             # Деньгами: баллы — скидка, а не расход владельца.
             amount=b.paid_amount,
             liters=None,
             full_tank=True,
-            note=f"{b.oil_title} · {b.service_point.name}",
+            note=f"{b.service_title or b.oil_title} · {b.service_point.name}",
             source="booking",
             booking_code=b.code,
         )
@@ -174,7 +181,7 @@ def _manual(car: Car) -> list[Item]:
 
 def items(car: Car) -> list[Item]:
     """Весь дневник машины, новые сверху."""
-    rows = _manual(car) + _our_oil_changes(car)
+    rows = _manual(car) + _our_visits(car)
     return sorted(rows, key=lambda r: (r.date, r.mileage or 0), reverse=True)
 
 

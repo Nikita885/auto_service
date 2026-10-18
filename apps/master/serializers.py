@@ -1,11 +1,26 @@
 from decimal import Decimal
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.booking.models import Booking, BookingDraft
-from apps.catalog.models import OilType
+from apps.catalog.models import OilType, ServiceJournalKind
 from apps.catalog.serializers import AvailableOilSerializer
 from apps.garage.serializers import CarShortSerializer
+
+
+class BookingItemSerializer(serializers.Serializer):
+    """Позиция чека глазами мастера — с ценой: из неё и считается чек."""
+
+    id = serializers.UUIDField(read_only=True)
+    service = serializers.UUIDField(source="service_id", read_only=True)
+    title = serializers.CharField(read_only=True)
+    category_title = serializers.CharField(read_only=True)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    material_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True
+    )
+    quantity = serializers.IntegerField(read_only=True)
 
 
 class MasterBookingSerializer(serializers.ModelSerializer):
@@ -23,8 +38,14 @@ class MasterBookingSerializer(serializers.ModelSerializer):
         source="charged_price", max_digits=10, decimal_places=2, read_only=True,
         help_text="Итог к оплате: правка мастера при расчёте или цена брони",
     )
+    needs_service = serializers.SerializerMethodField(
+        help_text="Клиент просил подобрать услугу на месте: перезвонить и выбрать (set-service)"
+    )
     needs_oil = serializers.SerializerMethodField(
-        help_text="Клиент просил подобрать масло на месте: перезвонить и выбрать (set-oil)"
+        help_text="То же, что needs_service. Устарело: останется, пока обновляются панели"
+    )
+    services = serializers.SerializerMethodField(
+        help_text="Позиции чека: услуга, цена, материал, количество"
     )
 
     class Meta:
@@ -34,6 +55,7 @@ class MasterBookingSerializer(serializers.ModelSerializer):
             "code",
             "status",
             "status_display",
+            "needs_service",
             "needs_oil",
             "service_point",
             "service_point_name",
@@ -44,8 +66,13 @@ class MasterBookingSerializer(serializers.ModelSerializer):
             "client_phone",
             "car_model",
             "car_plate",
+            "category_title",
+            "service_title",
+            "services",
+            # Прежние поля масла: в них тот же снимок, пока не удалены.
             "oil_title",
             "oil_price",
+            "material_price",
             "work_price",
             "total_price",
             "final_price",
@@ -59,8 +86,16 @@ class MasterBookingSerializer(serializers.ModelSerializer):
     def get_local_time(self, obj: Booking) -> str:
         return obj.local_start().strftime("%d.%m.%Y %H:%M")
 
+    def get_needs_service(self, obj: Booking) -> bool:
+        """Услуги в записи нет: мастер перезванивает и выбирает её."""
+        return not obj.items.all()
+
     def get_needs_oil(self, obj: Booking) -> bool:
-        return obj.oil_id is None
+        return self.get_needs_service(obj)
+
+    @extend_schema_field(BookingItemSerializer(many=True))
+    def get_services(self, obj: Booking):
+        return BookingItemSerializer(obj.items.all(), many=True).data
 
 
 class MasterBookingDetailSerializer(MasterBookingSerializer):
@@ -119,14 +154,24 @@ class MasterCompleteSerializer(serializers.Serializer):
         max_length=500, required=False, allow_blank=True, default="",
         help_text="Почему изменён итог. Необязательно.",
     )
+    service = serializers.UUIDField(
+        required=False, allow_null=True, default=None,
+        help_text="Услуга, если клиент просил подобрать на месте и её ещё не выбрали.",
+    )
     oil = serializers.UUIDField(
         required=False, allow_null=True, default=None,
-        help_text="Масло, если клиент просил подобрать на месте и его ещё не выбрали.",
+        help_text="То же по старому API: масло вместо услуги. Устарело.",
     )
 
 
+class MasterSetServiceSerializer(serializers.Serializer):
+    """Услуга, выбранная мастером вместе с клиентом."""
+
+    service = serializers.UUIDField()
+
+
 class MasterSetOilSerializer(serializers.Serializer):
-    """Масло, выбранное мастером вместе с клиентом."""
+    """То же по старому API. Устарело: масло ищется среди услуг точки."""
 
     oil = serializers.UUIDField()
 
@@ -143,11 +188,23 @@ class MasterBookingCreateSerializer(serializers.Serializer):
         help_text="Машина клиента из /master/walk-in/lookup/. Иначе car_model и car_plate.",
     )
     service_point = serializers.UUIDField()
-    oil = serializers.UUIDField()
+    service = serializers.UUIDField(
+        required=False, allow_null=True, default=None,
+        help_text="Услуга из /master/walk-in/services/.",
+    )
+    oil = serializers.UUIDField(
+        required=False, allow_null=True, default=None,
+        help_text="Масло вместо услуги — старое окно записи. Устарело.",
+    )
     start_at = serializers.DateTimeField(
         help_text="start_at слота из /master/walk-in/slots/ как есть"
     )
     comment = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+
+    def validate(self, attrs):
+        if not attrs["service"] and not attrs["oil"]:
+            raise serializers.ValidationError({"service": "Выберите услугу."})
+        return attrs
 
 
 class MasterAvailableOilSerializer(AvailableOilSerializer):
@@ -185,6 +242,82 @@ class PointsQuoteSerializer(serializers.Serializer):
     max_spend = serializers.DecimalField(max_digits=10, decimal_places=2)
     total_price = serializers.DecimalField(max_digits=10, decimal_places=2)
     max_discount_percent = serializers.IntegerField()
+
+
+# ----------------------------------------------------------------- услуги
+class MasterServiceSerializer(serializers.Serializer):
+    """Услуга глазами мастера — с ценой, материалом и остатком."""
+
+    id = serializers.UUIDField(read_only=True)
+    category = serializers.UUIDField(source="category_id", read_only=True)
+    name = serializers.CharField(max_length=160)
+    description = serializers.CharField(
+        max_length=2000, required=False, allow_blank=True, default=""
+    )
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal(0))
+    material_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal(0), required=False,
+        default=Decimal(0),
+        help_text="Часть цены, ушедшая на расходник. Ноль — услуга без материала.",
+    )
+    work_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    is_limited = serializers.BooleanField(default=False)
+    quantity = serializers.IntegerField(min_value=0, max_value=100000, default=0)
+    is_active = serializers.BooleanField(default=True)
+    sort_order = serializers.IntegerField(min_value=0, max_value=32000, default=100)
+
+
+class MasterServiceCategorySerializer(serializers.Serializer):
+    """Категория точки со своими услугами."""
+
+    id = serializers.UUIDField(read_only=True)
+    service_point = serializers.UUIDField(source="service_point_id")
+    service_point_name = serializers.CharField(source="service_point.name", read_only=True)
+    name = serializers.CharField(max_length=120)
+    sort_order = serializers.IntegerField(min_value=0, max_value=32000, default=100)
+    is_active = serializers.BooleanField(default=True)
+    allow_on_site = serializers.BooleanField(
+        default=True,
+        help_text="Клиент сможет записаться, не выбрав услугу: мастер перезвонит.",
+    )
+    journal_kind = serializers.ChoiceField(
+        choices=ServiceJournalKind.choices, default=ServiceJournalKind.OTHER,
+        help_text="Чем выполненная запись станет в дневнике клиента.",
+    )
+    services = serializers.SerializerMethodField()
+
+    @extend_schema_field(MasterServiceSerializer(many=True))
+    def get_services(self, obj):
+        return MasterServiceSerializer(obj.services.all(), many=True).data
+
+
+class MasterCategoryUpdateSerializer(MasterServiceCategorySerializer):
+    """Правка категории: точку у категории не меняют — каталог у точки свой."""
+
+    service_point = serializers.UUIDField(source="service_point_id", read_only=True)
+
+
+class MasterServiceCreateSerializer(MasterServiceSerializer):
+    category = serializers.UUIDField()
+
+
+class MasterAvailableServiceSerializer(serializers.Serializer):
+    """Услуга в наличии глазами мастера: с ценой и остатком.
+
+    Клиентский `ServiceSerializer` ни цен, ни остатка не отдаёт вовсе
+    (решение заказчика), поэтому у мастера свой, а не общий с флагом.
+    """
+
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    category = serializers.UUIDField(source="category_id")
+    category_title = serializers.CharField(source="category.name")
+    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    material_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    available_quantity = serializers.IntegerField(
+        allow_null=True, help_text="Пусто — у услуги не ведётся остаток"
+    )
 
 
 # ------------------------------------------------------------------ масла
@@ -295,7 +428,7 @@ class MetricsTotalsSerializer(serializers.Serializer):
     no_show = serializers.IntegerField()
     revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
     points_spent = serializers.DecimalField(max_digits=12, decimal_places=2)
-    oil_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    material_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
     work_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
     adjustments = serializers.DecimalField(
         max_digits=12, decimal_places=2,
@@ -318,7 +451,8 @@ class FunnelStepSerializer(serializers.Serializer):
 class MetricsFunnelSerializer(serializers.Serializer):
     started = serializers.IntegerField()
     point_selected = serializers.IntegerField()
-    oil_selected = serializers.IntegerField()
+    category_selected = serializers.IntegerField()
+    service_selected = serializers.IntegerField()
     slot_selected = serializers.IntegerField()
     confirmed = serializers.IntegerField()
     expired = serializers.IntegerField()
@@ -351,8 +485,8 @@ class MetricsPointSerializer(serializers.Serializer):
     revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 
-class MetricsOilSerializer(serializers.Serializer):
-    oil_title = serializers.CharField()
+class MetricsServiceSerializer(serializers.Serializer):
+    service_title = serializers.CharField()
     total = serializers.IntegerField()
     completed = serializers.IntegerField()
     revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
@@ -366,7 +500,7 @@ class MetricsClientsSerializer(serializers.Serializer):
 
 class MetricsStockItemSerializer(serializers.Serializer):
     point = serializers.CharField()
-    oil = serializers.CharField()
+    service = serializers.CharField()
     quantity = serializers.IntegerField()
     is_low = serializers.BooleanField()
 
@@ -390,7 +524,7 @@ class MetricsSerializer(serializers.Serializer):
     by_day = MetricsDaySerializer(many=True)
     by_hour = MetricsHourSerializer(many=True)
     by_point = MetricsPointSerializer(many=True)
-    top_oils = MetricsOilSerializer(many=True)
+    top_services = MetricsServiceSerializer(many=True)
     clients = MetricsClientsSerializer()
     stock = MetricsStockSerializer()
     live = MetricsLiveSerializer()

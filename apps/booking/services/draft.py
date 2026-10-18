@@ -10,10 +10,11 @@
 начинает заново.
 
 Вперёд шаги идут строго по порядку, а назад — на любой пройденный: клиент
-передумал с адресом или маслом и не должен ради этого начинать заново и
+передумал с адресом или услугой и не должен ради этого начинать заново и
 терять таймер. Что зависит от изменённого, сбрасывается: другой адрес —
-масло и время выбираются заново (на другой точке другие остатки и
-сетка), другое масло — время остаётся (сетка от масла не зависит).
+категория, услуга и время выбираются заново (на другой точке свой
+каталог, свои остатки и своя сетка), другая категория — услуга заново,
+другая услуга — время остаётся (сетка от услуги не зависит).
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from django.utils import timezone
 
 from apps.booking import events
 from apps.booking.constants import (
+    LEGACY_STEPS,
     STEP_ORDER,
     DraftCloseReason,
     DraftStep,
@@ -35,7 +37,7 @@ from apps.booking.models import Booking, BookingDraft
 from apps.booking.services import booking as booking_service
 from apps.booking.services import slots as slots_service
 from apps.booking.services import stock as stock_service
-from apps.catalog.models import ServicePoint
+from apps.catalog.models import ServiceCategory, ServicePoint
 from apps.common.exceptions import (
     ConflictError,
     GoneError,
@@ -71,7 +73,7 @@ def get_open_draft(user) -> BookingDraft | None:
     """
     draft = (
         BookingDraft.objects.open()
-        .select_related("service_point", "oil")
+        .select_related("service_point", "service_category", "service")
         .filter(user=user)
         .first()
     )
@@ -93,7 +95,7 @@ def _lock_draft(user, draft_id) -> BookingDraft:
     try:
         draft = (
             BookingDraft.objects.select_for_update(of=("self",))
-            .select_related("service_point", "oil")
+            .select_related("service_point", "service_category", "service")
             .get(pk=draft_id, user=user)
         )
     except BookingDraft.DoesNotExist as exc:
@@ -126,7 +128,8 @@ def _require_step(draft: BookingDraft, expected: DraftStep) -> None:
 
 def _require_reached(draft: BookingDraft, reached: DraftStep) -> None:
     """Шаг доступен, если до него дошли: вперёд — по порядку, назад — любой."""
-    if STEP_ORDER.index(draft.step) < STEP_ORDER.index(reached):
+    current = LEGACY_STEPS.get(draft.step, draft.step)
+    if STEP_ORDER.index(current) < STEP_ORDER.index(reached):
         _require_step(draft, reached)
 
 
@@ -182,44 +185,136 @@ def select_point(user, draft_id, service_point_id) -> BookingDraft:
     if draft.service_point_id == point.pk and draft.step != DraftStep.STARTED:
         return draft
 
-    # Другая точка: остатки масла и сетка времени у неё свои, поэтому
-    # масло и время выбираются заново, а их резерв освобождается сразу.
+    # Другая точка: каталог, остатки и сетка времени у неё свои, поэтому
+    # категория, услуга и время выбираются заново, а их резерв
+    # освобождается сразу.
     draft.service_point = point
+    draft.service_category = None
+    draft.service = None
+    draft.on_site = False
     draft.oil = None
     draft.oil_on_site = False
     draft.slot_start = None
     draft.step = DraftStep.POINT_SELECTED
-    return _touch(draft, "service_point", "oil", "oil_on_site", "slot_start")
+    return _touch(
+        draft, "service_point", "service_category", "service", "on_site",
+        "oil", "oil_on_site", "slot_start",
+    )
 
 
 @transaction.atomic
-def select_oil(user, draft_id, oil_id=None, *, on_site: bool = False) -> BookingDraft:
-    """Масло из наличия или «подберите на месте» (`on_site`, без масла).
+def select_category(user, draft_id, category_id) -> BookingDraft:
+    """Категория услуг: «Замена масла», «Замена резины», «Мойка».
 
-    Время от масла не зависит, поэтому, если клиент вернулся сменить масло
-    уже после выбора времени, время остаётся за ним.
+    Другая категория — услуга выбирается заново: услуга из чужой
+    категории в записи не окажется. Время остаётся за клиентом: сетка от
+    категории не зависит.
     """
     draft = _lock_draft(user, draft_id)
     _require_reached(draft, DraftStep.POINT_SELECTED)
 
-    if on_site:
+    category = stock_service.get_category(draft.service_point, category_id)
+    same = draft.service_category_id == category.pk
+    draft.service_category = category
+    if not same:
+        draft.service = None
+        draft.on_site = False
         draft.oil = None
-        draft.oil_on_site = True
-    else:
-        draft.oil = stock_service.get_available_oil(
-            draft.service_point, oil_id, exclude_draft_id=draft.pk
-        )
         draft.oil_on_site = False
+        # Выбранное время за клиентом остаётся (сетка от категории не
+        # зависит), но шаг откатывается: пока услуги нет, подтверждать
+        # нечего, и `next_action` обязан сказать именно это.
+        draft.step = DraftStep.CATEGORY_SELECTED
+    elif draft.step in (DraftStep.STARTED, DraftStep.POINT_SELECTED):
+        draft.step = DraftStep.CATEGORY_SELECTED
+    return _touch(draft, "service_category", "service", "on_site", "oil", "oil_on_site")
 
-    if draft.step != DraftStep.SLOT_SELECTED:
-        draft.step = DraftStep.OIL_SELECTED
-    return _touch(draft, "oil", "oil_on_site")
+
+@transaction.atomic
+def select_service(
+    user, draft_id, service_id=None, *, on_site: bool = False
+) -> BookingDraft:
+    """Услуга из категории или «подберите на месте» (`on_site`, без услуги).
+
+    Время от услуги не зависит, поэтому, если клиент вернулся сменить
+    услугу уже после выбора времени, время остаётся за ним.
+    """
+    draft = _lock_draft(user, draft_id)
+    _require_reached(draft, DraftStep.CATEGORY_SELECTED)
+
+    if on_site:
+        if not draft.service_category.allow_on_site:
+            raise ValidationError(
+                "В этой категории нужно выбрать услугу", code="on_site_not_allowed"
+            )
+        draft.service = None
+        draft.on_site = True
+    else:
+        service = stock_service.get_available_service(
+            draft.service_point, service_id, exclude_draft_id=draft.pk
+        )
+        if service.category_id != draft.service_category_id:
+            raise ValidationError(
+                "Эта услуга из другой категории", code="service_other_category"
+            )
+        draft.service = service
+        draft.on_site = False
+    # Поля масла больше не читаются, но пока они есть — держим их в
+    # согласии с выбором: откат кода не должен увидеть пустой черновик.
+    draft.oil_id = draft.service.oil_id if draft.service_id else None
+    draft.oil_on_site = draft.on_site
+
+    # Время могло быть выбрано раньше — например, клиент вернулся сменить
+    # категорию. Тогда шаг сразу «время выбрано»: заставлять выбирать его
+    # заново незачем, оно всё это время за клиентом и держится.
+    draft.step = (
+        DraftStep.SLOT_SELECTED if draft.slot_start else DraftStep.SERVICE_SELECTED
+    )
+    return _touch(draft, "service", "on_site", "oil", "oil_on_site")
+
+
+@transaction.atomic
+def select_oil(user, draft_id, oil_id=None, *, on_site: bool = False) -> BookingDraft:
+    """Тот же шаг по старому API: масло вместо категории и услуги.
+
+    Остаётся рабочим, пока обновляются приложения. Категорию ставим ту, в
+    которую перенесли это масло: приложению прежней версии её выбирать
+    нечем. Коды ошибок остаются прежними (`oil_*`) — их разбирает ровно
+    то приложение, которое мы и не хотим сломать.
+    """
+    from apps.catalog.services.oils import OIL_CATEGORY_NAME, service_for_oil
+
+    draft = _lock_draft(user, draft_id)
+    _require_reached(draft, DraftStep.POINT_SELECTED)
+
+    if on_site:
+        category = draft.service_category or ServiceCategory.objects.filter(
+            service_point=draft.service_point, name=OIL_CATEGORY_NAME, is_active=True
+        ).first()
+        if category is None:
+            raise NotFoundError(
+                "На этой точке нет замены масла", code="oil_not_available"
+            )
+        select_category(user, draft_id, category.pk)
+        return select_service(user, draft_id, on_site=True)
+
+    service = service_for_oil(draft.service_point, oil_id)
+    select_category(user, draft_id, service.category_id)
+    try:
+        return select_service(user, draft_id, service.pk)
+    except ConflictError as exc:
+        if exc.code != "service_out_of_stock":
+            raise
+        raise ConflictError(
+            "Это масло только что разобрали, выберите другое",
+            code="oil_out_of_stock",
+        ) from exc
 
 
 @transaction.atomic
 def select_slot(user, draft_id, start_at: datetime) -> BookingDraft:
     draft = _lock_draft(user, draft_id)
-    _require_reached(draft, DraftStep.OIL_SELECTED)
+    _require_reached(draft, DraftStep.SERVICE_SELECTED)
 
     # Блокируем точку: параллельные выборы одного слота выстраиваются в очередь.
     ServicePoint.objects.select_for_update().get(pk=draft.service_point_id)
@@ -239,7 +334,7 @@ def confirm(user, draft_id, *, comment: str = "", car_id=None) -> Booking:
 
     Все проверки повторяются здесь ещё раз. Между выбором времени и нажатием
     «Подтвердить» могло пройти четыре минуты, за которые слот заняли или
-    масло закончилось — узнать об этом клиент должен до, а не после.
+    услуга кончилась — узнать об этом клиент должен до, а не после.
 
     `car_id` — какую из своих машин клиент везёт; не передан — основная.
     Чужая или удалённая машина — `car_not_found`, черновик остаётся жив.
@@ -249,8 +344,9 @@ def confirm(user, draft_id, *, comment: str = "", car_id=None) -> Booking:
     car = cars_service.car_for_booking(user, car_id)
     car_model, car_plate = cars_service.snapshot(car)
 
-    has_oil = draft.oil_id or draft.oil_on_site
-    if not (draft.service_point_id and has_oil and draft.slot_start):
+    has_service = draft.service_id or draft.on_site
+    if not (draft.service_point_id and draft.service_category_id and has_service
+            and draft.slot_start):
         raise ValidationError("Выбраны не все параметры", code="draft_incomplete")
 
     point = ServicePoint.objects.select_for_update().get(pk=draft.service_point_id)
@@ -258,10 +354,12 @@ def confirm(user, draft_id, *, comment: str = "", car_id=None) -> Booking:
     _, end_at = slots_service.validate_slot(
         point, draft.slot_start, exclude_draft_id=draft.pk
     )
-    oil = (
-        stock_service.get_available_oil(point, draft.oil_id, exclude_draft_id=draft.pk)
-        if draft.oil_id
-        else None
+    services = (
+        [stock_service.get_available_service(
+            point, draft.service_id, exclude_draft_id=draft.pk
+        )]
+        if draft.service_id
+        else []
     )
 
     if Booking.objects.active().filter(user=user, start_at=draft.slot_start).exists():
@@ -279,7 +377,9 @@ def confirm(user, draft_id, *, comment: str = "", car_id=None) -> Booking:
     booking = booking_service.create_booking(
         user=user,
         point=point,
-        oil=oil,
+        category=draft.service_category,
+        services=services,
+        on_site=draft.on_site,
         start_at=draft.slot_start,
         end_at=end_at,
         client_name=user.full_name,
@@ -317,7 +417,9 @@ def expire_stale_drafts(limit: int = 500) -> int:
     воркер упал.
     """
     stale = list(
-        BookingDraft.objects.stale().select_related("user", "service_point", "oil")[:limit]
+        BookingDraft.objects.stale().select_related(
+            "user", "service_point", "service"
+        )[:limit]
     )
     for draft in stale:
         with transaction.atomic():

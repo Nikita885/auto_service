@@ -1,6 +1,14 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.catalog.models import CarMake, CarModel, Oil, ServicePoint
+from apps.catalog.models import (
+    CarMake,
+    CarModel,
+    Oil,
+    Service,
+    ServiceCategory,
+    ServicePoint,
+)
 
 
 class ServicePointSerializer(serializers.ModelSerializer):
@@ -20,6 +28,41 @@ class ServicePointSerializer(serializers.ModelSerializer):
             "slot_minutes",
             "posts_count",
         )
+
+
+class ServiceSerializer(serializers.ModelSerializer):
+    """Услуга глазами клиента — без цен и без остатка.
+
+    Цен клиенту не показываем нигде (решение заказчика), и убраны они из
+    ответа, а не только из вёрстки: спрятанное в интерфейсе, но лежащее в
+    JSON — та же публикация. Остаток — внутренняя кухня: сколько канистр
+    на полке, клиента не касается.
+    """
+
+    class Meta:
+        model = Service
+        fields = ("id", "name", "description")
+
+
+class ServiceCategorySerializer(serializers.ModelSerializer):
+    """Категория точки со списком доступных услуг.
+
+    `services` подкладывает сервис доступности (`stock.available_categories`):
+    в ответе только то, что реально можно выбрать сейчас.
+    """
+
+    services = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ServiceCategory
+        fields = ("id", "name", "allow_on_site", "services")
+
+    @extend_schema_field(ServiceSerializer(many=True))
+    def get_services(self, obj: ServiceCategory):
+        services = getattr(obj, "available_services", None)
+        if services is None:
+            services = [row for row in obj.services.all() if row.is_active]
+        return ServiceSerializer(services, many=True).data
 
 
 class OilSerializer(serializers.ModelSerializer):

@@ -35,7 +35,14 @@ const STEPS = [
   ["slot", "select_slot", "Время"],
   ["confirm", "confirm", "Машина"],
 ];
-const viewOf = (action) => (STEPS.find((s) => s[1] === action) || STEPS[0])[0];
+// Сервер с категориями называет шаги select_category и select_service. Пока
+// экран выбирает масло (его заменит выбор категории и услуги), оба — шаг
+// «Масло»: select-oil на сервере сам ставит категорию. Без этой строки
+// незнакомое действие откатывало бы мастер записи на «Адрес».
+const viewOf = (action) => {
+  if (action === "select_category" || action === "select_service") return "oil";
+  return (STEPS.find((s) => s[1] === action) || STEPS[0])[0];
+};
 const indexOf = (view) => STEPS.findIndex((s) => s[0] === view);
 
 /** Весь сценарий записи. `onClose` — закрыть окно (черновик остаётся),

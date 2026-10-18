@@ -19,10 +19,10 @@ from apps.booking.constants import (
     FINAL_BOOKING_STATUSES,
     BookingStatus,
 )
-from apps.booking.models import Booking, BookingPriceChange, BookingStatusLog
+from apps.booking.models import Booking, BookingItem, BookingPriceChange, BookingStatusLog
 from apps.booking.services import slots as slots_service
 from apps.booking.services import stock as stock_service
-from apps.catalog.models import ServicePoint
+from apps.catalog.models import Service, ServiceCategory, ServicePoint
 from apps.common.exceptions import (
     ConflictError,
     NotFoundError,
@@ -32,9 +32,9 @@ from apps.common.exceptions import (
 
 logger = logging.getLogger(__name__)
 
-#: Что стоит в записи вместо масла, пока его не выбрал мастер: так запись
+#: Что стоит в записи вместо услуги, пока её не выбрал мастер: так запись
 #: читается и в SMS, и в истории, и в панели без отдельной ветки на «пусто».
-ON_SITE_OIL_TITLE = "Подберём на месте"
+ON_SITE_TITLE = "Подберём на месте"
 
 #: Разрешённые переходы. Всё, чего здесь нет, — ошибка бизнес-логики.
 ALLOWED_TRANSITIONS: dict[str, set[str]] = {
@@ -54,7 +54,7 @@ ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 
 def get_for_client(user, booking_id) -> Booking:
     try:
-        return Booking.objects.select_related("service_point", "oil").get(
+        return Booking.objects.select_related("service_point", "service_category").get(
             pk=booking_id, user=user
         )
     except Booking.DoesNotExist as exc:
@@ -63,9 +63,9 @@ def get_for_client(user, booking_id) -> Booking:
 
 def get_for_master(master, booking_id) -> Booking:
     try:
-        booking = Booking.objects.select_related("service_point", "oil", "user").get(
-            pk=booking_id
-        )
+        booking = Booking.objects.select_related(
+            "service_point", "service_category", "user"
+        ).get(pk=booking_id)
     except Booking.DoesNotExist as exc:
         raise NotFoundError("Запись не найдена", code="booking_not_found") from exc
 
@@ -121,11 +121,59 @@ def _transition(
 
 
 # ------------------------------------------------------------------ создание
+def _snapshot(services: list[Service], *, on_site: bool) -> dict:
+    """Снимок услуг и цен на момент брони.
+
+    Итог — сумма позиций, материал — сумма их материалов, работа —
+    остаток. Снимок нужен потому же, почему он был у масла: прайс
+    поменяется, а чек записи поедет не должен.
+
+    Заодно заполняются прежние поля масла. Это не забытый код, а страховка
+    на время переезда: пока старые поля не удалены, запись, созданная
+    новой версией, обязана читаться и прошлой — если выкатку придётся
+    откатить. Ссылку на масло ставим только когда услуга одна и выросла
+    из масла; у мойки такой ссылки нет и быть не может.
+    """
+    total = sum((service.price for service in services), Decimal(0))
+    material = sum((service.material_price for service in services), Decimal(0))
+    title = ", ".join(service.name for service in services)
+    if not title:
+        title = ON_SITE_TITLE if on_site else ""
+    legacy_oil_id = services[0].oil_id if len(services) == 1 else None
+    return {
+        "service_title": title[:255],
+        "material_price": material,
+        "work_price": total - material,
+        "total_price": total,
+        "oil_id": legacy_oil_id,
+        "oil_title": (title or ON_SITE_TITLE)[:255],
+        "oil_price": material,
+    }
+
+
+def _create_items(booking: Booking, services: list[Service]) -> None:
+    BookingItem.objects.bulk_create(
+        [
+            BookingItem(
+                booking=booking,
+                service=service,
+                title=service.name,
+                category_title=service.category.name,
+                price=service.price,
+                material_price=service.material_price,
+                quantity=1,
+            )
+            for service in services
+        ]
+    )
+
+
 def create_booking(
     *,
     user,
     point,
-    oil,
+    category: ServiceCategory | None,
+    services: list[Service] | None,
     start_at,
     end_at,
     client_name: str,
@@ -135,17 +183,21 @@ def create_booking(
     comment: str = "",
     actor,
     log_comment: str,
+    on_site: bool = False,
 ) -> Booking:
     """Записать клиента в уже проверенный слот — общий конец обоих путей.
 
     Клиент приходит сюда из черновика (`draft.confirm`), мастер — из
-    записи по звонку (`walk_in.book`). Проверки слота и склада — у
-    вызывающего, под блокировкой точки: здесь только снимок, история и
-    уведомления, чтобы запись из двух мест выглядела одинаково.
+    записи по звонку (`walk_in.book`). Проверки слота и доступности
+    услуг — у вызывающего, под блокировкой точки: здесь только снимок,
+    позиции, история и уведомления, чтобы запись из двух мест выглядела
+    одинаково.
 
-    `oil=None` — масло подберут на месте: цены в снимке нулевые, их
-    поставит `set_oil`, когда мастер выберет масло вместе с клиентом.
+    `services` пустой при `on_site=True` — услугу подберут на месте:
+    цены в снимке нулевые, их поставит `set_service`, когда мастер
+    выберет услугу вместе с клиентом.
     """
+    services = list(services or [])
     try:
         # Точка заблокирована, но один клиент может записываться на разные
         # точки одновременно — дубль по времени ловит уникальный индекс.
@@ -153,7 +205,9 @@ def create_booking(
             booking = Booking.objects.create(
                 user=user,
                 service_point=point,
-                oil=oil,
+                service_category=category,
+                category_title=category.name if category else "",
+                service_on_site=on_site,
                 car=car,
                 start_at=start_at,
                 end_at=end_at,
@@ -162,12 +216,10 @@ def create_booking(
                 client_phone=user.phone,
                 car_model=car_model,
                 car_plate=car_plate,
-                oil_title=str(oil) if oil else ON_SITE_OIL_TITLE,
-                oil_price=oil.price if oil else Decimal(0),
-                work_price=oil.work_price if oil else Decimal(0),
-                total_price=oil.total_price if oil else Decimal(0),
                 client_comment=comment or "",
+                **_snapshot(services, on_site=on_site),
             )
+            _create_items(booking, services)
     except IntegrityError as exc:
         raise ConflictError(
             "У клиента уже есть запись на это время", code="duplicate_booking"
@@ -283,51 +335,93 @@ def reschedule_by_client(user, booking_id, start_at) -> Booking:
 
 
 # ------------------------------------------------------------------ мастер
-def _apply_oil(booking: Booking, oil_id, *, actor) -> Booking:
-    """Поставить в запись масло: проверка наличия, снимок цен, история.
+def _apply_services(booking: Booking, services: list[Service], *, actor) -> Booking:
+    """Поставить в запись услуги: снимок цен, позиции, строка в историю.
 
-    Вызывается под блокировкой строки записи. Своя запись уже держит
-    канистру прежнего масла, поэтому при замене доступность нового масла
-    считается как обычно — свою прежнюю не нужно «возвращать».
+    Вызывается под блокировкой строки записи. Своя запись держит прежние
+    услуги, а не новые, поэтому доступность новой считается как обычно —
+    «возвращать» прежнюю не нужно.
     """
     if booking.status in FINAL_BOOKING_STATUSES:
         raise ConflictError(
-            "Запись уже завершена, изменить масло нельзя",
+            "Запись уже завершена, изменить услугу нельзя",
             code="booking_final",
             details={"status": booking.status},
         )
-    if str(booking.oil_id) == str(oil_id):
+
+    current = [item.service_id for item in booking.items.all()]
+    if current == [service.pk for service in services]:
+        # Та же услуга: без этого повторное нажатие выглядело бы как
+        # «разобрали» — своя же запись держит последнюю единицу.
         return booking
-    oil = stock_service.get_available_oil(booking.service_point, oil_id)
-    old_title = booking.oil_title
-    booking.oil = oil
-    booking.oil_title = str(oil)
-    booking.oil_price = oil.price
-    booking.work_price = oil.work_price
-    booking.total_price = oil.total_price
-    booking.save(update_fields=[
-        "oil", "oil_title", "oil_price", "work_price", "total_price", "updated_at",
-    ])
+
+    old_title = booking.service_title or booking.oil_title
+    booking.items.all().delete()
+
+    category = services[0].category if services else booking.service_category
+    fields = _snapshot(services, on_site=False)
+    fields["service_category"] = category
+    fields["category_title"] = category.name if category else ""
+    fields["service_on_site"] = False
+    for key, value in fields.items():
+        setattr(booking, key, value)
+    booking.save(update_fields=[*fields, "updated_at"])
+    _create_items(booking, services)
+
     BookingStatusLog.objects.create(
         booking=booking,
         from_status=booking.status,
         to_status=booking.status,
         actor=actor,
-        comment=f"Масло: {booking.oil_title} (было: {old_title})",
+        comment=f"Услуга: {booking.service_title} (было: {old_title})",
     )
+    return booking
+
+
+def _service_for_master(booking: Booking, service_id) -> Service:
+    """Услуга для записи — с проверкой доступности, кроме своей же.
+
+    Если запись уже стоит на этой услуге, проверять остаток нельзя: её
+    последнюю единицу держит сама запись, и повторное нажатие выглядело бы
+    как «разобрали».
+    """
+    current = [item.service for item in booking.items.select_related("service__category")]
+    if len(current) == 1 and str(current[0].pk) == str(service_id):
+        return current[0]
+    return stock_service.get_available_service(booking.service_point, service_id)
+
+
+@transaction.atomic
+def set_service(master, booking_id, service_id) -> Booking:
+    """Мастер выбрал услугу: клиент просил подобрать на месте, или услугу
+    заменили по согласию клиента. Запись уходит из очереди звонков."""
+    booking = Booking.objects.select_for_update().get(
+        pk=get_for_master(master, booking_id).pk
+    )
+    _apply_services(booking, [_service_for_master(booking, service_id)], actor=master)
+    transaction.on_commit(lambda: events.publish_booking(booking))
+    logger.info("Запись %s: мастер выбрал услугу", booking.code)
     return booking
 
 
 @transaction.atomic
 def set_oil(master, booking_id, oil_id) -> Booking:
-    """Мастер выбрал масло: клиент просил подобрать на месте, или масло
-    заменили по согласию клиента. Запись уходит из очереди звонков."""
+    """То же, но по старому API: масло вместо услуги.
+
+    Остаётся рабочим, пока обновляются приложения: масло ищется среди
+    услуг точки по ссылке, с которой его перенесли.
+    """
+    from apps.catalog.services.oils import service_for_oil
+
     booking = Booking.objects.select_for_update().get(
         pk=get_for_master(master, booking_id).pk
     )
-    _apply_oil(booking, oil_id, actor=master)
+    service = service_for_oil(booking.service_point, oil_id)
+    _apply_services(
+        booking, [_service_for_master(booking, service.pk)], actor=master
+    )
     transaction.on_commit(lambda: events.publish_booking(booking))
-    logger.info("Запись %s: мастер выбрал масло", booking.code)
+    logger.info("Запись %s: мастер выбрал масло (старое API)", booking.code)
     return booking
 
 
@@ -383,16 +477,18 @@ def complete(
     points: Decimal = Decimal(0),
     final_price: Decimal | None = None,
     reason: str = "",
+    service_id=None,
     oil_id=None,
 ) -> Booking:
-    """Работы выполнены: расчёт, статус, склад и баллы — одной транзакцией.
+    """Работы выполнены: расчёт, статус, остатки и баллы — одной транзакцией.
 
-    `final_price` — итог, если мастер его поправил: долил масла, добавил
-    работу или уступил. Ставится первым: потолок оплаты баллами и баллы в
-    плечи считаются уже от него. `points` — сколько чека клиент решил
-    закрыть баллами (решает клиент, вводит мастер). Правка итога, списание
-    баллов, канистры и баллы в плечи вышестоящих либо происходят вместе,
-    либо не происходят вовсе: это деньги.
+    `final_price` — итог, если мастер его поправил: добавил работу, долил
+    материала или уступил. Ставится первым: потолок оплаты баллами и
+    баллы в плечи считаются уже от него. `points` — сколько чека клиент
+    решил закрыть баллами (решает клиент, вводит мастер). Правка итога,
+    списание баллов, остатков и баллы в плечи вышестоящих либо
+    происходят вместе, либо не происходят вовсе: это деньги.
+    `oil_id` — тот же выбор по старому API, пока обновляются приложения.
     Импорт рефералки локальный — иначе apps.booking и apps.referral
     замкнулись бы друг на друга, как это уже сделано с уведомлениями.
     """
@@ -412,14 +508,21 @@ def complete(
             details={"status": booking.status},
         )
 
-    # Масло ставится первым: от него цена записи, от цены — потолок баллов.
-    # Без масла выполнить нельзя — со склада списывается конкретная канистра.
-    if oil_id:
-        _apply_oil(booking, oil_id, actor=master)
-    elif booking.oil_id is None:
+    # Услуга ставится первой: от неё цена записи, от цены — потолок
+    # баллов. Без услуги выполнить нельзя: нечего посчитать и нечего
+    # списать с остатка.
+    if service_id or oil_id:
+        if oil_id and not service_id:
+            from apps.catalog.services.oils import service_for_oil
+
+            service_id = service_for_oil(booking.service_point, oil_id).pk
+        _apply_services(
+            booking, [_service_for_master(booking, service_id)], actor=master
+        )
+    elif not booking.items.exists():
         raise ValidationError(
-            "Укажите масло — клиент просил подобрать его на месте",
-            code="oil_required",
+            "Укажите услугу — клиент просил подобрать её на месте",
+            code="service_required",
         )
 
     extra = {"master": booking.master or master}

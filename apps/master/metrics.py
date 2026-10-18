@@ -24,8 +24,8 @@ from django.utils import timezone
 from apps.accounts.constants import UserRole
 from apps.accounts.models import User
 from apps.booking.constants import ACTIVE_BOOKING_STATUSES, BookingStatus
-from apps.booking.models import Booking, BookingDraft
-from apps.catalog.models import OilStock, ServicePoint
+from apps.booking.models import Booking, BookingDraft, BookingItem
+from apps.catalog.models import Service, ServicePoint
 
 #: Ниже какого остатка канистр позиция попадает в «заканчивается».
 LOW_STOCK_THRESHOLD = 5
@@ -132,7 +132,7 @@ def collect(period: Period, point: ServicePoint | None) -> dict:
         "by_day": _by_day(bookings, period),
         "by_hour": _by_hour(bookings, period),
         "by_point": _by_point(bookings, point),
-        "top_oils": _top_oils(bookings),
+        "top_services": _top_services(bookings),
         "clients": _clients(period),
         "stock": _stock(point),
         "live": _live(point),
@@ -155,15 +155,15 @@ def _totals(bookings) -> dict:
         avg_check=Coalesce(
             Avg(CHARGED, filter=Q(status=BookingStatus.COMPLETED)), _zero()
         ),
-        oil_revenue=Coalesce(
-            Sum("oil_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
+        material_revenue=Coalesce(
+            Sum("material_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
         ),
         work_revenue=Coalesce(
             Sum("work_price", filter=Q(status=BookingStatus.COMPLETED)), _zero()
         ),
-        # Масло и работа — по ценам брони; правки мастера при расчёте
-        # (долил, добавил работу, уступил) ни к тому, ни к другому не
-        # отнести, поэтому они отдельной строкой.
+        # Материал и работа — по ценам брони; правки мастера при расчёте
+        # (добавил работу, долил материала, уступил) ни к тому, ни к
+        # другому не отнести, поэтому они отдельной строкой.
         adjustments=Coalesce(
             Sum(CHARGED - F("total_price"), filter=Q(status=BookingStatus.COMPLETED)),
             _zero(),
@@ -194,8 +194,9 @@ def _funnel(drafts) -> dict:
     stats = drafts.aggregate(
         started=Count("id"),
         point_selected=Count("id", filter=Q(service_point__isnull=False)),
-        # «Подберите на месте» — тоже пройденный шаг масла, просто без масла.
-        oil_selected=Count("id", filter=Q(oil__isnull=False) | Q(oil_on_site=True)),
+        category_selected=Count("id", filter=Q(service_category__isnull=False)),
+        # «Подберите на месте» — тоже пройденный шаг услуги, просто без услуги.
+        service_selected=Count("id", filter=Q(service__isnull=False) | Q(on_site=True)),
         slot_selected=Count("id", filter=Q(slot_start__isnull=False)),
         confirmed=Count("id", filter=Q(booking__isnull=False)),
         expired=Count("id", filter=Q(close_reason="expired")),
@@ -210,7 +211,8 @@ def _funnel(drafts) -> dict:
         for key, label, count in (
             ("started", "Начали запись", started),
             ("point", "Выбрали адрес", stats["point_selected"]),
-            ("oil", "Выбрали масло", stats["oil_selected"]),
+            ("category", "Выбрали категорию", stats["category_selected"]),
+            ("service", "Выбрали услугу", stats["service_selected"]),
             ("slot", "Выбрали время", stats["slot_selected"]),
             ("confirmed", "Подтвердили", stats["confirmed"]),
         )
@@ -289,21 +291,43 @@ def _by_point(bookings, point: ServicePoint | None) -> list[dict]:
     ]
 
 
-def _top_oils(bookings, limit: int = 8) -> list[dict]:
-    """Что реально продаётся. Берём снимок названия из записи, а не справочник:
-    масло могли переименовать или снять с продажи, история это переживёт."""
+def _top_services(bookings, limit: int = 8) -> list[dict]:
+    """Что реально продаётся. Считаем по позициям записей: в одной записи
+    услуг может быть несколько, и приписать её целиком одной из них нельзя.
+
+    Названия берём из снимка позиции, а не из каталога: услугу могли
+    переименовать или выключить, история это переживёт. Выручка здесь —
+    по ценам брони: правку итога мастером и списанные баллы к конкретной
+    услуге не отнести, они видны в общих цифрах."""
     rows = (
-        bookings.values("oil_title")
+        BookingItem.objects.filter(booking__in=bookings)
+        .values("title")
         .annotate(
-            total=Count("id"),
-            completed=Count("id", filter=Q(status=BookingStatus.COMPLETED)),
+            total=Count("booking_id", distinct=True),
+            completed=Count(
+                "booking_id",
+                filter=Q(booking__status=BookingStatus.COMPLETED),
+                distinct=True,
+            ),
             revenue=Coalesce(
-                Sum(PAID, filter=Q(status=BookingStatus.COMPLETED)), _zero()
+                Sum(
+                    F("price") * F("quantity"),
+                    filter=Q(booking__status=BookingStatus.COMPLETED),
+                ),
+                _zero(),
             ),
         )
         .order_by("-total")[:limit]
     )
-    return list(rows)
+    return [
+        {
+            "service_title": row["title"],
+            "total": row["total"],
+            "completed": row["completed"],
+            "revenue": row["revenue"],
+        }
+        for row in rows
+    ]
 
 
 def _clients(period: Period) -> dict:
@@ -324,19 +348,25 @@ def _clients(period: Period) -> dict:
 
 
 def _stock(point: ServicePoint | None) -> dict:
-    """Склад на сейчас — это срез, а не история, поэтому период не применяем."""
-    qs = OilStock.objects.select_related("service_point", "oil")
+    """Остатки на сейчас — это срез, а не история, поэтому период не применяем.
+
+    Только услуги с галочкой «ограничено»: у мойки остатка нет, и строка
+    «0 шт.» о ней значила бы неправду.
+    """
+    qs = Service.objects.filter(is_limited=True).select_related(
+        "category__service_point"
+    )
     if point is not None:
-        qs = qs.filter(service_point=point)
+        qs = qs.filter(category__service_point=point)
 
     items = [
         {
-            "point": row.service_point.name,
-            "oil": str(row.oil),
+            "point": row.category.service_point.name,
+            "service": row.name,
             "quantity": row.quantity,
             "is_low": row.quantity <= LOW_STOCK_THRESHOLD,
         }
-        for row in qs.order_by("quantity", "service_point__name")
+        for row in qs.order_by("quantity", "category__service_point__name", "name")
     ]
     return {
         "threshold": LOW_STOCK_THRESHOLD,

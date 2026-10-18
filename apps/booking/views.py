@@ -27,8 +27,10 @@ from apps.booking.serializers import (
     CancelSerializer,
     ConfirmDraftSerializer,
     RescheduleSerializer,
+    SelectCategorySerializer,
     SelectOilSerializer,
     SelectPointSerializer,
+    SelectServiceSerializer,
     SelectSlotSerializer,
     StartDraftSerializer,
 )
@@ -37,7 +39,13 @@ from apps.booking.services import draft as draft_service
 from apps.booking.services import slots as slots_service
 from apps.booking.services import stock as stock_service
 from apps.catalog.models import ServicePoint
-from apps.catalog.serializers import AvailableOilSerializer, SlotSerializer
+from apps.catalog.serializers import (
+    AvailableOilSerializer,
+    ServiceCategorySerializer,
+    ServiceSerializer,
+    SlotSerializer,
+)
+from apps.catalog.services import oils as oils_service
 from apps.common.exceptions import ValidationError
 
 
@@ -46,8 +54,8 @@ def _active_point(point_id) -> ServicePoint:
 
 
 @extend_schema(tags=["Доступность"])
-class PointOilsView(APIView):
-    """Масла, доступные на точке прямо сейчас.
+class PointCategoriesView(APIView):
+    """Категории услуг точки со списком того, что можно выбрать сейчас.
 
     Живёт в booking, а не в catalog, потому что доступность зависит от
     броней и черновиков — это область записи, а не справочника.
@@ -56,14 +64,64 @@ class PointOilsView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        responses={200: ServiceCategorySerializer(many=True)},
+        summary="Категории услуг на точке",
+        description=(
+            "Только включённые категории, в которых есть хотя бы одна доступная "
+            "услуга, — и категории, где разрешено «подберите на месте». Цен и "
+            "остатков в ответе нет."
+        ),
+    )
+    def get(self, request: Request, point_id) -> Response:
+        point = _active_point(point_id)
+        categories = stock_service.available_categories(point)
+        return Response(ServiceCategorySerializer(categories, many=True).data)
+
+
+@extend_schema(tags=["Доступность"])
+class PointServicesView(APIView):
+    """Услуги точки, при желании — одной категории."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("category", str, description="UUID категории")],
+        responses={200: ServiceSerializer(many=True)},
+        summary="Услуги в наличии на точке",
+    )
+    def get(self, request: Request, point_id) -> Response:
+        point = _active_point(point_id)
+        draft = draft_service.get_open_draft(request.user)
+        category = None
+        if category_id := request.query_params.get("category"):
+            category = stock_service.get_category(point, category_id)
+
+        services = stock_service.available_services(
+            point, category=category, exclude_draft_id=draft.pk if draft else None
+        )
+        return Response(ServiceSerializer(services, many=True).data)
+
+
+@extend_schema(tags=["Доступность"], deprecated=True)
+class PointOilsView(APIView):
+    """Масла, доступные на точке прямо сейчас.
+
+    **Устарело.** Масла стали услугами категории «Замена масла»: берите
+    `/service-points/{id}/categories/` и `/services/`. Ручка остаётся
+    рабочей, пока обновляются приложения, и отвечает из тех же услуг.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
         responses={200: AvailableOilSerializer(many=True)},
-        summary="Масла в наличии на точке",
+        summary="Масла в наличии на точке (устарело)",
     )
     def get(self, request: Request, point_id) -> Response:
         point = _active_point(point_id)
         draft = draft_service.get_open_draft(request.user)
 
-        oils = stock_service.available_oils(
+        oils = oils_service.available_oils_from_services(
             point, exclude_draft_id=draft.pk if draft else None
         )
         return Response(AvailableOilSerializer(oils, many=True).data)
@@ -133,7 +191,7 @@ class BookingDraftViewSet(
         if getattr(self, "swagger_fake_view", False):
             return self.queryset
         return BookingDraft.objects.filter(user=self.request.user).select_related(
-            "service_point", "oil", "booking"
+            "service_point", "service_category", "service", "booking"
         )
 
     @extend_schema(
@@ -184,9 +242,52 @@ class BookingDraftViewSet(
         return Response(BookingDraftSerializer(draft).data)
 
     @extend_schema(
+        request=SelectCategorySerializer,
+        responses={200: BookingDraftSerializer},
+        summary="Шаг 2: выбрать категорию услуг",
+    )
+    @action(detail=True, methods=["post"], url_path="select-category")
+    def select_category(self, request: Request, pk=None) -> Response:
+        payload = SelectCategorySerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        draft = draft_service.select_category(
+            request.user, pk, payload.validated_data["category_id"]
+        )
+        return Response(BookingDraftSerializer(draft).data)
+
+    @extend_schema(
+        request=SelectServiceSerializer,
+        responses={200: BookingDraftSerializer},
+        summary="Шаг 3: выбрать услугу",
+        description=(
+            "`on_site: true` — «подберите на месте»: клиент записывается без "
+            "услуги, мастер перезвонит и выберет её. Доступно, только если "
+            "категория это разрешает."
+        ),
+    )
+    @action(detail=True, methods=["post"], url_path="select-service")
+    def select_service(self, request: Request, pk=None) -> Response:
+        payload = SelectServiceSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        draft = draft_service.select_service(
+            request.user, pk, payload.validated_data["service_id"],
+            on_site=payload.validated_data["on_site"],
+        )
+        return Response(BookingDraftSerializer(draft).data)
+
+    @extend_schema(
         request=SelectOilSerializer,
         responses={200: BookingDraftSerializer},
-        summary="Шаг 2: выбрать масло",
+        summary="Шаг 2: выбрать масло (устарело)",
+        description=(
+            "**Устарело.** Выбирайте категорию и услугу: `select-category` и "
+            "`select-service`. Ручка остаётся рабочей, пока обновляются "
+            "приложения: масло ищется среди услуг точки, категория ставится та, "
+            "в которую его перенесли."
+        ),
+        deprecated=True,
     )
     @action(detail=True, methods=["post"], url_path="select-oil")
     def select_oil(self, request: Request, pk=None) -> Response:
@@ -202,7 +303,7 @@ class BookingDraftViewSet(
     @extend_schema(
         request=SelectSlotSerializer,
         responses={200: BookingDraftSerializer},
-        summary="Шаг 3: выбрать время",
+        summary="Шаг 4: выбрать время",
     )
     @action(detail=True, methods=["post"], url_path="select-slot")
     def select_slot(self, request: Request, pk=None) -> Response:
@@ -217,9 +318,9 @@ class BookingDraftViewSet(
     @extend_schema(
         request=ConfirmDraftSerializer,
         responses={201: BookingSerializer},
-        summary="Шаг 4: подтвердить запись",
+        summary="Шаг 5: подтвердить запись",
         description=(
-            "Слот и наличие масла проверяются повторно. Если за время "
+            "Слот и доступность услуги проверяются повторно. Если за время "
             "заполнения слот заняли — 409 `slot_taken`. `car_id` — какую "
             "из своих машин везёт клиент; без него — основная."
         ),
@@ -242,7 +343,7 @@ class BookingDraftViewSet(
     @extend_schema(
         responses={200: BookingDraftSerializer},
         summary="Прервать запись",
-        description="Освобождает удерживаемый слот и канистру сразу, не дожидаясь таймера.",
+        description="Освобождает удерживаемый слот и услугу сразу, не дожидаясь таймера.",
     )
     @action(detail=True, methods=["post"])
     def cancel(self, request: Request, pk=None) -> Response:
@@ -263,7 +364,8 @@ class BookingViewSet(
             return self.queryset
         qs = (
             Booking.objects.for_user(self.request.user)
-            .select_related("service_point", "oil", "car")
+            .select_related("service_point", "service_category", "car")
+            .prefetch_related("items")
             .order_by("-start_at")
         )
         if self.action == "retrieve":

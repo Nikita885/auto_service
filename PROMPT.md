@@ -69,9 +69,10 @@ API обслуживает два мобильных приложения:
 ## 4. Что уже сделано (всё работает и проверено)
 
 Серверная часть **готова полностью**, поверх неё работают лендинг и панели
-сотрудников. 458 тестов, ruff чистый, OpenAPI генерируется без ошибок
-(два известных предупреждения: тип `id` у `MasterOilViewSet` и имя
-перечисления `status`), сквозной сценарий прогнан по живому HTTP.
+сотрудников. 512 тестов, ruff чистый, OpenAPI генерируется без ошибок
+(одно известное предупреждение: тип `id` у устаревшего `MasterOilViewSet`;
+имя перечисления `status` закреплено как `BookingStatusEnum`, чтобы схема
+не менялась от версии Django), сквозной сценарий прогнан по живому HTTP.
 
 ### Реализовано
 
@@ -485,13 +486,20 @@ docker-compose.prod.yml   надстройка для прода: закрыва
 `POST /auth/token/refresh/`, `POST /auth/token/verify/`, `GET|PATCH /auth/me/`
 
 **Справочники и доступность:** `GET /service-points/`,
-`GET /service-points/{id}/oils/`, `GET /service-points/{id}/slots/?date=YYYY-MM-DD`
+`GET /service-points/{id}/categories/` (категории точки и доступные услуги,
+без цен и остатков), `GET /service-points/{id}/services/?category=`,
+`GET /service-points/{id}/slots/?date=YYYY-MM-DD`. Устарело, но работает
+поверх услуг: `GET /service-points/{id}/oils/`.
 
 **Запись (черновик):** `POST /bookings/drafts/`, `GET /bookings/drafts/current/`,
-`POST /bookings/drafts/{id}/select-point/`, `.../select-oil/` (`oil_id` или
-`on_site: true` — «подберите на месте»), `.../select-slot/`, `.../confirm/`,
+`POST /bookings/drafts/{id}/select-point/`, `.../select-category/`,
+`.../select-service/` (`service_id` или `on_site: true` — «подберите на
+месте», если категория разрешает), `.../select-slot/`, `.../confirm/`,
 `.../cancel/`. Вперёд — по порядку, назад — на любой пройденный шаг
-(сервер сбрасывает зависящее: другой адрес — масло и время заново)
+(сервер сбрасывает зависящее: другой адрес — категория, услуга и время
+заново; другая категория — услуга заново, время остаётся). Устарело, но
+работает: `.../select-oil/` — шаги категории и услуги разом по маслу, с
+прежними кодами ошибок `oil_*`
 
 **Мои записи:** `GET /bookings/?scope=upcoming|history`, `GET /bookings/{id}/`,
 `POST /bookings/{id}/cancel/`, `POST /bookings/{id}/reschedule/` (то же
@@ -503,13 +511,19 @@ docker-compose.prod.yml   надстройка для прода: закрыва
 баллов списать), `GET .../points/` (баланс клиента и потолок),
 `POST .../no-show/`, `GET /master/bookings/summary/?date=`,
 `POST .../complete/` принимает ещё `final_price` и `reason` — итог при
-расчёте, если он отличается от цены записи, и `oil` — масло для записи
-«подберите на месте» (без него `oil_required`),
-`POST .../set-oil/` (масло после звонка клиенту, просившему подобрать),
-`POST /master/bookings/` (записать клиента по звонку или без записи),
-`GET /master/walk-in/lookup|oils|slots/` (подсказки для этого окна),
-`GET /master/live-drafts/`. Масла: `GET|POST /master/oils/`,
-`PATCH /master/oils/{id}/`, `POST /master/oils/{id}/stock/` (остаток на точке).
+расчёте, если он отличается от цены записи, и `service` — услугу для записи
+«подберите на месте» (без неё `service_required`),
+`POST .../set-service/` (услуга после звонка клиенту, просившему подобрать,
+или замена по согласию клиента),
+`POST /master/bookings/` (записать клиента по звонку или без записи; `service`),
+`GET /master/walk-in/lookup|services|slots/` (подсказки для этого окна),
+`GET /master/live-drafts/`. Каталог услуг своих точек:
+`GET|POST /master/service-categories/`, `PATCH /master/service-categories/{id}/`,
+`POST /master/services/`, `PATCH /master/services/{id}/` (цена, материал,
+остаток абсолютным числом, «включена»). Устарело, но работает поверх услуг:
+`set-oil`, `walk-in/oils`, `GET|POST /master/oils/`, `PATCH /master/oils/{id}/`,
+`POST /master/oils/{id}/stock/` — правки отсюда доезжают до услуг мостом
+`catalog/signals.py`.
 
 **Реферальная программа** (только роль `client`): `GET /referral/`,
 `POST /referral/attach/`, `GET /referral/points/`, `GET /referral/invited/`,
@@ -530,8 +544,10 @@ docker-compose.prod.yml   надстройка для прода: закрыва
 `GET /cars/search/?q=` — поиск одной строкой.
 
 **Администратор:** `GET /master/metrics/?date_from=&date_to=&service_point=` —
-сводная аналитика одним ответом (`totals`, `funnel`, `by_day`, `by_hour`,
-`by_point`, `top_oils`, `clients`, `stock`, `live`). Только роль `admin`.
+сводная аналитика одним ответом (`totals` с `material_revenue` и
+`work_revenue`, `funnel` с шагами категории и услуги, `by_day`, `by_hour`,
+`by_point`, `top_services`, `clients`, `stock` — остатки ограниченных
+услуг, `live`). Только роль `admin`.
 
 **WebSocket клиента:** `ws://host/ws/booking/?token=<access JWT>` — события
 `draft.updated`, `draft.expired`, `draft.closed`, `booking.created`,
@@ -620,7 +636,7 @@ GARAGE_SOON_DAYS=30
 ```bash
 cp .env.example .env
 docker compose build api && docker compose up -d   # или make up
-make test    # 458 тестов
+make test    # 512 тестов
 make lint    # ruff
 ```
 
@@ -778,7 +794,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api python 
 
 Работа не считается сделанной, пока не выполнено всё:
 
-- `make test` зелёный. Сейчас 458 тестов — новых падений быть не должно.
+- `make test` зелёный. Сейчас 512 тестов — новых падений быть не должно.
 - Новая логика покрыта тестами. Особенно граничные случаи: гонки, повторные
   нажатия, истёкшие сроки, права доступа.
 - `make lint` чистый.
@@ -856,7 +872,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api python 
 
 > Проект — бэкенд автосервиса (запись на замену масла): Django 5 + DRF +
 > PostgreSQL + Celery/Redis + JWT + Channels, всё в Docker Compose. Серверная
-> часть готова, 458 тестов; клиентское приложение под Android лежит в
+> часть готова, 512 тестов; клиентское приложение под Android лежит в
 > `mobile/android`. Проект **развёрнут и работает** на https://moi-servis.ru —
 > правки поедут на живой сервер, выкатка описана в `PROMPT.md`, раздел 13.
 > Прочитай `README.md` и `PROMPT.md` целиком — там полный контекст,

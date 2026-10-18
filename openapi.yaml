@@ -396,7 +396,7 @@ paths:
   /api/v1/bookings/drafts/{id}/cancel/:
     post:
       operationId: bookings_drafts_cancel_create
-      description: Освобождает удерживаемый слот и канистру сразу, не дожидаясь таймера.
+      description: Освобождает удерживаемый слот и услугу сразу, не дожидаясь таймера.
       summary: Прервать запись
       parameters:
       - in: path
@@ -432,10 +432,10 @@ paths:
   /api/v1/bookings/drafts/{id}/confirm/:
     post:
       operationId: bookings_drafts_confirm_create
-      description: Слот и наличие масла проверяются повторно. Если за время заполнения
+      description: Слот и доступность услуги проверяются повторно. Если за время заполнения
         слот заняли — 409 `slot_taken`. `car_id` — какую из своих машин везёт клиент;
         без него — основная.
-      summary: 'Шаг 4: подтвердить запись'
+      summary: 'Шаг 5: подтвердить запись'
       parameters:
       - in: path
         name: id
@@ -466,15 +466,53 @@ paths:
               schema:
                 $ref: '#/components/schemas/Booking'
           description: ''
-  /api/v1/bookings/drafts/{id}/select-oil/:
+  /api/v1/bookings/drafts/{id}/select-category/:
     post:
-      operationId: bookings_drafts_select_oil_create
+      operationId: bookings_drafts_select_category_create
       description: |-
         Пошаговая запись.
 
         Черновик создаётся при первом обращении и живёт 5 минут. Каждый шаг
         возвращает полное состояние — клиенту не нужно склеивать ответы.
-      summary: 'Шаг 2: выбрать масло'
+      summary: 'Шаг 2: выбрать категорию услуг'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this черновик записи.
+        required: true
+      tags:
+      - 'Запись: черновик'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectCategoryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SelectCategoryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SelectCategoryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDraft'
+          description: ''
+  /api/v1/bookings/drafts/{id}/select-oil/:
+    post:
+      operationId: bookings_drafts_select_oil_create
+      description: '**Устарело.** Выбирайте категорию и услугу: `select-category`
+        и `select-service`. Ручка остаётся рабочей, пока обновляются приложения: масло
+        ищется среди услуг точки, категория ставится та, в которую его перенесли.'
+      summary: 'Шаг 2: выбрать масло (устарело)'
       parameters:
       - in: path
         name: id
@@ -498,6 +536,7 @@ paths:
               $ref: '#/components/schemas/SelectOilRequest'
       security:
       - jwtAuth: []
+      deprecated: true
       responses:
         '200':
           content:
@@ -545,6 +584,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/BookingDraft'
           description: ''
+  /api/v1/bookings/drafts/{id}/select-service/:
+    post:
+      operationId: bookings_drafts_select_service_create
+      description: '`on_site: true` — «подберите на месте»: клиент записывается без
+        услуги, мастер перезвонит и выберет её. Доступно, только если категория это
+        разрешает.'
+      summary: 'Шаг 3: выбрать услугу'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this черновик записи.
+        required: true
+      tags:
+      - 'Запись: черновик'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelectServiceRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SelectServiceRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SelectServiceRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDraft'
+          description: ''
   /api/v1/bookings/drafts/{id}/select-slot/:
     post:
       operationId: bookings_drafts_select_slot_create
@@ -553,7 +629,7 @@ paths:
 
         Черновик создаётся при первом обращении и живёт 5 минут. Каждый шаг
         возвращает полное состояние — клиенту не нужно склеивать ответы.
-      summary: 'Шаг 3: выбрать время'
+      summary: 'Шаг 4: выбрать время'
       parameters:
       - in: path
         name: id
@@ -1574,10 +1650,9 @@ paths:
   /api/v1/master/bookings/{id}/set-oil/:
     post:
       operationId: master_bookings_set_oil_create
-      description: 'Клиент просил подобрать масло на месте: мастер перезвонил и выбрал
-        его вместе с клиентом. Проверяется наличие на точке, цены записи ставятся
-        по маслу, запись уходит из очереди звонков.'
-      summary: Выбрать масло
+      description: '**Устарело.** Берите `set-service`. Ручка остаётся рабочей, пока
+        обновляются панели: масло ищется среди услуг точки.'
+      summary: Выбрать масло (устарело)
       parameters:
       - in: path
         name: id
@@ -1599,6 +1674,45 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/MasterSetOilRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      deprecated: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterBooking'
+          description: ''
+  /api/v1/master/bookings/{id}/set-service/:
+    post:
+      operationId: master_bookings_set_service_create
+      description: 'Клиент просил подобрать услугу на месте: мастер перезвонил и выбрал
+        её вместе с клиентом. Проверяется доступность на точке, цены записи ставятся
+        по услуге, запись уходит из очереди звонков.'
+      summary: Выбрать услугу
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterSetServiceRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MasterSetServiceRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MasterSetServiceRequest'
         required: true
       security:
       - jwtAuth: []
@@ -1728,12 +1842,16 @@ paths:
       description: |-
         Масла и остатки: мастер заводит новое масло и пересчитывает полку.
 
-        Каталог общий на сеть, остатки — только по своим точкам.
+        **Устарело.** Масла стали услугами категории «Замена масла»: берите
+        `/master/service-categories/` и `/master/services/`. Пока раздел жив,
+        правки отсюда доезжают и до услуг — иначе клиент видел бы одну цену,
+        а мастер другую.
       summary: Масла и остатки
       tags:
       - Мастер
       security:
       - jwtAuth: []
+      deprecated: true
       responses:
         '200':
           content:
@@ -1763,6 +1881,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      deprecated: true
       responses:
         '201':
           content:
@@ -1797,6 +1916,7 @@ paths:
               $ref: '#/components/schemas/PatchedMasterOilRequest'
       security:
       - jwtAuth: []
+      deprecated: true
       responses:
         '200':
           content:
@@ -1831,12 +1951,162 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      deprecated: true
       responses:
         '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OilStockRow'
+          description: ''
+  /api/v1/master/service-categories/:
+    get:
+      operationId: master_service_categories_list
+      description: Категории точек сотрудника вместе с услугами внутри.
+      summary: Категории и услуги
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MasterServiceCategory'
+          description: ''
+    post:
+      operationId: master_service_categories_create
+      description: |-
+        Категории услуг: мастер ведёт каталог своих точек.
+
+        Каталог у каждой точки свой, поэтому точка задаётся при создании и
+        больше не меняется: перенос категории на другой адрес — это другая
+        категория с другими ценами.
+      summary: Новая категория
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterServiceCategoryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MasterServiceCategoryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MasterServiceCategoryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterServiceCategory'
+          description: ''
+  /api/v1/master/service-categories/{id}/:
+    patch:
+      operationId: master_service_categories_partial_update
+      description: Название, порядок, «включена», «можно подобрать на месте», вид
+        для дневника. Уже созданные записи не меняются — в них снимок.
+      summary: Изменить категорию
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMasterCategoryUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMasterCategoryUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMasterCategoryUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterServiceCategory'
+          description: ''
+  /api/v1/master/services/:
+    post:
+      operationId: master_services_create
+      description: Услуги внутри категорий своих точек.
+      summary: Новая услуга
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterServiceCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MasterServiceCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MasterServiceCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterService'
+          description: ''
+  /api/v1/master/services/{id}/:
+    patch:
+      operationId: master_services_partial_update
+      description: 'Название, цена, материал, «ограничено», остаток, «включена в работу».
+        Остаток — абсолютное число после пересчёта или прихода. Уже созданные записи
+        не меняются: в них снимок цены.'
+      summary: Изменить услугу
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMasterServiceRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMasterServiceRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMasterServiceRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterService'
           description: ''
   /api/v1/master/walk-in/lookup/:
     get:
@@ -1867,13 +2137,43 @@ paths:
   /api/v1/master/walk-in/oils/:
     get:
       operationId: master_walk_in_oils_list
+      description: '**Устарело.** Берите `/master/walk-in/services/`.'
+      summary: Масла в наличии для записи (устарело)
+      parameters:
+      - in: query
+        name: service_point
+        schema:
+          type: string
+        required: true
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      deprecated: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MasterAvailableOil'
+          description: ''
+  /api/v1/master/walk-in/services/:
+    get:
+      operationId: master_walk_in_services_list
       description: |-
         Подсказки для окна «Записать клиента»: кто по номеру, масла, время.
 
         Масла и время — те же расчёты, что у клиента в приложении, но время без
         минимального запаса до начала (см. slots._too_early).
-      summary: Масла в наличии для записи
+      summary: Услуги в наличии для записи
       parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+        description: UUID категории — фильтр
       - in: query
         name: service_point
         schema:
@@ -1890,7 +2190,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/MasterAvailableOil'
+                  $ref: '#/components/schemas/MasterAvailableService'
           description: ''
   /api/v1/master/walk-in/slots/:
     get:
@@ -2090,15 +2390,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ServicePoint'
           description: ''
-  /api/v1/service-points/{point_id}/oils/:
+  /api/v1/service-points/{point_id}/categories/:
     get:
-      operationId: service_points_oils_list
-      description: |-
-        Масла, доступные на точке прямо сейчас.
-
-        Живёт в booking, а не в catalog, потому что доступность зависит от
-        броней и черновиков — это область записи, а не справочника.
-      summary: Масла в наличии на точке
+      operationId: service_points_categories_list
+      description: Только включённые категории, в которых есть хотя бы одна доступная
+        услуга, — и категории, где разрешено «подберите на месте». Цен и остатков
+        в ответе нет.
+      summary: Категории услуг на точке
       parameters:
       - in: path
         name: point_id
@@ -2117,7 +2415,68 @@ paths:
               schema:
                 type: array
                 items:
+                  $ref: '#/components/schemas/ServiceCategory'
+          description: ''
+  /api/v1/service-points/{point_id}/oils/:
+    get:
+      operationId: service_points_oils_list
+      description: |-
+        Масла, доступные на точке прямо сейчас.
+
+        **Устарело.** Масла стали услугами категории «Замена масла»: берите
+        `/service-points/{id}/categories/` и `/services/`. Ручка остаётся
+        рабочей, пока обновляются приложения, и отвечает из тех же услуг.
+      summary: Масла в наличии на точке (устарело)
+      parameters:
+      - in: path
+        name: point_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Доступность
+      security:
+      - jwtAuth: []
+      deprecated: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
                   $ref: '#/components/schemas/AvailableOil'
+          description: ''
+  /api/v1/service-points/{point_id}/services/:
+    get:
+      operationId: service_points_services_list
+      description: Услуги точки, при желании — одной категории.
+      summary: Услуги в наличии на точке
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+        description: UUID категории
+      - in: path
+        name: point_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Доступность
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
           description: ''
   /api/v1/service-points/{point_id}/slots/:
     get:
@@ -2253,7 +2612,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/Status37aEnum'
+          - $ref: '#/components/schemas/BookingStatusEnum'
           title: Статус
         status_display:
           type: string
@@ -2262,6 +2621,20 @@ components:
           allOf:
           - $ref: '#/components/schemas/ServicePoint'
           readOnly: true
+        category_title:
+          type: string
+          title: Категория (снимок)
+          maxLength: 120
+        service_title:
+          type: string
+          title: Услуги (снимок)
+          maxLength: 255
+        services:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: 'Услуги записи — только названия: цен клиенту не показываем'
         oil_title:
           type: string
           title: Масло (снимок)
@@ -2269,7 +2642,7 @@ components:
         oil_on_site:
           type: boolean
           readOnly: true
-          description: 'Масло подберут на месте: мастер перезвонит и выберет его вместе
+          description: 'Услугу подберут на месте: мастер перезвонит и выберет её вместе
             с клиентом'
         start_at:
           type: string
@@ -2347,6 +2720,7 @@ components:
       - oil_title
       - paid_amount
       - service_point
+      - services
       - start_at
       - status_display
     BookingDetail:
@@ -2368,7 +2742,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/Status37aEnum'
+          - $ref: '#/components/schemas/BookingStatusEnum'
           title: Статус
         status_display:
           type: string
@@ -2377,6 +2751,20 @@ components:
           allOf:
           - $ref: '#/components/schemas/ServicePoint'
           readOnly: true
+        category_title:
+          type: string
+          title: Категория (снимок)
+          maxLength: 120
+        service_title:
+          type: string
+          title: Услуги (снимок)
+          maxLength: 255
+        services:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: 'Услуги записи — только названия: цен клиенту не показываем'
         oil_title:
           type: string
           title: Масло (снимок)
@@ -2384,7 +2772,7 @@ components:
         oil_on_site:
           type: boolean
           readOnly: true
-          description: 'Масло подберут на месте: мастер перезвонит и выберет его вместе
+          description: 'Услугу подберут на месте: мастер перезвонит и выберет её вместе
             с клиентом'
         start_at:
           type: string
@@ -2472,6 +2860,7 @@ components:
       - oil_title
       - paid_amount
       - service_point
+      - services
       - start_at
       - status_display
       - status_logs
@@ -2518,6 +2907,17 @@ components:
           allOf:
           - $ref: '#/components/schemas/ServicePoint'
           readOnly: true
+        service_category:
+          allOf:
+          - $ref: '#/components/schemas/ServiceCategory'
+          readOnly: true
+        service:
+          allOf:
+          - $ref: '#/components/schemas/Service'
+          readOnly: true
+        on_site:
+          type: boolean
+          title: Услугу подберут на месте
         oil:
           allOf:
           - $ref: '#/components/schemas/Oil'
@@ -2560,6 +2960,8 @@ components:
       - oil
       - progress
       - seconds_left
+      - service
+      - service_category
       - service_point
       - slot_end
       - step_display
@@ -2583,6 +2985,9 @@ components:
           oneOf:
           - $ref: '#/components/schemas/CloseReasonEnum'
           - $ref: '#/components/schemas/BlankEnum'
+        on_site:
+          type: boolean
+          title: Услугу подберут на месте
         oil_on_site:
           type: boolean
           title: Масло подберут на месте
@@ -2597,6 +3002,61 @@ components:
           title: Истекает
       required:
       - expires_at
+    BookingItem:
+      type: object
+      description: 'Позиция чека глазами мастера — с ценой: из неё и считается чек.'
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        service:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        category_title:
+          type: string
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        material_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        quantity:
+          type: integer
+          readOnly: true
+      required:
+      - category_title
+      - id
+      - material_price
+      - price
+      - quantity
+      - service
+      - title
+    BookingStatusEnum:
+      enum:
+      - pending
+      - in_progress
+      - completed
+      - cancelled_by_client
+      - cancelled_by_master
+      - no_show
+      type: string
+      description: |-
+        * `pending` - Ожидает
+        * `in_progress` - В работе
+        * `completed` - Выполнена
+        * `cancelled_by_client` - Отменена клиентом
+        * `cancelled_by_master` - Отменена сервисом
+        * `no_show` - Клиент не приехал
     BookingStatusLog:
       type: object
       properties:
@@ -3109,6 +3569,20 @@ components:
       - line
       - name
       - phone_masked
+    JournalKindEnum:
+      enum:
+      - oil
+      - tires
+      - wash
+      - service
+      - other
+      type: string
+      description: |-
+        * `oil` - Замена масла
+        * `tires` - Шиномонтаж
+        * `wash` - Мойка
+        * `service` - ТО и ремонт
+        * `other` - Другое
     LiveDraft:
       type: object
       description: Кто прямо сейчас записывается. Полезно, чтобы понимать нагрузку.
@@ -3224,6 +3698,49 @@ components:
       - total_price
       - viscosity
       - work_price
+    MasterAvailableService:
+      type: object
+      description: |-
+        Услуга в наличии глазами мастера: с ценой и остатком.
+
+        Клиентский `ServiceSerializer` ни цен, ни остатка не отдаёт вовсе
+        (решение заказчика), поэтому у мастера свой, а не общий с флагом.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        category:
+          type: string
+          format: uuid
+        category_title:
+          type: string
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        material_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        available_quantity:
+          type: integer
+          nullable: true
+          description: Пусто — у услуги не ведётся остаток
+      required:
+      - available_quantity
+      - category
+      - category_title
+      - id
+      - material_price
+      - name
+      - price
+      - total_price
     MasterBooking:
       type: object
       description: |-
@@ -3242,16 +3759,21 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/Status37aEnum'
+          - $ref: '#/components/schemas/BookingStatusEnum'
           title: Статус
         status_display:
           type: string
           readOnly: true
+        needs_service:
+          type: boolean
+          description: 'Клиент просил подобрать услугу на месте: перезвонить и выбрать
+            (set-service)'
+          readOnly: true
         needs_oil:
           type: boolean
           readOnly: true
-          description: 'Клиент просил подобрать масло на месте: перезвонить и выбрать
-            (set-oil)'
+          description: 'То же, что needs_service. Устарело: останется, пока обновляются
+            панели'
         service_point:
           type: string
           format: uuid
@@ -3286,6 +3808,20 @@ components:
           type: string
           title: Госномер
           maxLength: 16
+        category_title:
+          type: string
+          title: Категория (снимок)
+          maxLength: 120
+        service_title:
+          type: string
+          title: Услуги (снимок)
+          maxLength: 255
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingItem'
+          readOnly: true
+          description: 'Позиции чека: услуга, цена, материал, количество'
         oil_title:
           type: string
           title: Масло (снимок)
@@ -3295,6 +3831,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Цена масла
+        material_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Материал
         work_price:
           type: string
           format: decimal
@@ -3342,11 +3883,13 @@ components:
       - id
       - local_time
       - needs_oil
+      - needs_service
       - oil_price
       - oil_title
       - paid_amount
       - service_point
       - service_point_name
+      - services
       - start_at
       - status_display
       - total_price
@@ -3381,9 +3924,16 @@ components:
         service_point:
           type: string
           format: uuid
+        service:
+          type: string
+          format: uuid
+          nullable: true
+          description: Услуга из /master/walk-in/services/.
         oil:
           type: string
           format: uuid
+          nullable: true
+          description: Масло вместо услуги — старое окно записи. Устарело.
         start_at:
           type: string
           format: date-time
@@ -3394,7 +3944,6 @@ components:
           maxLength: 500
       required:
       - full_name
-      - oil
       - phone
       - service_point
       - start_at
@@ -3416,16 +3965,21 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/Status37aEnum'
+          - $ref: '#/components/schemas/BookingStatusEnum'
           title: Статус
         status_display:
           type: string
           readOnly: true
+        needs_service:
+          type: boolean
+          description: 'Клиент просил подобрать услугу на месте: перезвонить и выбрать
+            (set-service)'
+          readOnly: true
         needs_oil:
           type: boolean
           readOnly: true
-          description: 'Клиент просил подобрать масло на месте: перезвонить и выбрать
-            (set-oil)'
+          description: 'То же, что needs_service. Устарело: останется, пока обновляются
+            панели'
         service_point:
           type: string
           format: uuid
@@ -3460,6 +4014,20 @@ components:
           type: string
           title: Госномер
           maxLength: 16
+        category_title:
+          type: string
+          title: Категория (снимок)
+          maxLength: 120
+        service_title:
+          type: string
+          title: Услуги (снимок)
+          maxLength: 255
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingItem'
+          readOnly: true
+          description: 'Позиции чека: услуга, цена, материал, количество'
         oil_title:
           type: string
           title: Масло (снимок)
@@ -3469,6 +4037,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Цена масла
+        material_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Материал
         work_price:
           type: string
           format: decimal
@@ -3529,12 +4102,14 @@ components:
       - id
       - local_time
       - needs_oil
+      - needs_service
       - oil_price
       - oil_title
       - paid_amount
       - price_changes
       - service_point
       - service_point_name
+      - services
       - start_at
       - status_display
       - status_logs
@@ -3555,7 +4130,7 @@ components:
           maxLength: 8
         status:
           allOf:
-          - $ref: '#/components/schemas/Status37aEnum'
+          - $ref: '#/components/schemas/BookingStatusEnum'
           title: Статус
         service_point:
           type: string
@@ -3586,6 +4161,14 @@ components:
           type: string
           title: Госномер
           maxLength: 16
+        category_title:
+          type: string
+          title: Категория (снимок)
+          maxLength: 120
+        service_title:
+          type: string
+          title: Услуги (снимок)
+          maxLength: 255
         oil_title:
           type: string
           minLength: 1
@@ -3596,6 +4179,11 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           title: Цена масла
+        material_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Материал
         work_price:
           type: string
           format: decimal
@@ -3675,11 +4263,16 @@ components:
           default: ''
           description: Почему изменён итог. Необязательно.
           maxLength: 500
+        service:
+          type: string
+          format: uuid
+          nullable: true
+          description: Услуга, если клиент просил подобрать на месте и её ещё не выбрали.
         oil:
           type: string
           format: uuid
           nullable: true
-          description: Масло, если клиент просил подобрать на месте и его ещё не выбрали.
+          description: 'То же по старому API: масло вместо услуги. Устарело.'
     MasterOil:
       type: object
       properties:
@@ -3798,15 +4391,215 @@ components:
       required:
       - id
       - name
+    MasterService:
+      type: object
+      description: Услуга глазами мастера — с ценой, материалом и остатком.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        category:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 160
+        description:
+          type: string
+          default: ''
+          maxLength: 2000
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        material_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          default: '0.00'
+          description: Часть цены, ушедшая на расходник. Ноль — услуга без материала.
+        work_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        is_limited:
+          type: boolean
+          default: false
+        quantity:
+          type: integer
+          maximum: 100000
+          minimum: 0
+          default: 0
+        is_active:
+          type: boolean
+          default: true
+        sort_order:
+          type: integer
+          maximum: 32000
+          minimum: 0
+          default: 100
+      required:
+      - category
+      - id
+      - name
+      - price
+      - work_price
+    MasterServiceCategory:
+      type: object
+      description: Категория точки со своими услугами.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        service_point:
+          type: string
+          format: uuid
+        service_point_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        sort_order:
+          type: integer
+          maximum: 32000
+          minimum: 0
+          default: 100
+        is_active:
+          type: boolean
+          default: true
+        allow_on_site:
+          type: boolean
+          default: true
+          description: 'Клиент сможет записаться, не выбрав услугу: мастер перезвонит.'
+        journal_kind:
+          allOf:
+          - $ref: '#/components/schemas/JournalKindEnum'
+          default: other
+          description: |-
+            Чем выполненная запись станет в дневнике клиента.
+
+            * `oil` - Замена масла
+            * `tires` - Шиномонтаж
+            * `wash` - Мойка
+            * `service` - ТО и ремонт
+            * `other` - Другое
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/MasterService'
+          readOnly: true
+      required:
+      - id
+      - name
+      - service_point
+      - service_point_name
+      - services
+    MasterServiceCategoryRequest:
+      type: object
+      description: Категория точки со своими услугами.
+      properties:
+        service_point:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        sort_order:
+          type: integer
+          maximum: 32000
+          minimum: 0
+          default: 100
+        is_active:
+          type: boolean
+          default: true
+        allow_on_site:
+          type: boolean
+          default: true
+          description: 'Клиент сможет записаться, не выбрав услугу: мастер перезвонит.'
+        journal_kind:
+          allOf:
+          - $ref: '#/components/schemas/JournalKindEnum'
+          default: other
+          description: |-
+            Чем выполненная запись станет в дневнике клиента.
+
+            * `oil` - Замена масла
+            * `tires` - Шиномонтаж
+            * `wash` - Мойка
+            * `service` - ТО и ремонт
+            * `other` - Другое
+      required:
+      - name
+      - service_point
+    MasterServiceCreateRequest:
+      type: object
+      description: Услуга глазами мастера — с ценой, материалом и остатком.
+      properties:
+        category:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: string
+          default: ''
+          maxLength: 2000
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        material_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          default: '0.00'
+          description: Часть цены, ушедшая на расходник. Ноль — услуга без материала.
+        is_limited:
+          type: boolean
+          default: false
+        quantity:
+          type: integer
+          maximum: 100000
+          minimum: 0
+          default: 0
+        is_active:
+          type: boolean
+          default: true
+        sort_order:
+          type: integer
+          maximum: 32000
+          minimum: 0
+          default: 100
+      required:
+      - category
+      - name
+      - price
     MasterSetOilRequest:
       type: object
-      description: Масло, выбранное мастером вместе с клиентом.
+      description: 'То же по старому API. Устарело: масло ищется среди услуг точки.'
       properties:
         oil:
           type: string
           format: uuid
       required:
       - oil
+    MasterSetServiceRequest:
+      type: object
+      description: Услуга, выбранная мастером вместе с клиентом.
+      properties:
+        service:
+          type: string
+          format: uuid
+      required:
+      - service
     Metrics:
       type: object
       properties:
@@ -3828,10 +4621,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MetricsPoint'
-        top_oils:
+        top_services:
           type: array
           items:
-            $ref: '#/components/schemas/MetricsOil'
+            $ref: '#/components/schemas/MetricsService'
         clients:
           $ref: '#/components/schemas/MetricsClients'
         stock:
@@ -3847,7 +4640,7 @@ components:
       - live
       - period
       - stock
-      - top_oils
+      - top_services
       - totals
     MetricsClients:
       type: object
@@ -3891,7 +4684,9 @@ components:
           type: integer
         point_selected:
           type: integer
-        oil_selected:
+        category_selected:
+          type: integer
+        service_selected:
           type: integer
         slot_selected:
           type: integer
@@ -3915,12 +4710,13 @@ components:
       required:
       - alive
       - cancelled
+      - category_selected
       - confirmed
       - conversion
       - expired
-      - oil_selected
       - point_selected
       - restarted
+      - service_selected
       - slot_selected
       - started
       - steps
@@ -3944,24 +4740,6 @@ components:
       required:
       - drafts_now
       - upcoming
-    MetricsOil:
-      type: object
-      properties:
-        oil_title:
-          type: string
-        total:
-          type: integer
-        completed:
-          type: integer
-        revenue:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-      required:
-      - completed
-      - oil_title
-      - revenue
-      - total
     MetricsPeriod:
       type: object
       properties:
@@ -4004,6 +4782,24 @@ components:
       - name
       - revenue
       - total
+    MetricsService:
+      type: object
+      properties:
+        service_title:
+          type: string
+        total:
+          type: integer
+        completed:
+          type: integer
+        revenue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - completed
+      - revenue
+      - service_title
+      - total
     MetricsStock:
       type: object
       properties:
@@ -4027,7 +4823,7 @@ components:
       properties:
         point:
           type: string
-        oil:
+        service:
           type: string
         quantity:
           type: integer
@@ -4035,9 +4831,9 @@ components:
           type: boolean
       required:
       - is_low
-      - oil
       - point
       - quantity
+      - service
     MetricsTotals:
       type: object
       properties:
@@ -4061,7 +4857,7 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-        oil_revenue:
+        material_revenue:
           type: string
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
@@ -4102,9 +4898,9 @@ components:
       - completed
       - completion_rate
       - in_progress
+      - material_revenue
       - no_show
       - no_show_rate
-      - oil_revenue
       - pending
       - points_spent
       - revenue
@@ -4487,6 +5283,39 @@ components:
         note:
           type: string
           maxLength: 200
+    PatchedMasterCategoryUpdateRequest:
+      type: object
+      description: 'Правка категории: точку у категории не меняют — каталог у точки
+        свой.'
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        sort_order:
+          type: integer
+          maximum: 32000
+          minimum: 0
+          default: 100
+        is_active:
+          type: boolean
+          default: true
+        allow_on_site:
+          type: boolean
+          default: true
+          description: 'Клиент сможет записаться, не выбрав услугу: мастер перезвонит.'
+        journal_kind:
+          allOf:
+          - $ref: '#/components/schemas/JournalKindEnum'
+          default: other
+          description: |-
+            Чем выполненная запись станет в дневнике клиента.
+
+            * `oil` - Замена масла
+            * `tires` - Шиномонтаж
+            * `wash` - Мойка
+            * `service` - ТО и ремонт
+            * `other` - Другое
     PatchedMasterOilRequest:
       type: object
       properties:
@@ -4519,6 +5348,44 @@ components:
         is_active:
           type: boolean
           default: true
+    PatchedMasterServiceRequest:
+      type: object
+      description: Услуга глазами мастера — с ценой, материалом и остатком.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: string
+          default: ''
+          maxLength: 2000
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        material_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          default: '0.00'
+          description: Часть цены, ушедшая на расходник. Ноль — услуга без материала.
+        is_limited:
+          type: boolean
+          default: false
+        quantity:
+          type: integer
+          maximum: 100000
+          minimum: 0
+          default: 0
+        is_active:
+          type: boolean
+          default: true
+        sort_order:
+          type: integer
+          maximum: 32000
+          minimum: 0
+          default: 100
     PatchedProfileUpdateRequest:
       type: object
       properties:
@@ -4767,6 +5634,14 @@ components:
         * `client` - Клиент
         * `master` - Мастер
         * `admin` - Администратор
+    SelectCategoryRequest:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+      required:
+      - category_id
     SelectOilRequest:
       type: object
       properties:
@@ -4787,6 +5662,18 @@ components:
           format: uuid
       required:
       - service_point_id
+    SelectServiceRequest:
+      type: object
+      properties:
+        service_id:
+          type: string
+          format: uuid
+          nullable: true
+        on_site:
+          type: boolean
+          default: false
+          description: 'True — «подберите на месте»: без услуги, мастер перезвонит.
+            Тогда service_id не нужен.'
     SelectSlotRequest:
       type: object
       properties:
@@ -4796,6 +5683,80 @@ components:
           description: Начало слота в ISO 8601 с таймзоной, ровно как пришло из /slots/.
       required:
       - start_at
+    Service:
+      type: object
+      description: |-
+        Услуга глазами клиента — без цен и без остатка.
+
+        Цен клиенту не показываем нигде (решение заказчика), и убраны они из
+        ответа, а не только из вёрстки: спрятанное в интерфейсе, но лежащее в
+        JSON — та же публикация. Остаток — внутренняя кухня: сколько канистр
+        на полке, клиента не касается.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 160
+        description:
+          type: string
+          title: Описание
+      required:
+      - id
+      - name
+    ServiceCategory:
+      type: object
+      description: |-
+        Категория точки со списком доступных услуг.
+
+        `services` подкладывает сервис доступности (`stock.available_categories`):
+        в ответе только то, что реально можно выбрать сейчас.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          title: Название
+          maxLength: 120
+        allow_on_site:
+          type: boolean
+          title: Можно подобрать на месте
+          description: 'Клиент сможет записаться, не выбрав услугу: мастер перезвонит
+            и подберёт её.'
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+          readOnly: true
+      required:
+      - id
+      - name
+      - services
+    ServiceCategoryRequest:
+      type: object
+      description: |-
+        Категория точки со списком доступных услуг.
+
+        `services` подкладывает сервис доступности (`stock.available_categories`):
+        в ответе только то, что реально можно выбрать сейчас.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Название
+          maxLength: 120
+        allow_on_site:
+          type: boolean
+          title: Можно подобрать на месте
+          description: 'Клиент сможет записаться, не выбрав услугу: мастер перезвонит
+            и подберёт её.'
+      required:
+      - name
     ServicePoint:
       type: object
       properties:
@@ -4844,15 +5805,13 @@ components:
           description: Дни недели, 0 = понедельник. Пустой список = работает всегда.
         slot_minutes:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 5
-          format: int64
           title: Длительность слота, мин
         posts_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 1
-          format: int64
           title: Постов
           description: Сколько машин обслуживается одновременно — ёмкость одного слота.
       required:
@@ -4905,19 +5864,37 @@ components:
           description: Дни недели, 0 = понедельник. Пустой список = работает всегда.
         slot_minutes:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 5
-          format: int64
           title: Длительность слота, мин
         posts_count:
           type: integer
-          maximum: 9223372036854775807
+          maximum: 32767
           minimum: 1
-          format: int64
           title: Постов
           description: Сколько машин обслуживается одновременно — ёмкость одного слота.
       required:
       - address
+      - name
+    ServiceRequest:
+      type: object
+      description: |-
+        Услуга глазами клиента — без цен и без остатка.
+
+        Цен клиенту не показываем нигде (решение заказчика), и убраны они из
+        ответа, а не только из вёрстки: спрятанное в интерфейсе, но лежащее в
+        JSON — та же публикация. Остаток — внутренняя кухня: сколько канистр
+        на полке, клиента не касается.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Название
+          maxLength: 160
+        description:
+          type: string
+          title: Описание
+      required:
       - name
     Slot:
       type: object
@@ -4966,26 +5943,12 @@ components:
           type: boolean
           default: false
           description: True — выбросить незавершённый черновик и начать заново.
-    Status37aEnum:
-      enum:
-      - pending
-      - in_progress
-      - completed
-      - cancelled_by_client
-      - cancelled_by_master
-      - no_show
-      type: string
-      description: |-
-        * `pending` - Ожидает
-        * `in_progress` - В работе
-        * `completed` - Выполнена
-        * `cancelled_by_client` - Отменена клиентом
-        * `cancelled_by_master` - Отменена сервисом
-        * `no_show` - Клиент не приехал
     StepEnum:
       enum:
       - started
       - point_selected
+      - category_selected
+      - service_selected
       - oil_selected
       - slot_selected
       - confirmed
@@ -4995,7 +5958,9 @@ components:
       description: |-
         * `started` - Начата
         * `point_selected` - Выбран адрес
-        * `oil_selected` - Выбрано масло
+        * `category_selected` - Выбрана категория
+        * `service_selected` - Выбрана услуга
+        * `oil_selected` - Выбрано масло (устарело)
         * `slot_selected` - Выбрано время
         * `confirmed` - Подтверждена
         * `expired` - Истекла

@@ -1,7 +1,7 @@
 """Запись клиента мастером: позвонил или приехал без записи.
 
 Проверки те же, что у клиента в приложении, и из тех же модулей
-(`slots`, `stock`): свободный пост, масло на полке, горизонт записи,
+(`slots`, `stock`): свободный пост, услуга в наличии, горизонт записи,
 нет ли у клиента другой записи на это время. Отличие одно — нет
 минимального запаса до начала: мастер записывает и в слот, который уже
 идёт, если пост свободен (живая очередь).
@@ -26,6 +26,7 @@ from apps.booking.services import booking as booking_service
 from apps.booking.services import slots as slots_service
 from apps.booking.services import stock as stock_service
 from apps.catalog.models import ServicePoint
+from apps.catalog.services.oils import service_for_oil
 from apps.common.exceptions import ConflictError, NotFoundError, PermissionError_
 from apps.common.phone import mask_phone, normalize_phone
 from apps.garage.services import cars as cars_service
@@ -79,7 +80,8 @@ def book(
     car_plate: str = "",
     car_id=None,
     service_point_id,
-    oil_id,
+    service_id=None,
+    oil_id=None,
     start_at: datetime,
     comment: str = "",
 ) -> Booking:
@@ -93,7 +95,22 @@ def book(
     # записи мастеров на неё: последний пост не достанется двоим.
     point = point_for_master(master, service_point_id, lock=True)
     start_at, end_at = slots_service.validate_slot(point, start_at, walk_in=True)
-    oil = stock_service.get_available_oil(point, oil_id)
+    legacy = not service_id
+    if legacy:
+        # Старое окно записи присылает масло: ищем услугу, в которую его
+        # перенесли. Уйдёт вместе со старым API.
+        service_id = service_for_oil(point, oil_id).pk
+    try:
+        service = stock_service.get_available_service(point, service_id)
+    except ConflictError as exc:
+        # Коды ответа старого окна не меняем: их разбирает панель прежней
+        # версии, которую мы как раз и не хотим сломать.
+        if legacy and exc.code == "service_out_of_stock":
+            raise ConflictError(
+                "Это масло только что разобрали, выберите другое",
+                code="oil_out_of_stock",
+            ) from exc
+        raise
 
     user, created = accounts_services.get_or_create_client(phone, full_name=full_name)
     if car_id:
@@ -110,7 +127,8 @@ def book(
     booking = booking_service.create_booking(
         user=user,
         point=point,
-        oil=oil,
+        category=service.category,
+        services=[service],
         start_at=start_at,
         end_at=end_at,
         client_name=full_name,

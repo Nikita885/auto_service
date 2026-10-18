@@ -205,10 +205,27 @@ def test_out_of_stock_oil_is_rejected(auth, master_user, ready_draft, point, sto
     assert resp.json()["error"]["code"] == "oil_out_of_stock"
 
 
-def test_oil_missing_at_point(auth, master_user, point, second_point, oil, free_slot):
+def test_oil_without_stock_at_point_is_out_of_stock(
+    auth, master_user, point, second_point, oil, free_slot
+):
+    """Масло есть только на другой точке. Услуга у этой точки заведена с
+    нулём (так её заводит и перенос), поэтому ответ — «кончилось», а не
+    «нет такого»: для мастера и клиента разницы нет, масла на полке нет."""
     OilStock.objects.create(service_point=second_point, oil=oil, quantity=3)
 
     resp = auth(master_user).post(BOOKINGS_URL, payload(point, oil, free_slot), format="json")
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "oil_out_of_stock"
+
+
+def test_oil_unknown_to_catalog_is_not_available(auth, master_user, point, free_slot):
+    """Масла, которого нет вовсе, мост услугу не заводил — 404, как раньше."""
+    import uuid
+
+    resp = auth(master_user).post(
+        BOOKINGS_URL, {**payload(point, type("O", (), {"pk": uuid.uuid4()}), free_slot)},
+        format="json",
+    )
     assert resp.status_code == 404
     assert resp.json()["error"]["code"] == "oil_not_available"
 

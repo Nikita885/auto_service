@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -30,6 +31,7 @@ from apps.booking.services import walk_in as walk_in_service
 from apps.catalog.models import ServicePoint
 from apps.catalog.serializers import SlotSerializer
 from apps.catalog.services import oils as oils_service
+from apps.catalog.services import services as services_service
 from apps.common.exceptions import NotFoundError, ValidationError
 from apps.common.permissions import IsAdmin, IsMaster
 from apps.garage.services.cars import normalize_plate
@@ -39,21 +41,31 @@ from apps.master.serializers import (
     DaySummarySerializer,
     LiveDraftSerializer,
     MasterAvailableOilSerializer,
+    MasterAvailableServiceSerializer,
     MasterBookingCreateSerializer,
     MasterBookingDetailSerializer,
     MasterBookingSerializer,
     MasterCancelSerializer,
     MasterCatalogSerializer,
+    MasterCategoryUpdateSerializer,
     MasterCompleteSerializer,
     MasterOilCreateSerializer,
     MasterOilSerializer,
+    MasterServiceCategorySerializer,
+    MasterServiceCreateSerializer,
+    MasterServiceSerializer,
     MasterSetOilSerializer,
+    MasterSetServiceSerializer,
     MetricsSerializer,
     NoShowSerializer,
     OilStockRowSerializer,
     PointsQuoteSerializer,
 )
 from apps.referral.services import points as referral_points
+
+#: id в пути — UUID. У ViewSet без queryset генератор схемы его не выводит
+#: и пишет «string», а клиенту полезно знать формат заранее.
+_UUID_ID = OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)
 
 
 def _parse_date(raw: str):
@@ -102,7 +114,9 @@ class MasterBookingViewSet(
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return self.queryset
-        qs = Booking.objects.select_related("service_point", "oil", "user")
+        qs = Booking.objects.select_related(
+            "service_point", "service_category", "user"
+        ).prefetch_related("items")
 
         # Мастер видит только свои точки; у админа ограничения нет.
         allowed = self.request.user.accessible_point_ids()
@@ -133,6 +147,7 @@ class MasterBookingViewSet(
                 Q(code__icontains=search)
                 | Q(client_name__icontains=search)
                 | Q(client_phone__icontains=search)
+                | Q(service_title__icontains=search)
                 | Q(car_plate__icontains=search)
                 # «a123» латиницей найдёт «А123ВС»: номера в записи
                 # приведены к кириллице (garage.normalize_plate).
@@ -182,6 +197,7 @@ class MasterBookingViewSet(
             car_plate=data["car_plate"],
             car_id=data["car_id"],
             service_point_id=data["service_point"],
+            service_id=data["service"],
             oil_id=data["oil"],
             start_at=data["start_at"],
             comment=data["comment"],
@@ -235,19 +251,39 @@ class MasterBookingViewSet(
         data = payload.validated_data
         booking = booking_service.complete(
             request.user, pk, points=data["points"],
-            final_price=data["final_price"], reason=data["reason"], oil_id=data["oil"],
+            final_price=data["final_price"], reason=data["reason"],
+            service_id=data["service"], oil_id=data["oil"],
+        )
+        return Response(MasterBookingSerializer(booking).data)
+
+    @extend_schema(
+        request=MasterSetServiceSerializer,
+        responses={200: MasterBookingSerializer},
+        summary="Выбрать услугу",
+        description=(
+            "Клиент просил подобрать услугу на месте: мастер перезвонил и выбрал "
+            "её вместе с клиентом. Проверяется доступность на точке, цены записи "
+            "ставятся по услуге, запись уходит из очереди звонков."
+        ),
+    )
+    @action(detail=True, methods=["post"], url_path="set-service")
+    def set_service(self, request: Request, pk=None) -> Response:
+        payload = MasterSetServiceSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        booking = booking_service.set_service(
+            request.user, pk, payload.validated_data["service"]
         )
         return Response(MasterBookingSerializer(booking).data)
 
     @extend_schema(
         request=MasterSetOilSerializer,
         responses={200: MasterBookingSerializer},
-        summary="Выбрать масло",
+        summary="Выбрать масло (устарело)",
         description=(
-            "Клиент просил подобрать масло на месте: мастер перезвонил и выбрал "
-            "его вместе с клиентом. Проверяется наличие на точке, цены записи "
-            "ставятся по маслу, запись уходит из очереди звонков."
+            "**Устарело.** Берите `set-service`. Ручка остаётся рабочей, пока "
+            "обновляются панели: масло ищется среди услуг точки."
         ),
+        deprecated=True,
     )
     @action(detail=True, methods=["post"], url_path="set-oil")
     def set_oil(self, request: Request, pk=None) -> Response:
@@ -353,13 +389,32 @@ class WalkInViewSet(viewsets.ViewSet):
         return Response(ClientLookupSerializer(found).data)
 
     @extend_schema(
+        parameters=[
+            OpenApiParameter("service_point", str, required=True),
+            OpenApiParameter("category", str, description="UUID категории — фильтр"),
+        ],
+        responses={200: MasterAvailableServiceSerializer(many=True)},
+        summary="Услуги в наличии для записи",
+    )
+    @action(detail=False, methods=["get"])
+    def services(self, request: Request) -> Response:
+        point = self._point(request)
+        category = None
+        if category_id := request.query_params.get("category"):
+            category = stock_service.get_category(point, category_id)
+        rows = stock_service.available_services(point, category=category)
+        return Response(MasterAvailableServiceSerializer(rows, many=True).data)
+
+    @extend_schema(
         parameters=[OpenApiParameter("service_point", str, required=True)],
         responses={200: MasterAvailableOilSerializer(many=True)},
-        summary="Масла в наличии для записи",
+        summary="Масла в наличии для записи (устарело)",
+        description="**Устарело.** Берите `/master/walk-in/services/`.",
+        deprecated=True,
     )
     @action(detail=False, methods=["get"])
     def oils(self, request: Request) -> Response:
-        oils = stock_service.available_oils(self._point(request))
+        oils = oils_service.available_oils_from_services(self._point(request))
         return Response(MasterAvailableOilSerializer(oils, many=True).data)
 
     @extend_schema(
@@ -450,10 +505,109 @@ class MetricsView(APIView):
 
 
 @extend_schema(tags=["Мастер"])
+class MasterServiceCategoryViewSet(viewsets.ViewSet):
+    """Категории услуг: мастер ведёт каталог своих точек.
+
+    Каталог у каждой точки свой, поэтому точка задаётся при создании и
+    больше не меняется: перенос категории на другой адрес — это другая
+    категория с другими ценами.
+    """
+
+    permission_classes = [IsMaster]
+
+    @extend_schema(
+        responses={200: MasterServiceCategorySerializer(many=True)},
+        summary="Категории и услуги",
+        description="Категории точек сотрудника вместе с услугами внутри.",
+    )
+    def list(self, request: Request) -> Response:
+        categories = services_service.catalog_for(request.user)
+        return Response(MasterServiceCategorySerializer(categories, many=True).data)
+
+    @extend_schema(
+        request=MasterServiceCategorySerializer,
+        responses={201: MasterServiceCategorySerializer},
+        summary="Новая категория",
+    )
+    def create(self, request: Request) -> Response:
+        payload = MasterServiceCategorySerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = dict(payload.validated_data)
+        category = services_service.create_category(
+            request.user, service_point=data.pop("service_point_id"), **data
+        )
+        return Response(
+            MasterServiceCategorySerializer(category).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(
+        request=MasterCategoryUpdateSerializer,
+        responses={200: MasterServiceCategorySerializer},
+        parameters=[_UUID_ID],
+        summary="Изменить категорию",
+        description="Название, порядок, «включена», «можно подобрать на месте», "
+        "вид для дневника. Уже созданные записи не меняются — в них снимок.",
+    )
+    def partial_update(self, request: Request, pk=None) -> Response:
+        payload = MasterCategoryUpdateSerializer(data=request.data, partial=True)
+        payload.is_valid(raise_exception=True)
+        category = services_service.update_category(
+            request.user, pk, **payload.validated_data
+        )
+        return Response(MasterServiceCategorySerializer(category).data)
+
+
+@extend_schema(tags=["Мастер"])
+class MasterServiceViewSet(viewsets.ViewSet):
+    """Услуги внутри категорий своих точек."""
+
+    permission_classes = [IsMaster]
+
+    @extend_schema(
+        request=MasterServiceCreateSerializer,
+        responses={201: MasterServiceSerializer},
+        summary="Новая услуга",
+    )
+    def create(self, request: Request) -> Response:
+        payload = MasterServiceCreateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = dict(payload.validated_data)
+        service = services_service.create_service(
+            request.user, category=data.pop("category"), **data
+        )
+        return Response(
+            MasterServiceSerializer(service).data, status=status.HTTP_201_CREATED
+        )
+
+    @extend_schema(
+        request=MasterServiceSerializer,
+        responses={200: MasterServiceSerializer},
+        parameters=[_UUID_ID],
+        summary="Изменить услугу",
+        description=(
+            "Название, цена, материал, «ограничено», остаток, «включена в "
+            "работу». Остаток — абсолютное число после пересчёта или прихода. "
+            "Уже созданные записи не меняются: в них снимок цены."
+        ),
+    )
+    def partial_update(self, request: Request, pk=None) -> Response:
+        payload = MasterServiceSerializer(data=request.data, partial=True)
+        payload.is_valid(raise_exception=True)
+        service = services_service.update_service(
+            request.user, pk, **payload.validated_data
+        )
+        return Response(MasterServiceSerializer(service).data)
+
+
+@extend_schema(tags=["Мастер"], deprecated=True)
 class MasterOilViewSet(viewsets.ViewSet):
     """Масла и остатки: мастер заводит новое масло и пересчитывает полку.
 
-    Каталог общий на сеть, остатки — только по своим точкам.
+    **Устарело.** Масла стали услугами категории «Замена масла»: берите
+    `/master/service-categories/` и `/master/services/`. Пока раздел жив,
+    правки отсюда доезжают и до услуг — иначе клиент видел бы одну цену,
+    а мастер другую.
     """
 
     permission_classes = [IsMaster]

@@ -45,7 +45,7 @@
     renderFunnel(data.funnel);
     renderHours(data.by_hour);
     renderPoints(data.by_point);
-    renderOils(data.top_oils);
+    renderServices(data.top_services);
     renderStock(data.stock);
   }
 
@@ -57,7 +57,7 @@
       { label: "Выручка", value: fmt.money(t.revenue), accent: true,
         hint: Number(t.points_spent) > 0
           ? "деньгами; ещё " + fmt.money(t.points_spent) + " закрыто баллами"
-          : "масло " + fmt.money(t.oil_revenue) + " + работа " + fmt.money(t.work_revenue) +
+          : "материал " + fmt.money(t.material_revenue) + " + работа " + fmt.money(t.work_revenue) +
             // Правки итога мастером при расчёте: доплаты минус уступки.
             (Number(t.adjustments) ? (Number(t.adjustments) > 0 ? " + " : " − ") +
               "правки " + fmt.money(Math.abs(Number(t.adjustments))) : "") },
@@ -72,7 +72,7 @@
         hint: data.live.upcoming + " предстоящих записей" },
       { label: "Клиенты", value: fmt.number(data.clients.total),
         hint: "+" + data.clients.new + " за период · " + data.clients.returning + " возвращались" },
-      { label: "Канистр на складе", value: fmt.number(data.stock.total_quantity),
+      { label: "Остаток услуг", value: fmt.number(data.stock.total_quantity),
         hint: data.stock.low_count ? data.stock.low_count + " позиций заканчивается" : "запас в норме" },
     ];
 
@@ -289,28 +289,28 @@
       "</div>";
   }
 
-  /* --------------------------------------------------------------- масла */
+  /* -------------------------------------------------------------- услуги */
 
-  function renderOils(oils) {
-    const box = $("#m-oils");
+  function renderServices(services) {
+    const box = $("#m-services");
     box.innerHTML = "";
 
-    if (!oils.length) {
+    if (!services.length) {
       box.append(empty("Пока ничего не заказывали.", "drop"));
       return;
     }
 
-    const max = Math.max(...oils.map((oil) => oil.total), 1);
+    const max = Math.max(...services.map((item) => item.total), 1);
     box.innerHTML =
       '<div class="rank">' +
-      oils
-        .map((oil) =>
+      services
+        .map((item) =>
           '<div class="rank-row">' +
-          '<div class="rank-name">' + esc(oil.oil_title) + "</div>" +
-          '<div class="rank-value">' + oil.total + " " + fmt.plural(oil.total, "запись", "записи", "записей") +
-          " · " + fmt.money(oil.revenue) + "</div>" +
+          '<div class="rank-name">' + esc(item.service_title) + "</div>" +
+          '<div class="rank-value">' + item.total + " " + fmt.plural(item.total, "запись", "записи", "записей") +
+          " · " + fmt.money(item.revenue) + "</div>" +
           '<div class="rank-track"><div class="rank-fill" style="width:' +
-          ((oil.total / max) * 100).toFixed(1) + '%"></div></div>' +
+          ((item.total / max) * 100).toFixed(1) + '%"></div></div>' +
           "</div>"
         )
         .join("") +
@@ -324,7 +324,7 @@
     box.innerHTML = "";
 
     $("#m-stock-sub").textContent =
-      "Остатки расходных материалов · порог «заканчивается» — " + stock.threshold;
+      "Остатки услуг с ограниченным количеством · порог «заканчивается» — " + stock.threshold;
 
     if (!stock.items.length) {
       box.append(empty("Остатки не заведены.", "box"));
@@ -333,7 +333,7 @@
 
     const rows = stock.items
       .map((item) =>
-        "<tr><td>" + esc(item.oil) + '<div class="cell-sub">' + esc(item.point) + "</div></td>" +
+        "<tr><td>" + esc(item.service) + '<div class="cell-sub">' + esc(item.point) + "</div></td>" +
         '<td class="num nowrap">' +
         (item.is_low
           ? '<span class="badge badge-danger">' + item.quantity + "</span>"

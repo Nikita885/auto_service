@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 
 from apps.catalog.models import (
@@ -120,6 +121,53 @@ def catalog_for(staff) -> tuple[list[ServicePoint], list[Oil]]:
     return points, oils
 
 
+def available_oils_from_services(point: ServicePoint, *, exclude_draft_id=None) -> list[Oil]:
+    """Масла в наличии для старого API — поверх услуг.
+
+    Отвечаем из того же расчёта доступности, что и новые ручки: иначе
+    приложение прежней версии показывало бы наличие, которого нет.
+    Импорт локальный: `booking` зависит от `catalog`, и встречный импорт
+    на уровне модуля замкнул бы приложения друг на друга.
+    """
+    from apps.booking.services import stock as stock_service
+
+    oils: list[Oil] = []
+    for service in stock_service.available_services(
+        point, exclude_draft_id=exclude_draft_id
+    ):
+        if service.oil_id is None:
+            continue
+        oil = service.oil
+        # У неограниченной услуги остатка нет вовсе; старое приложение
+        # понимает только число, и единица для него значит «есть».
+        oil.available_quantity = (
+            service.available_quantity if service.available_quantity is not None else 1
+        )
+        oils.append(oil)
+    return oils
+
+
+def service_for_oil(point: ServicePoint, oil_id) -> Service:
+    """Услуга, в которую перенесли это масло на этой точке.
+
+    Опора старого API: приложение, которое ещё не обновилось, присылает
+    id масла, а запись и расчёт живут уже на услугах.
+    """
+    try:
+        service = Service.objects.select_related("category").filter(
+            category__service_point=point, oil_id=oil_id
+        ).first()
+    except (ValueError, TypeError, DjangoValidationError) as exc:
+        raise NotFoundError(
+            "Такого масла нет на выбранной точке", code="oil_not_available"
+        ) from exc
+    if service is None:
+        raise NotFoundError(
+            "Такого масла нет на выбранной точке", code="oil_not_available"
+        )
+    return service
+
+
 @transaction.atomic
 def create_oil(staff, *, stock: dict | None = None, **fields) -> Oil:
     """Новое масло в каталог и, сразу, его остатки на точках мастера."""
@@ -135,8 +183,6 @@ def create_oil(staff, *, stock: dict | None = None, **fields) -> Oil:
 
     for point_id, quantity in (stock or {}).items():
         set_stock(staff, oil.pk, point_id, quantity)
-    # Точки, которым остаток не задали, тоже должны увидеть позицию — с нулём.
-    mirror_oil(oil)
     return oil
 
 
@@ -158,7 +204,6 @@ def update_oil(staff, oil_id, **fields) -> Oil:
             raise ConflictError(
                 "Такое масло уже есть в каталоге", code="oil_exists"
             ) from exc
-        mirror_oil(oil)
     return oil
 
 
@@ -177,5 +222,4 @@ def set_stock(staff, oil_id, point_id, quantity: int) -> OilStock:
     )
     stock.quantity = quantity
     stock.save(update_fields=["quantity", "updated_at"])
-    mirror_oil(Oil.objects.get(pk=oil_id), quantity_by_point={point.pk: quantity})
     return stock

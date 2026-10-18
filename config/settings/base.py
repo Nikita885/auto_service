@@ -231,6 +231,10 @@ SPECTACULAR_SETTINGS = {
     # имени генератор называет одно из перечислений хешем (Kind896Enum).
     "ENUM_NAME_OVERRIDES": {
         "GarageEntryKindEnum": "apps.garage.models.EntryKind",
+        # `status` есть у записи и у уведомления. Без явного имени генератор
+        # приклеивает хеш, а хеш зависит от того, как версия Django
+        # раскладывает choices, — и файл схемы менялся от машины к машине.
+        "BookingStatusEnum": "apps.booking.constants.BookingStatus",
     },
 }
 

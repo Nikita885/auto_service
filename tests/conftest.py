@@ -9,7 +9,13 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.booking.services import draft as draft_service
-from apps.catalog.models import Oil, OilStock, OilType, ServicePoint
+from apps.catalog.models import (
+    Oil,
+    OilStock,
+    OilType,
+    Service,
+    ServicePoint,
+)
 from apps.garage.models import Car
 from apps.referral.models import ReferralNode
 from apps.referral.services import tree as tree_service
@@ -84,7 +90,20 @@ def oil(db) -> Oil:
 
 @pytest.fixture
 def stock(db, point, oil) -> OilStock:
+    """Одна канистра на точке. Услугу, в которую масло перенесли, делает
+    мост из `catalog/signals.py` — как и на живой базе."""
     return OilStock.objects.create(service_point=point, oil=oil, quantity=1)
+
+
+@pytest.fixture
+def service(db, point, stock) -> Service:
+    """Услуга «замена масла» за 4800 ₽ (материал 3900) с остатком 1."""
+    return Service.objects.get(category__service_point=point, oil=stock.oil)
+
+
+@pytest.fixture
+def category(service):
+    return service.category
 
 
 @pytest.fixture
@@ -125,11 +144,12 @@ def free_slot(point, settings):
 
 
 @pytest.fixture
-def ready_draft(client_user, point, stock, free_slot):
+def ready_draft(client_user, point, service, free_slot):
     """Черновик, доведённый до шага «выбрано время»."""
     draft = draft_service.start_draft(client_user)
     draft_service.select_point(client_user, draft.pk, point.pk)
-    draft_service.select_oil(client_user, draft.pk, stock.oil_id)
+    draft_service.select_category(client_user, draft.pk, service.category_id)
+    draft_service.select_service(client_user, draft.pk, service.pk)
     return draft_service.select_slot(client_user, draft.pk, free_slot.start_at)
 
 
@@ -155,11 +175,12 @@ def _no_real_sms(settings):
 
 # ------------------------------------------------ расчёт у мастера
 @pytest.fixture
-def booking(client_user, point, stock, free_slot):
-    """Запись на Shell за 3900 + 900 = 4800 ₽. Потолок баллов — 2400."""
+def booking(client_user, point, service, free_slot):
+    """Запись на Shell за 4800 ₽ (материал 3900). Потолок баллов — 2400."""
     draft = draft_service.start_draft(client_user)
     draft_service.select_point(client_user, draft.pk, point.pk)
-    draft_service.select_oil(client_user, draft.pk, stock.oil_id)
+    draft_service.select_category(client_user, draft.pk, service.category_id)
+    draft_service.select_service(client_user, draft.pk, service.pk)
     draft_service.select_slot(client_user, draft.pk, free_slot.start_at)
     return draft_service.confirm(client_user, draft.pk)
 

@@ -168,7 +168,7 @@ def test_metrics_use_final_total(auth, master_user, booking):
     assert Decimal(totals["revenue"]) == Decimal("4300.00")
     assert Decimal(totals["avg_check"]) == Decimal("4300.00")
     # Масло и работа — по брони, правка — отдельной строкой: 3900 + 900 − 500.
-    assert Decimal(totals["oil_revenue"]) == Decimal("3900.00")
+    assert Decimal(totals["material_revenue"]) == Decimal("3900.00")
     assert Decimal(totals["adjustments"]) == Decimal("-500.00")
 
 

@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.booking.constants import BookingStatus, DraftStep
-from apps.booking.models import Booking, BookingDraft, generate_booking_code
+from apps.booking.models import Booking, BookingDraft, BookingItem, generate_booking_code
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -23,24 +23,38 @@ def admin_user(db) -> User:
     return User.objects.create_superuser(phone="+79000000000", password="admin12345")
 
 
-def make_booking(user, point, oil, *, status, hours_ago=2, price="1000", work="500"):
-    """Запись напрямую через ORM: метрики читают базу, а не проходят сценарий."""
+def make_booking(user, point, service, *, status, hours_ago=2, price="1000", work="500"):
+    """Запись напрямую через ORM: метрики читают базу, а не проходят сценарий.
+
+    Строится в той форме, в какой запись лежит на живой базе: со снимком
+    категории и услуги, материалом и позицией чека. `price` — материал,
+    `work` — работа, итог — их сумма.
+    """
     start = timezone.now() - timedelta(hours=hours_ago)
-    return Booking.objects.create(
+    material, total = Decimal(price), Decimal(price) + Decimal(work)
+    booking = Booking.objects.create(
         code=generate_booking_code(),
         user=user,
         service_point=point,
-        oil=oil,
+        service_category=service.category,
         start_at=start,
         end_at=start + timedelta(minutes=30),
         status=status,
         client_name=user.full_name,
         client_phone=user.phone,
-        oil_title=str(oil),
-        oil_price=Decimal(price),
+        category_title=service.category.name,
+        service_title=service.name,
+        oil_title=service.name,
+        oil_price=material,
+        material_price=material,
         work_price=Decimal(work),
-        total_price=Decimal(price) + Decimal(work),
+        total_price=total,
     )
+    BookingItem.objects.create(
+        booking=booking, service=service, title=service.name,
+        category_title=service.category.name, price=total, material_price=material,
+    )
+    return booking
 
 
 # ---------------------------------------------------------------- доступ
@@ -66,10 +80,10 @@ def test_admin_opens_metrics(auth, admin_user):
 
 
 # ---------------------------------------------------------------- цифры
-def test_revenue_counts_only_completed(auth, admin_user, client_user, point, oil):
-    make_booking(client_user, point, oil, status=BookingStatus.COMPLETED)
-    make_booking(client_user, point, oil, status=BookingStatus.COMPLETED, hours_ago=3)
-    make_booking(client_user, point, oil, status=BookingStatus.CANCELLED_BY_CLIENT, hours_ago=4)
+def test_revenue_counts_only_completed(auth, admin_user, client_user, point, service):
+    make_booking(client_user, point, service, status=BookingStatus.COMPLETED)
+    make_booking(client_user, point, service, status=BookingStatus.COMPLETED, hours_ago=3)
+    make_booking(client_user, point, service, status=BookingStatus.CANCELLED_BY_CLIENT, hours_ago=4)
 
     totals = auth(admin_user).get(URL).json()["totals"]
 
@@ -79,7 +93,7 @@ def test_revenue_counts_only_completed(auth, admin_user, client_user, point, oil
     # Отменённая запись денег не приносит: 2 × 1500.
     assert Decimal(totals["revenue"]) == Decimal("3000.00")
     assert Decimal(totals["avg_check"]) == Decimal("1500.00")
-    assert Decimal(totals["oil_revenue"]) == Decimal("2000.00")
+    assert Decimal(totals["material_revenue"]) == Decimal("2000.00")
     assert totals["cancel_rate"] == pytest.approx(33.3)
 
 
@@ -103,7 +117,9 @@ def test_by_day_covers_every_day_of_period(auth, admin_user):
 
 
 # --------------------------------------------------------------- воронка
-def test_funnel_counts_depth_by_filled_fields(auth, admin_user, client_user, point, oil):
+def test_funnel_counts_depth_by_filled_fields(
+    auth, admin_user, client_user, point, service
+):
     """Шаг закрытого черновика перезаписан на `expired`, глубину даёт заполненность."""
     BookingDraft.objects.create(
         user=client_user,
@@ -111,7 +127,8 @@ def test_funnel_counts_depth_by_filled_fields(auth, admin_user, client_user, poi
         is_open=False,
         close_reason="expired",
         service_point=point,
-        oil=oil,
+        service_category=service.category,
+        service=service,
         expires_at=timezone.now() - timedelta(minutes=1),
     )
     BookingDraft.objects.create(
@@ -126,7 +143,8 @@ def test_funnel_counts_depth_by_filled_fields(auth, admin_user, client_user, poi
 
     assert funnel["started"] == 2
     assert funnel["point_selected"] == 1
-    assert funnel["oil_selected"] == 1
+    assert funnel["category_selected"] == 1
+    assert funnel["service_selected"] == 1
     assert funnel["slot_selected"] == 0
     assert funnel["expired"] == 2
     assert funnel["conversion"] == 0.0
@@ -144,9 +162,11 @@ def test_confirmed_draft_raises_conversion(auth, admin_user, client_user, ready_
 
 
 # --------------------------------------------------------------- фильтры
-def test_point_filter_narrows_numbers(auth, admin_user, client_user, point, second_point, oil):
-    make_booking(client_user, point, oil, status=BookingStatus.COMPLETED)
-    make_booking(client_user, second_point, oil, status=BookingStatus.COMPLETED, hours_ago=3)
+def test_point_filter_narrows_numbers(
+    auth, admin_user, client_user, point, second_point, service
+):
+    make_booking(client_user, point, service, status=BookingStatus.COMPLETED)
+    make_booking(client_user, second_point, service, status=BookingStatus.COMPLETED, hours_ago=3)
 
     body = auth(admin_user).get(URL + f"?service_point={point.pk}").json()
 

@@ -4,14 +4,20 @@ from django.db import models
 class DraftStep(models.TextChoices):
     """Шаги мастера записи.
 
-    Порядок жёсткий: адрес -> масло -> время -> подтверждение.
-    Клиент не может перепрыгнуть шаг, потому что список масел зависит от
-    точки, а свободные слоты — от точки и загрузки постов.
+    Порядок жёсткий: адрес -> категория -> услуга -> время ->
+    подтверждение. Клиент не может перепрыгнуть шаг, потому что список
+    категорий зависит от точки, список услуг — от категории, а свободные
+    слоты — от точки и загрузки постов.
     """
 
     STARTED = "started", "Начата"
     POINT_SELECTED = "point_selected", "Выбран адрес"
-    OIL_SELECTED = "oil_selected", "Выбрано масло"
+    CATEGORY_SELECTED = "category_selected", "Выбрана категория"
+    SERVICE_SELECTED = "service_selected", "Выбрана услуга"
+    # Шаг из времени, когда услуга была одна — замена масла. Остаётся в
+    # перечислении ради закрытых черновиков: по ним считается воронка
+    # записи, и переписывать историю ради красоты списка нельзя.
+    OIL_SELECTED = "oil_selected", "Выбрано масло (устарело)"
     SLOT_SELECTED = "slot_selected", "Выбрано время"
     CONFIRMED = "confirmed", "Подтверждена"
     EXPIRED = "expired", "Истекла"
@@ -23,7 +29,8 @@ OPEN_DRAFT_STEPS = frozenset(
     {
         DraftStep.STARTED,
         DraftStep.POINT_SELECTED,
-        DraftStep.OIL_SELECTED,
+        DraftStep.CATEGORY_SELECTED,
+        DraftStep.SERVICE_SELECTED,
         DraftStep.SLOT_SELECTED,
     }
 )
@@ -32,17 +39,26 @@ OPEN_DRAFT_STEPS = frozenset(
 STEP_ORDER = [
     DraftStep.STARTED,
     DraftStep.POINT_SELECTED,
-    DraftStep.OIL_SELECTED,
+    DraftStep.CATEGORY_SELECTED,
+    DraftStep.SERVICE_SELECTED,
     DraftStep.SLOT_SELECTED,
 ]
 
 #: Что клиент должен сделать дальше — отдаём прямо в API, чтобы UI не гадал.
 NEXT_ACTION = {
     DraftStep.STARTED: "select_point",
-    DraftStep.POINT_SELECTED: "select_oil",
+    DraftStep.POINT_SELECTED: "select_category",
+    DraftStep.CATEGORY_SELECTED: "select_service",
+    DraftStep.SERVICE_SELECTED: "select_slot",
+    # Черновик, который был на шаге масла в момент выкатки, живёт ещё до
+    # пяти минут. Для него шаг масла равен шагу услуги — иначе он падал бы
+    # с 500 на первом же действии клиента.
     DraftStep.OIL_SELECTED: "select_slot",
     DraftStep.SLOT_SELECTED: "confirm",
 }
+
+#: Устаревший шаг → его замена в порядке шагов.
+LEGACY_STEPS = {DraftStep.OIL_SELECTED: DraftStep.SERVICE_SELECTED}
 
 
 class BookingStatus(models.TextChoices):
