@@ -3301,6 +3301,32 @@ components:
       - quantity
       - service
       - title
+    BookingPointsPreview:
+      type: object
+      description: 'Баллы клиента до расчёта: баланс и сколько можно списать в этот
+        чек.'
+      properties:
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          description: 'Потолок чека: процент от итога'
+        max_spend:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          description: Меньшее из баланса и потолка
+        max_discount_percent:
+          type: integer
+      required:
+      - balance
+      - limit
+      - max_discount_percent
+      - max_spend
     BookingStatusEnum:
       enum:
       - pending
@@ -4457,6 +4483,12 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           readOnly: true
+        client_points:
+          allOf:
+          - $ref: '#/components/schemas/BookingPointsPreview'
+          nullable: true
+          readOnly: true
+          description: Баллы клиента до расчёта. null — запись уже закрыта
         client_comment:
           type: string
           title: Комментарий клиента
@@ -4472,6 +4504,7 @@ components:
           title: Создано
       required:
       - client_phone
+      - client_points
       - created_at
       - end_at
       - final_price
@@ -4678,6 +4711,12 @@ components:
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
           readOnly: true
+        client_points:
+          allOf:
+          - $ref: '#/components/schemas/BookingPointsPreview'
+          nullable: true
+          readOnly: true
+          description: Баллы клиента до расчёта. null — запись уже закрыта
         client_comment:
           type: string
           title: Комментарий клиента
@@ -4706,6 +4745,7 @@ components:
           readOnly: true
       required:
       - client_phone
+      - client_points
       - created_at
       - end_at
       - final_price

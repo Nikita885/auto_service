@@ -288,6 +288,30 @@ def spend_quote(booking) -> dict:
     }
 
 
+def preview(booking) -> dict | None:
+    """Баллы клиента в строке смены — до расчёта, чтобы мастер знал заранее.
+
+    Только у живой записи: у выполненной уже видно, сколько списали. Счёт
+    тот же, что у `spend_quote`, но без запроса на запись: баланс берётся
+    из `booking.user.referral_node` (список смены подтягивает его одним
+    JOIN), а уже списанного у живой записи не бывает — баллы списываются
+    только при расчёте (`booking.complete`), и запись после него закрыта.
+    """
+    if not booking.is_active:
+        return None
+    try:
+        balance = booking.user.referral_node.balance
+    except ReferralNode.DoesNotExist:
+        balance = ZERO
+    limit = max_discount(booking)
+    return {
+        "balance": balance,
+        "limit": limit,
+        "max_spend": min(balance, limit),
+        "max_discount_percent": settings.REFERRAL["MAX_DISCOUNT_PERCENT"],
+    }
+
+
 @transaction.atomic
 def spend(node: ReferralNode, amount: Decimal, *, booking=None, comment: str = "") -> PointsEntry:
     """Списать баллы в счёт оплаты.

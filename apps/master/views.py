@@ -124,8 +124,10 @@ class MasterBookingViewSet(
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return self.queryset
+        # Узел рефералки — тем же JOIN: баллы клиента видны в строке смены,
+        # и запрос на каждую строку списка здесь недопустим.
         qs = Booking.objects.select_related(
-            "service_point", "service_category", "user"
+            "service_point", "service_category", "user__referral_node"
         ).prefetch_related("items")
 
         # Мастер видит только свои точки; у админа ограничения нет.

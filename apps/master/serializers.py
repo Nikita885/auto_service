@@ -8,6 +8,7 @@ from apps.booking.models import Booking, BookingCall, BookingDraft
 from apps.catalog.models import OilType, ServiceJournalKind
 from apps.catalog.serializers import AvailableOilSerializer
 from apps.garage.serializers import CarShortSerializer
+from apps.referral.services import points as referral_points
 
 
 class BookingItemSerializer(serializers.Serializer):
@@ -22,6 +23,19 @@ class BookingItemSerializer(serializers.Serializer):
         max_digits=10, decimal_places=2, read_only=True
     )
     quantity = serializers.IntegerField(read_only=True)
+
+
+class BookingPointsPreviewSerializer(serializers.Serializer):
+    """Баллы клиента до расчёта: баланс и сколько можно списать в этот чек."""
+
+    balance = serializers.DecimalField(max_digits=10, decimal_places=2)
+    limit = serializers.DecimalField(
+        max_digits=10, decimal_places=2, help_text="Потолок чека: процент от итога"
+    )
+    max_spend = serializers.DecimalField(
+        max_digits=10, decimal_places=2, help_text="Меньшее из баланса и потолка"
+    )
+    max_discount_percent = serializers.IntegerField()
 
 
 class MasterBookingSerializer(serializers.ModelSerializer):
@@ -47,6 +61,9 @@ class MasterBookingSerializer(serializers.ModelSerializer):
     )
     services = serializers.SerializerMethodField(
         help_text="Позиции чека: услуга, цена, материал, количество"
+    )
+    client_points = serializers.SerializerMethodField(
+        help_text="Баллы клиента до расчёта. null — запись уже закрыта"
     )
 
     class Meta:
@@ -82,10 +99,16 @@ class MasterBookingSerializer(serializers.ModelSerializer):
             "final_price",
             "points_spent",
             "paid_amount",
+            "client_points",
             "client_comment",
             "cancel_reason",
             "created_at",
         )
+
+    @extend_schema_field(BookingPointsPreviewSerializer(allow_null=True))
+    def get_client_points(self, obj: Booking):
+        preview = referral_points.preview(obj)
+        return BookingPointsPreviewSerializer(preview).data if preview else None
 
     def get_local_time(self, obj: Booking) -> str:
         return obj.local_start().strftime("%d.%m.%Y %H:%M")

@@ -273,6 +273,7 @@
           paidWithPoints
             ? el("div", { class: "cell-sub", text: "баллами " + fmt.money(booking.points_spent) })
             : null,
+          pointsHint(booking),
         ]),
         el("td", { "data-label": "Статус" }, [
           // Точка цвета статуса перед словом — как в таблицах Remote: статус
@@ -311,6 +312,25 @@
       class: "btn btn-sm", type: "button", text: "Кому позвонить",
       onClick: () => openTab("calls"),
     }));
+  }
+
+  /** Баллы клиента до расчёта: сколько есть и сколько можно списать в этот
+      чек. Мастер знает заранее, а не узнаёт в окне «Выполнено». Без
+      баллов строки нет — шум в каждой строке смены ни к чему. */
+  function pointsHint(booking) {
+    const points = booking.client_points;
+    const balance = points ? Math.floor(Number(points.balance)) : 0;
+    if (!balance) return null;
+    const cap = Math.floor(Number(points.max_spend));
+    // Двумя строками: колонка суммы не переносится, и одна длинная строка
+    // отняла бы место у услуги.
+    return el("div", {
+      class: "cell-sub",
+      title: "Баланс клиента и сколько можно списать в этот чек (не больше " + points.max_discount_percent + "%)",
+    }, [
+      el("div", { text: fmt.number(balance) + " " + fmt.plural(balance, "балл", "балла", "баллов") }),
+      el("div", { text: Number(points.limit) > 0 ? "в чек до " + fmt.number(cap) : "до " + points.max_discount_percent + "% чека" }),
+    ]);
   }
 
   const isWaitingCall = (booking) =>

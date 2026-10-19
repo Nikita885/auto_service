@@ -87,7 +87,7 @@ def card(staff, client_id) -> ClientCard:
     client = _client(client_id)
     bookings = (
         Booking.objects.filter(user=client)
-        .select_related("service_point", "service_category")
+        .select_related("service_point", "service_category", "user__referral_node")
         .prefetch_related("items")
     )
     allowed = staff.accessible_point_ids()
