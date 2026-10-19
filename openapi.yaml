@@ -1880,6 +1880,55 @@ paths:
                 items:
                   $ref: '#/components/schemas/CallQueueItem'
           description: ''
+  /api/v1/master/clients/:
+    get:
+      operationId: master_clients_list
+      description: Клиент по номеру — во время звонка, в любой записи номера.
+      summary: Найти клиента по номеру
+      parameters:
+      - in: query
+        name: phone
+        schema:
+          type: string
+        description: «8 900 123-45-67», «+7 900…» или последние 4–9 цифр
+        required: true
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClientSearchItem'
+          description: ''
+  /api/v1/master/clients/{client_id}/:
+    get:
+      operationId: master_clients_retrieve
+      description: 'Записи и звонки — только по точкам сотрудника. Баллы: баланс и
+        сколько можно списать в ближайшую запись (потолок — процент от чека).'
+      summary: Карточка клиента
+      parameters:
+      - in: path
+        name: client_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientCard'
+          description: ''
   /api/v1/master/clients/{client_id}/calls/:
     get:
       operationId: master_clients_calls_list
@@ -3687,6 +3736,46 @@ components:
       required:
       - outcome
       - service_point
+    ClientCard:
+      type: object
+      description: Карточка клиента для мастера — одним ответом.
+      properties:
+        client:
+          $ref: '#/components/schemas/ClientShort'
+        cars:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarShort'
+        upcoming:
+          type: array
+          items:
+            $ref: '#/components/schemas/MasterBooking'
+          description: Ближайшие записи на точках сотрудника
+        past:
+          type: array
+          items:
+            $ref: '#/components/schemas/MasterBooking'
+          description: Последние прошлые записи на точках сотрудника
+        points:
+          allOf:
+          - $ref: '#/components/schemas/ClientPoints'
+          readOnly: true
+        invited_by:
+          allOf:
+          - $ref: '#/components/schemas/InvitedBy'
+          nullable: true
+        calls:
+          type: array
+          items:
+            $ref: '#/components/schemas/Call'
+      required:
+      - calls
+      - cars
+      - client
+      - invited_by
+      - past
+      - points
+      - upcoming
     ClientLookup:
       type: object
       description: 'Кто стоит за номером: подставить имя и машину в окно записи.'
@@ -3717,6 +3806,61 @@ components:
       - found
       - full_name
       - is_client
+      - phone
+    ClientPoints:
+      type: object
+      properties:
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        max_discount_percent:
+          type: integer
+        next:
+          allOf:
+          - $ref: '#/components/schemas/NextBookingPoints'
+          nullable: true
+      required:
+      - balance
+      - max_discount_percent
+      - next
+    ClientSearchItem:
+      type: object
+      description: Найденный по номеру клиент — строкой списка.
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        phone:
+          type: string
+        car:
+          type: string
+          readOnly: true
+          description: Основная машина одной строкой
+      required:
+      - car
+      - full_name
+      - id
+      - phone
+    ClientShort:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        phone:
+          type: string
+        date_joined:
+          type: string
+          format: date-time
+      required:
+      - date_joined
+      - full_name
+      - id
       - phone
     CloseReasonEnum:
       enum:
@@ -3949,6 +4093,17 @@ components:
       - line
       - name
       - phone_masked
+    InvitedBy:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+          description: 'Замаскирован: номер чужого клиента мастеру ни к чему'
+      required:
+      - name
+      - phone
     JournalKindEnum:
       enum:
       - oil
@@ -4179,6 +4334,10 @@ components:
         local_time:
           type: string
           readOnly: true
+        user:
+          type: string
+          format: uuid
+          title: Клиент
         client_name:
           type: string
           title: Имя клиента
@@ -4285,6 +4444,7 @@ components:
       - start_at
       - status_display
       - total_price
+      - user
       - work_price
     MasterBookingCreateRequest:
       type: object
@@ -4390,6 +4550,10 @@ components:
         local_time:
           type: string
           readOnly: true
+        user:
+          type: string
+          format: uuid
+          title: Клиент
         client_name:
           type: string
           title: Имя клиента
@@ -4511,6 +4675,7 @@ components:
       - status_display
       - status_logs
       - total_price
+      - user
       - work_price
     MasterBookingRequest:
       type: object
@@ -4541,6 +4706,10 @@ components:
           type: string
           format: date-time
           title: Окончание
+        user:
+          type: string
+          format: uuid
+          title: Клиент
         client_name:
           type: string
           title: Имя клиента
@@ -4617,6 +4786,7 @@ components:
       - service_point
       - start_at
       - total_price
+      - user
       - work_price
     MasterCancelRequest:
       type: object
@@ -5327,6 +5497,33 @@ components:
       - revenue
       - total
       - work_revenue
+    NextBookingPoints:
+      type: object
+      description: Сколько баллов можно списать в ближайшую запись.
+      properties:
+        booking:
+          type: string
+          format: uuid
+        booking_code:
+          type: string
+        total_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        max_spend:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+      required:
+      - booking
+      - booking_code
+      - limit
+      - max_spend
+      - total_price
     NoShowRequest:
       type: object
       properties:

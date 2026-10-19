@@ -38,6 +38,9 @@
       <option value="no_show">Не приехали</option>
     </select>
     <input id="f-search" class="toolbar-grow" type="search" placeholder="Код, имя, телефон, госномер" aria-label="Поиск">
+    <!-- Значком, а не словами: на 1280 px строка инструментов иначе
+         переносится и уводит вниз индикатор связи. -->
+    <button class="icon-btn" id="btn-find-client" type="button" title="Клиент по номеру" aria-label="Клиент по номеру"></button>
     <button class="btn btn-primary" id="btn-walk-in" type="button">Записать клиента</button>
     <span class="badge" id="live-status" title="Связь с сервером">
       <span class="dot" id="live-dot"></span>

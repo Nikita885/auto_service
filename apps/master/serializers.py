@@ -63,6 +63,7 @@ class MasterBookingSerializer(serializers.ModelSerializer):
             "start_at",
             "end_at",
             "local_time",
+            "user",
             "client_name",
             "client_phone",
             "car_model",
@@ -656,3 +657,67 @@ class CallQueueItemSerializer(serializers.Serializer):
     @extend_schema_field(CallSerializer(allow_null=True))
     def get_last_call(self, obj):
         return CallSerializer(obj.last_call).data if obj.last_call else None
+
+
+
+# --------------------------------------------------------- карточка клиента
+class ClientSearchItemSerializer(serializers.Serializer):
+    """Найденный по номеру клиент — строкой списка."""
+
+    id = serializers.UUIDField()
+    full_name = serializers.CharField()
+    phone = serializers.CharField()
+    car = serializers.SerializerMethodField(help_text="Основная машина одной строкой")
+
+    def get_car(self, obj) -> str:
+        cars = [car for car in obj.cars.all() if car.archived_at is None]
+        primary = next((car for car in cars if car.is_primary), cars[0] if cars else None)
+        return " ".join(part for part in (primary.title, primary.plate) if part) if primary else ""
+
+
+class ClientShortSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    full_name = serializers.CharField()
+    phone = serializers.CharField()
+    date_joined = serializers.DateTimeField()
+
+
+class NextBookingPointsSerializer(serializers.Serializer):
+    """Сколько баллов можно списать в ближайшую запись."""
+
+    booking = serializers.UUIDField(source="booking.pk")
+    booking_code = serializers.CharField(source="booking.code")
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    limit = serializers.DecimalField(max_digits=10, decimal_places=2)
+    max_spend = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+
+class ClientPointsSerializer(serializers.Serializer):
+    balance = serializers.DecimalField(max_digits=10, decimal_places=2)
+    max_discount_percent = serializers.IntegerField()
+    next = NextBookingPointsSerializer(source="next_quote", allow_null=True)
+
+
+class InvitedBySerializer(serializers.Serializer):
+    name = serializers.CharField()
+    phone = serializers.CharField(help_text="Замаскирован: номер чужого клиента мастеру ни к чему")
+
+
+class ClientCardSerializer(serializers.Serializer):
+    """Карточка клиента для мастера — одним ответом."""
+
+    client = ClientShortSerializer()
+    cars = CarShortSerializer(many=True)
+    upcoming = MasterBookingSerializer(
+        many=True, help_text="Ближайшие записи на точках сотрудника"
+    )
+    past = MasterBookingSerializer(
+        many=True, help_text="Последние прошлые записи на точках сотрудника"
+    )
+    points = serializers.SerializerMethodField()
+    invited_by = InvitedBySerializer(allow_null=True)
+    calls = CallSerializer(many=True)
+
+    @extend_schema_field(ClientPointsSerializer)
+    def get_points(self, obj):
+        return ClientPointsSerializer(obj).data

@@ -4,6 +4,8 @@ from rest_framework.routers import DefaultRouter
 from apps.master.views import (
     CallQueueView,
     ClientCallsView,
+    ClientCardView,
+    ClientSearchView,
     LiveDraftListView,
     MasterBookingViewSet,
     MasterOilViewSet,
@@ -29,6 +31,8 @@ router.register("walk-in", WalkInViewSet, basename="master-walk-in")
 urlpatterns = [
     path("metrics/", MetricsView.as_view(), name="metrics"),
     path("calls/", CallQueueView.as_view(), name="calls"),
+    path("clients/", ClientSearchView.as_view(), name="client-search"),
+    path("clients/<uuid:client_id>/", ClientCardView.as_view(), name="client-card"),
     path("clients/<uuid:client_id>/calls/", ClientCallsView.as_view(), name="client-calls"),
     path("", include(router.urls)),
 ]

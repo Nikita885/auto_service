@@ -246,7 +246,7 @@
           isNext ? el("span", { class: "next-tag", text: "Следующая" }) : null,
         ]),
         el("td", { "data-label": "Клиент и машина" }, [
-          el("div", { class: "cell-main", text: booking.client_name || "Без имени" }),
+          clientLink(booking.user, booking.client_name),
           el("div", { class: "cell-sub" }, [
             el("a", { href: "tel:" + booking.client_phone, text: booking.client_phone }),
             car ? document.createTextNode(" · " + car) : null,
@@ -548,7 +548,7 @@
       показывает то, что реально можно выбрать: услуги в наличии и свободное
       время точки. Время — без запаса до начала: мастер ставит и в слот,
       который уже идёт, если пост свободен. */
-  async function openWalkIn() {
+  async function openWalkIn(prefill) {
     if (!state.services) {
       // Свои точки сотрудника приходят вместе с каталогом услуг: список
       // /service-points/ публичный и отдаёт все адреса сети.
@@ -776,6 +776,11 @@
       }
     };
 
+    if (prefill && prefill.phone) {
+      phone.value = prefill.phone;
+      if (prefill.name) { name.value = prefill.name; form.filled[name.id] = prefill.name; }
+      lookup();
+    }
     phone.focus();
     loadOptions();
     pickFirstDay();
@@ -1052,6 +1057,169 @@
     name.focus();
   }
 
+  /* ------------------------------------------------- клиент по номеру */
+
+  /** Имя клиента ссылкой на карточку: во время звонка всё о человеке —
+      в одно касание, без поиска. */
+  function clientLink(clientId, name) {
+    if (!clientId) return el("div", { class: "cell-main", text: name || "Без имени" });
+    return el("button", {
+      class: "client-link cell-main", type: "button", text: name || "Без имени",
+      title: "Карточка клиента", "aria-label": (name || "Без имени") + ": карточка клиента",
+      onClick: () => openClientCard(clientId),
+    });
+  }
+
+  /** Поиск по номеру в любой записи: «8 900…», «+7 900…», последние цифры. */
+  function openClientSearch() {
+    const input = el("input", {
+      id: "cs-phone", type: "tel", inputmode: "tel", autocomplete: "off",
+      placeholder: "+7 900 123-45-67 или 4567",
+    });
+    const results = el("div", { class: "stack-sm", "aria-live": "polite" });
+    const body = el("div", { class: "stack" }, [
+      el("div", { class: "field" }, [el("label", { for: "cs-phone", text: "Номер или последние цифры" }), input]),
+      results,
+    ]);
+    const close = el("button", { class: "btn", type: "button", text: "Закрыть" });
+    const dlg = App.dialog({ title: "Клиент по номеру", sub: "Во время звонка: всё о клиенте — одним окном.", body, actions: [close] });
+    close.onclick = dlg.close;
+
+    let timer = null;
+    let asked = "";
+    async function find() {
+      const raw = input.value.trim();
+      if (raw.replace(/\D/g, "").length < 4 || raw === asked) return;
+      asked = raw;
+      let rows;
+      try {
+        rows = await api.get("/master/clients/?phone=" + encodeURIComponent(raw));
+      } catch (err) {
+        results.innerHTML = "";
+        results.append(el("p", { class: "hint hint-error", text: err.message }));
+        return;
+      }
+      results.innerHTML = "";
+      if (!rows.length) {
+        results.append(
+          el("p", { class: "hint", text: "Такого номера в базе нет." }),
+          el("button", { class: "btn btn-primary", type: "button", text: "Записать как нового клиента",
+            onClick: () => { dlg.close(); openWalkIn({ phone: raw }); } }),
+        );
+        return;
+      }
+      rows.forEach((row) => results.append(el("div", { class: "live-row" }, [
+        el("div", { style: "flex:1;min-width:0" }, [
+          el("div", { class: "cell-main", text: row.full_name || "Без имени" }),
+          el("div", { class: "cell-sub", text: [row.phone, row.car].filter(Boolean).join(" · ") }),
+        ]),
+        el("button", { class: "btn btn-sm btn-primary", type: "button", text: "Карточка",
+          onClick: () => { dlg.close(); openClientCard(row.id); } }),
+      ])));
+    }
+    input.oninput = () => { clearTimeout(timer); timer = setTimeout(find, 300); };
+    input.onkeydown = (event) => { if (event.key === "Enter") { asked = ""; find(); } };
+    input.focus();
+  }
+
+  /** Открыть запись в смене: её день и её код в поиске. */
+  function showBooking(booking) {
+    const [d, m, y] = booking.local_time.split(" ")[0].split(".");
+    $("#f-date").value = y + "-" + m + "-" + d;
+    $("#f-search").value = booking.code;
+    openTab("shift");
+    reload();
+  }
+
+  /** Строка записи в карточке: время, услуга, статус и «Открыть». */
+  function cardBookingRow(booking, closeCard) {
+    const badge = STATUS_BADGE[booking.status] || ["badge", booking.status_display];
+    return el("div", { class: "live-row" }, [
+      el("div", { style: "flex:1;min-width:0" }, [
+        el("div", { class: "cell-main", text: booking.local_time + " · " + (booking.service_title || "—") }),
+        el("div", { class: "cell-sub", text: [booking.category_title, booking.service_point_name, booking.code].filter(Boolean).join(" · ") }),
+      ]),
+      el("span", { class: "badge " + badge[0] }, [el("span", { class: "dot" }), badge[1]]),
+      el("button", { class: "btn btn-sm", type: "button", text: "Открыть",
+        onClick: () => { closeCard(); showBooking(booking); } }),
+    ]);
+  }
+
+  async function openClientCard(clientId) {
+    const card = await guard(() => api.get("/master/clients/" + clientId + "/"));
+    if (!card) return;
+    const c = card.client;
+    const section = (title, content) => el("div", { class: "stack-sm" }, [el("span", { class: "label", text: title }), content]);
+    const hint = (text) => el("p", { class: "hint", text });
+
+    const points = card.points;
+    const balance = Math.floor(Number(points.balance));
+    const pointsText = balance > 0
+      ? fmt.number(balance) + " " + fmt.plural(balance, "балл", "балла", "баллов") +
+        // Потолок считается от чека; у записи «подберём на месте» чека ещё
+        // нет, и «до 0» читалось бы как «списать нельзя» — показываем правило.
+        (points.next && Number(points.next.total_price) > 0
+          ? " · в запись " + points.next.booking_code + " можно списать до " + fmt.number(Math.floor(Number(points.next.max_spend)))
+          : " · списать можно до " + points.max_discount_percent + "% чека")
+      : "Баллов нет";
+
+    const body = el("div", { class: "stack" }, [
+      el("div", { class: "form-grid" }, [
+        section("Машины", card.cars.length
+          ? el("div", { class: "choice-row" }, card.cars.map((car) => el("span", {
+            class: "badge" + (car.is_primary ? " badge-accent" : ""),
+            text: [car.title, car.plate].filter(Boolean).join(" · ") || "Без названия",
+          })))
+          : hint("Машин в гараже нет")),
+        section("Баллы", el("div", { class: "cell-main", text: pointsText })),
+        section("Пригласил", card.invited_by
+          ? el("div", { text: card.invited_by.name + " · " + card.invited_by.phone })
+          : hint("Пришёл сам")),
+      ]),
+      section("Ближайшие записи", card.upcoming.length
+        ? el("div", { class: "stack-sm" }, card.upcoming.map((b) => cardBookingRow(b, () => dlg.close())))
+        : hint("Ближайших записей нет")),
+      section("Прошлые записи", card.past.length
+        ? el("div", { class: "stack-sm" }, card.past.slice(0, 5).map((b) => cardBookingRow(b, () => dlg.close())))
+        : hint("Раньше не приезжал")),
+      section("Звонки", card.calls.length
+        ? el("div", { class: "stack-sm" }, card.calls.slice(0, 5).map((call) => el("div", { class: "live-row" }, [
+          el("div", { style: "flex:1;min-width:0" }, [
+            el("div", { class: "cell-main", text: call.outcome_display + " · " + call.reason_display }),
+            el("div", { class: "cell-sub", text: [fmt.dateTime(call.created_at), call.actor, call.booking_code, call.note].filter(Boolean).join(" · ") }),
+          ]),
+        ])))
+        : hint("Звонков ещё не было")),
+    ]);
+
+    const callNow = el("a", { class: "btn", href: "tel:" + c.phone, text: "Позвонить" });
+    const markCall = el("button", { class: "btn", type: "button", text: "Отметить звонок" });
+    const book = el("button", { class: "btn btn-primary", type: "button", text: "Записать" });
+    const dlg = App.dialog({
+      title: c.full_name || "Клиент без имени",
+      sub: c.phone + " · с нами с " + new Date(c.date_joined).toLocaleDateString("ru-RU"),
+      body, actions: [callNow, markCall, book], wide: true,
+    });
+    book.onclick = () => { dlg.close(); openWalkIn({ phone: c.phone, name: c.full_name }); };
+    markCall.onclick = async () => {
+      // Звонок без записи — на точку ближайшей записи, иначе на первую свою.
+      if (!state.services) {
+        const data = await guard(() => api.get("/master/service-categories/"));
+        if (!data) return;
+        state.services = data;
+      }
+      const any = card.upcoming[0] || card.past[0];
+      const point = any ? any.service_point : (state.services.points[0] || {}).id;
+      if (!point) { toast("У вас нет доступных точек.", "error"); return; }
+      dlg.close();
+      openCallDialog({
+        client: c.id, client_name: c.full_name, client_phone: c.phone, service_point: point,
+        booking: null, booking_code: null, reason: "other", reason_display: "Звонок клиенту",
+        hint: "Звонок клиенту",
+      });
+    };
+  }
+
   /* ---------------------------------------------------------- звонки */
 
   const CALL_BADGE = {
@@ -1097,7 +1265,7 @@
           el("div", { class: "cell-sub mono", text: [date === today ? "" : date.slice(0, 5), item.booking_code].filter(Boolean).join(" · ") }),
         ]),
         el("td", { "data-label": "Клиент" }, [
-          el("div", { class: "cell-main", text: item.client_name || "Без имени" }),
+          clientLink(item.client, item.client_name),
           el("div", { class: "cell-sub" }, [
             el("a", { href: "tel:" + item.client_phone, text: item.client_phone }),
             state.points.length > 1 ? document.createTextNode(" · " + item.service_point_name) : null,
@@ -1371,7 +1539,9 @@
 
     $("#btn-add-category").onclick = () => openCategoryForm(null);
     $("#btn-add-service").onclick = () => openServiceForm(null);
-    $("#btn-walk-in").onclick = openWalkIn;
+    $("#btn-walk-in").onclick = () => openWalkIn();
+    $("#btn-find-client").innerHTML = icon("user", 16);
+    $("#btn-find-client").onclick = openClientSearch;
     $("#s-search").oninput = renderServices;
     $("#s-inactive").onchange = renderServices;
     $("#s-point").onchange = () => {

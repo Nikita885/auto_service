@@ -42,7 +42,9 @@ from apps.master.serializers import (
     CallQueueItemSerializer,
     CallSerializer,
     ClientCallCreateSerializer,
+    ClientCardSerializer,
     ClientLookupSerializer,
+    ClientSearchItemSerializer,
     DaySummarySerializer,
     LiveDraftSerializer,
     MasterAvailableOilSerializer,
@@ -67,6 +69,7 @@ from apps.master.serializers import (
     OilStockRowSerializer,
     PointsQuoteSerializer,
 )
+from apps.master.services import clients as clients_service
 from apps.referral.services import points as referral_points
 
 #: id в пути — UUID. У ViewSet без queryset генератор схемы его не выводит
@@ -518,6 +521,43 @@ class CallQueueView(APIView):
             request.user, point_id=request.query_params.get("service_point")
         )
         return Response(CallQueueItemSerializer(items, many=True).data)
+
+
+@extend_schema(tags=["Мастер"])
+class ClientSearchView(APIView):
+    """Клиент по номеру — во время звонка, в любой записи номера."""
+
+    permission_classes = [IsMaster]
+
+    @extend_schema(
+        parameters=[OpenApiParameter(
+            "phone", str, required=True,
+            description="«8 900 123-45-67», «+7 900…» или последние 4–9 цифр",
+        )],
+        responses={200: ClientSearchItemSerializer(many=True)},
+        summary="Найти клиента по номеру",
+    )
+    def get(self, request: Request) -> Response:
+        found = clients_service.search(request.query_params.get("phone", ""))
+        return Response(ClientSearchItemSerializer(found, many=True).data)
+
+
+@extend_schema(tags=["Мастер"])
+class ClientCardView(APIView):
+    """Карточка клиента: имя, машины, записи, баллы, кто пригласил, звонки."""
+
+    permission_classes = [IsMaster]
+
+    @extend_schema(
+        responses={200: ClientCardSerializer},
+        summary="Карточка клиента",
+        description=(
+            "Записи и звонки — только по точкам сотрудника. Баллы: баланс и "
+            "сколько можно списать в ближайшую запись (потолок — процент от чека)."
+        ),
+    )
+    def get(self, request: Request, client_id) -> Response:
+        return Response(ClientCardSerializer(clients_service.card(request.user, client_id)).data)
 
 
 @extend_schema(tags=["Мастер"])
