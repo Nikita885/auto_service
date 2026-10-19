@@ -66,6 +66,7 @@ class MasterBookingSerializer(serializers.ModelSerializer):
             "user",
             "client_name",
             "client_phone",
+            "car",
             "car_model",
             "car_plate",
             "service_category",
@@ -171,6 +172,30 @@ class MasterSetServiceSerializer(serializers.Serializer):
     """Услуга, выбранная мастером вместе с клиентом."""
 
     service = serializers.UUIDField()
+
+
+class MasterBookingEditSerializer(serializers.Serializer):
+    """Правка записи после звонка. Чего нет в запросе — не меняется."""
+
+    service = serializers.UUIDField(
+        required=False, help_text="Услуга точки — в той же категории или в другой"
+    )
+    start_at = serializers.DateTimeField(
+        required=False, help_text="start_at слота из /master/walk-in/slots/ как есть"
+    )
+    car_id = serializers.UUIDField(required=False, help_text="Одна из машин клиента")
+    car_model = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    car_plate = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    comment = serializers.CharField(
+        max_length=500, required=False, allow_blank=True, help_text="Пустая строка стирает"
+    )
+
+    def validate(self, attrs):
+        if "car_id" in attrs and ("car_model" in attrs or "car_plate" in attrs):
+            raise serializers.ValidationError(
+                {"car_id": "Либо машина клиента, либо марка и номер — не вместе."}
+            )
+        return attrs
 
 
 class MasterSetOilSerializer(serializers.Serializer):

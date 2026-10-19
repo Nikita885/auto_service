@@ -335,25 +335,39 @@ def reschedule_by_client(user, booking_id, start_at) -> Booking:
 
 
 # ------------------------------------------------------------------ мастер
+def _require_not_final(booking: Booking, message: str) -> None:
+    if booking.status in FINAL_BOOKING_STATUSES:
+        raise ConflictError(message, code="booking_final", details={"status": booking.status})
+
+
 def _apply_services(booking: Booking, services: list[Service], *, actor) -> Booking:
-    """Поставить в запись услуги: снимок цен, позиции, строка в историю.
+    """Поставить в запись услуги и записать это в историю отдельной строкой."""
+    _require_not_final(booking, "Запись уже завершена, изменить услугу нельзя")
+    change = _replace_services(booking, services)
+    if change:
+        BookingStatusLog.objects.create(
+            booking=booking,
+            from_status=booking.status,
+            to_status=booking.status,
+            actor=actor,
+            comment=change,
+        )
+    return booking
+
+
+def _replace_services(booking: Booking, services: list[Service]) -> str | None:
+    """Снимок цен и позиции под новые услуги. Вернуть строку для истории,
+    или None, если услуги те же.
 
     Вызывается под блокировкой строки записи. Своя запись держит прежние
     услуги, а не новые, поэтому доступность новой считается как обычно —
     «возвращать» прежнюю не нужно.
     """
-    if booking.status in FINAL_BOOKING_STATUSES:
-        raise ConflictError(
-            "Запись уже завершена, изменить услугу нельзя",
-            code="booking_final",
-            details={"status": booking.status},
-        )
-
     current = [item.service_id for item in booking.items.all()]
     if current == [service.pk for service in services]:
         # Та же услуга: без этого повторное нажатие выглядело бы как
         # «разобрали» — своя же запись держит последнюю единицу.
-        return booking
+        return None
 
     old_title = booking.service_title or booking.oil_title
     booking.items.all().delete()
@@ -367,15 +381,7 @@ def _apply_services(booking: Booking, services: list[Service], *, actor) -> Book
         setattr(booking, key, value)
     booking.save(update_fields=[*fields, "updated_at"])
     _create_items(booking, services)
-
-    BookingStatusLog.objects.create(
-        booking=booking,
-        from_status=booking.status,
-        to_status=booking.status,
-        actor=actor,
-        comment=f"Услуга: {booking.service_title} (было: {old_title})",
-    )
-    return booking
+    return f"Услуга: {booking.service_title} (было: {old_title})"
 
 
 def _service_for_master(booking: Booking, service_id) -> Service:
@@ -422,6 +428,121 @@ def set_oil(master, booking_id, oil_id) -> Booking:
     )
     transaction.on_commit(lambda: events.publish_booking(booking))
     logger.info("Запись %s: мастер выбрал масло (старое API)", booking.code)
+    return booking
+
+
+def _car_title(model: str, plate: str) -> str:
+    return " ".join(part for part in (model, plate) if part) or "не указана"
+
+
+@transaction.atomic
+def edit_by_master(
+    master,
+    booking_id,
+    *,
+    service_id=None,
+    start_at=None,
+    car_id=None,
+    car_model: str | None = None,
+    car_plate: str | None = None,
+    comment: str | None = None,
+) -> Booking:
+    """Мастер поправил запись после звонка: услугу, время, машину, комментарий.
+
+    `None` — поле не трогаем; пустой комментарий — тоже правка («стереть»).
+    Всё — одной транзакцией: если новое время заняли, услуга не поменяется
+    наполовину. В историю ложится одна строка со всеми изменениями и тем,
+    кто их сделал.
+
+    * Услуга — любая доступная на точке, в той же категории или в другой;
+      снимок цен и позиции пересчитываются, как в `set_service`.
+    * Время — только у записи в ожидании и с теми же проверками слота, что у
+      переноса клиентом, кроме запаса до начала (мастер записывает и на
+      ближайшее время, `walk_in`). Напоминание уйдёт заново, к новому времени.
+    * Машина — одна из машин клиента (`car_id`) или названная мастером
+      (`car_model`/`car_plate`): найдём среди машин клиента или добавим.
+
+    Клиенту о правке не пишем — так решил владелец: мастер только что
+    договорился с ним по телефону. Приложение клиента обновится по сокету.
+    """
+    from apps.garage.services import cars as cars_service
+
+    booking = Booking.objects.select_for_update().get(
+        pk=get_for_master(master, booking_id).pk
+    )
+    _require_not_final(booking, "Запись уже завершена, изменить её нельзя")
+    car_named = car_model is not None or car_plate is not None
+    if all(value is None for value in (service_id, start_at, car_id, comment)) and not car_named:
+        raise ValidationError("Нечего менять", code="edit_empty")
+
+    changes: list[str] = []
+    fields: set[str] = set()
+
+    if start_at is not None and start_at != booking.start_at:
+        if booking.status != BookingStatus.PENDING:
+            raise ConflictError(
+                "Клиент уже на посту — время не меняется",
+                code="booking_not_pending",
+                details={"status": booking.status},
+            )
+        point = ServicePoint.objects.select_for_update().get(pk=booking.service_point_id)
+        old_local = booking.local_start()
+        booking.start_at, booking.end_at = slots_service.validate_slot(
+            point, start_at, walk_in=True
+        )
+        booking.reminder_sent_at = None
+        fields |= {"start_at", "end_at", "reminder_sent_at"}
+        changes.append(f"время {old_local:%d.%m %H:%M} → {booking.local_start():%d.%m %H:%M}")
+
+    if service_id is not None:
+        change = _replace_services(booking, [_service_for_master(booking, service_id)])
+        if change:
+            changes.append(change[0].lower() + change[1:])
+
+    if car_id is not None or car_named:
+        if car_id is not None:
+            car = cars_service.get_car(booking.user, car_id)
+        elif (car_model or "").strip() or (car_plate or "").strip():
+            car = cars_service.match_or_add(
+                booking.user, title=car_model or "", plate=car_plate or ""
+            )
+        else:
+            raise ValidationError("Укажите машину", code="car_required")
+        model, plate = cars_service.snapshot(car)
+        if (car.pk, model, plate) != (booking.car_id, booking.car_model, booking.car_plate):
+            old = _car_title(booking.car_model, booking.car_plate)
+            booking.car, booking.car_model, booking.car_plate = car, model, plate
+            fields |= {"car", "car_model", "car_plate"}
+            changes.append(f"машина: {_car_title(model, plate)} (было: {old})")
+
+    if comment is not None and comment.strip() != booking.client_comment:
+        booking.client_comment = comment.strip()
+        fields.add("client_comment")
+        changes.append("комментарий изменён" if booking.client_comment else "комментарий стёрт")
+
+    if not changes:
+        return booking
+
+    try:
+        # У клиента может быть другая запись на новое время (на другой
+        # точке) — её ловит уникальный индекс, без гонки.
+        with transaction.atomic():
+            if fields:
+                booking.save(update_fields=[*fields, "updated_at"])
+    except IntegrityError as exc:
+        raise ConflictError(
+            "У клиента уже есть запись на это время", code="duplicate_booking"
+        ) from exc
+
+    BookingStatusLog.objects.create(
+        booking=booking,
+        from_status=booking.status,
+        to_status=booking.status,
+        actor=master,
+        comment=("Правка мастером: " + "; ".join(changes))[:500],
+    )
+    transaction.on_commit(lambda: events.publish_booking(booking))
+    logger.info("Запись %s поправлена мастером", booking.code)
     return booking
 
 

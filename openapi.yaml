@@ -1662,6 +1662,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/MasterBooking'
           description: ''
+  /api/v1/master/bookings/{id}/edit/:
+    post:
+      operationId: master_bookings_edit_create
+      description: 'После звонка: услуга (в той же категории или другой), время (только
+        у записи в ожидании, слот проверяется как при переносе), машина, комментарий.
+        Чего нет в запросе — не меняется. Цены и позиции пересчитываются по новой
+        услуге, в историю ложится одна строка с тем, кто поправил. Клиенту SMS не
+        уходит.'
+      summary: Поправить запись
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterBookingEditRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MasterBookingEditRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MasterBookingEditRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MasterBookingDetail'
+          description: ''
   /api/v1/master/bookings/{id}/no-show/:
     post:
       operationId: master_bookings_no_show_create
@@ -4346,6 +4385,11 @@ components:
           type: string
           title: Телефон клиента
           maxLength: 20
+        car:
+          type: string
+          format: uuid
+          nullable: true
+          title: Автомобиль
         car_model:
           type: string
           title: Автомобиль
@@ -4562,6 +4606,11 @@ components:
           type: string
           title: Телефон клиента
           maxLength: 20
+        car:
+          type: string
+          format: uuid
+          nullable: true
+          title: Автомобиль
         car_model:
           type: string
           title: Автомобиль
@@ -4677,6 +4726,32 @@ components:
       - total_price
       - user
       - work_price
+    MasterBookingEditRequest:
+      type: object
+      description: Правка записи после звонка. Чего нет в запросе — не меняется.
+      properties:
+        service:
+          type: string
+          format: uuid
+          description: Услуга точки — в той же категории или в другой
+        start_at:
+          type: string
+          format: date-time
+          description: start_at слота из /master/walk-in/slots/ как есть
+        car_id:
+          type: string
+          format: uuid
+          description: Одна из машин клиента
+        car_model:
+          type: string
+          maxLength: 120
+        car_plate:
+          type: string
+          maxLength: 20
+        comment:
+          type: string
+          description: Пустая строка стирает
+          maxLength: 500
     MasterBookingRequest:
       type: object
       description: |-
@@ -4719,6 +4794,11 @@ components:
           minLength: 1
           title: Телефон клиента
           maxLength: 20
+        car:
+          type: string
+          format: uuid
+          nullable: true
+          title: Автомобиль
         car_model:
           type: string
           title: Автомобиль

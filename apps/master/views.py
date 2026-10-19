@@ -51,6 +51,7 @@ from apps.master.serializers import (
     MasterAvailableServiceSerializer,
     MasterBookingCreateSerializer,
     MasterBookingDetailSerializer,
+    MasterBookingEditSerializer,
     MasterBookingSerializer,
     MasterCancelSerializer,
     MasterCatalogSerializer,
@@ -163,7 +164,7 @@ class MasterBookingViewSet(
                 | Q(car_plate__icontains=normalize_plate(search))
             )
 
-        if self.action == "retrieve":
+        if self.action in ("retrieve", "edit"):
             qs = qs.prefetch_related("status_logs__actor")
 
         return qs.order_by("start_at")
@@ -264,6 +265,31 @@ class MasterBookingViewSet(
             service_id=data["service"], oil_id=data["oil"],
         )
         return Response(MasterBookingSerializer(booking).data)
+
+    @extend_schema(
+        request=MasterBookingEditSerializer,
+        responses={200: MasterBookingDetailSerializer},
+        summary="Поправить запись",
+        description=(
+            "После звонка: услуга (в той же категории или другой), время (только "
+            "у записи в ожидании, слот проверяется как при переносе), машина, "
+            "комментарий. Чего нет в запросе — не меняется. Цены и позиции "
+            "пересчитываются по новой услуге, в историю ложится одна строка с "
+            "тем, кто поправил. Клиенту SMS не уходит."
+        ),
+    )
+    @action(detail=True, methods=["post"])
+    def edit(self, request: Request, pk=None) -> Response:
+        payload = MasterBookingEditSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
+        booking = booking_service.edit_by_master(
+            request.user, pk,
+            service_id=data.get("service"), start_at=data.get("start_at"),
+            car_id=data.get("car_id"), car_model=data.get("car_model"),
+            car_plate=data.get("car_plate"), comment=data.get("comment"),
+        )
+        return Response(MasterBookingDetailSerializer(self.get_queryset().get(pk=booking.pk)).data)
 
     @extend_schema(
         request=MasterSetServiceSerializer,

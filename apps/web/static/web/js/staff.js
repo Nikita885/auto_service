@@ -352,6 +352,174 @@
     };
   }
 
+  /** Правка записи после звонка: услуга, время, машина, комментарий.
+      Уходит только то, что мастер поменял; проверки слота и остатка —
+      на сервере, как при записи. Клиенту SMS не уходит: договорились
+      по телефону. */
+  async function openEditBooking(bookingId) {
+    const booking = await guard(() => api.get("/master/bookings/" + bookingId + "/"));
+    if (!booking) return;
+    const [services, client] = await Promise.all([
+      guard(() => api.get("/master/walk-in/services/?service_point=" + booking.service_point)),
+      guard(() => api.get("/master/walk-in/lookup/?phone=" + encodeURIComponent(booking.client_phone))),
+    ]);
+    if (!services || !client) return;
+
+    const form = { slot: null, carId: booking.car, carTouched: false };
+    const field = (label, control, extra) =>
+      el("div", { class: "field" + (extra ? " " + extra : "") }, [
+        el("label", { for: control.id, text: label }), control,
+      ]);
+
+    // Услуга: «как сейчас» первым — текущей может не быть в списке, если
+    // её последнюю единицу держит сама эта запись.
+    const service = el("select", { id: "eb-service" }, [
+      el("option", { value: "", text: "Как сейчас: " + (booking.needs_service ? "подобрать на месте" : booking.service_title) }),
+    ]);
+    const groups = new Map();
+    services.forEach((row) => {
+      if (!groups.has(row.category_title)) {
+        groups.set(row.category_title, el("optgroup", { label: row.category_title }));
+        service.append(groups.get(row.category_title));
+      }
+      groups.get(row.category_title).append(el("option", {
+        value: row.id,
+        text: row.name + " · " + fmt.money(row.total_price) +
+          (row.available_quantity === null ? "" : " · " + row.available_quantity + " шт."),
+      }));
+    });
+
+    // Время — только у записи в ожидании: клиент на посту не переносится.
+    const movable = booking.status === "pending";
+    const [d, m, y] = booking.local_time.split(" ")[0].split(".");
+    const date = el("input", { id: "eb-date", type: "date", value: y + "-" + m + "-" + d, min: fmt.isoDate() });
+    const slotBox = el("div", { class: "slot-grid", role: "group", "aria-label": "Свободное время" });
+    async function loadSlots() {
+      form.slot = null;
+      slotBox.innerHTML = "";
+      const data = await guard(() => api.get(
+        "/master/walk-in/slots/?service_point=" + booking.service_point + "&date=" + date.value));
+      if (!data) return;
+      if (!data.slots.length) {
+        slotBox.append(el("p", { class: "hint", text: "На этот день свободного времени нет." }));
+        return;
+      }
+      const current = new Date(booking.start_at).getTime();
+      data.slots.forEach((slot) => {
+        if (new Date(slot.start_at).getTime() === current) {
+          // Своё время показываем, но выбрать его — не правка.
+          slotBox.append(el("button", { class: "btn btn-sm", type: "button", text: slot.local_time, disabled: true, title: "Время записи сейчас" }));
+          return;
+        }
+        const btn = el("button", { class: "btn btn-sm", type: "button", text: slot.local_time, "aria-pressed": "false" });
+        // Повторное нажатие снимает выбор: время остаётся прежним.
+        btn.onclick = () => {
+          form.slot = form.slot === slot.start_at ? null : slot.start_at;
+          $$("button", slotBox).forEach((b) => b.setAttribute("aria-pressed", String(b === btn && !!form.slot)));
+        };
+        slotBox.append(btn);
+      });
+    }
+    date.onchange = loadSlots;
+
+    // Машина: кнопками — машины клиента, «Другая машина» — поля вручную.
+    const car = el("input", { id: "eb-car", placeholder: "Марка и модель", autocomplete: "off", value: booking.car_model });
+    const plate = el("input", { id: "eb-plate", placeholder: "Необязательно", autocomplete: "off", value: booking.car_plate });
+    const carChoice = el("div", { class: "choice-row", role: "group", "aria-label": "Машина клиента" });
+    function pickCar(chosen) {
+      form.carTouched = true;
+      form.carId = chosen ? chosen.id : null;
+      $$("button", carChoice).forEach((b) =>
+        b.setAttribute("aria-pressed", String(b.dataset.car === (chosen ? chosen.id : ""))));
+      car.value = chosen ? chosen.title : "";
+      plate.value = chosen ? chosen.plate : "";
+      if (!chosen) car.focus();
+    }
+    (client.cars || []).forEach((c) => carChoice.append(el("button", {
+      class: "btn btn-sm", type: "button", "data-car": c.id,
+      "aria-pressed": String(c.id === booking.car),
+      text: [c.title, c.plate].filter(Boolean).join(" · "),
+      onClick: () => pickCar(c),
+    })));
+    carChoice.append(el("button", {
+      class: "btn btn-sm btn-ghost", type: "button", "data-car": "", text: "Другая машина",
+      onClick: () => pickCar(null),
+    }));
+    [car, plate].forEach((box) => box.addEventListener("input", () => {
+      form.carTouched = true;
+      form.carId = null;
+      $$("button", carChoice).forEach((b) => b.setAttribute("aria-pressed", "false"));
+    }));
+
+    const comment = el("input", { id: "eb-comment", maxlength: "500", placeholder: "Например: приедет на 10 минут позже", value: booking.client_comment });
+
+    const body = el("div", { class: "form-grid" }, [
+      field("Услуга", service, "field-wide"),
+      movable
+        ? el("div", { class: "field field-wide" }, [
+          el("label", { for: "eb-date", text: "Перенести на" }),
+          el("span", { class: "hint", text: "Сейчас: " + booking.local_time + ". Не выбрали время — останется прежним." }),
+          el("div", { class: "stack-sm" }, [date, slotBox]),
+        ])
+        : el("p", { class: "hint field-wide", text: "Клиент уже на посту — время не меняется." }),
+      // Машин в гараже нет — кнопка «Другая машина» одна и ни к чему.
+      client.cars && client.cars.length
+        ? el("div", { class: "field field-wide" }, [el("span", { class: "label", text: "Машина" }), carChoice])
+        : null,
+      field("Марка и модель", car),
+      field("Госномер", plate),
+      field("Комментарий", comment, "field-wide"),
+      // История — кто и что уже менял: двое мастеров на одной точке не
+      // должны переносить клиента друг за другом вслепую.
+      el("div", { class: "stack-sm field-wide" }, [
+        el("span", { class: "label", text: "История записи" }),
+        ...booking.status_logs.slice(0, 4).map((log) => el("div", { class: "cell-sub", text: [
+          fmt.dateTime(log.created_at), log.actor, log.comment || (STATUS_BADGE[log.to_status] || [])[1],
+        ].filter(Boolean).join(" · ") })),
+      ]),
+    ]);
+
+    const cancel = el("button", { class: "btn", type: "button", text: "Отмена" });
+    const save = el("button", { class: "btn btn-primary", type: "button", text: "Сохранить" });
+    const dlg = App.dialog({
+      title: "Изменить запись · " + booking.code,
+      sub: (booking.client_name || booking.client_phone) + " · клиенту SMS не уйдёт",
+      body, actions: [cancel, save], wide: true,
+    });
+    cancel.onclick = dlg.close;
+
+    save.onclick = async () => {
+      const payload = {};
+      if (service.value) payload.service = service.value;
+      if (form.slot) payload.start_at = form.slot;
+      if (form.carTouched) {
+        if (form.carId) payload.car_id = form.carId;
+        else if (car.value.trim() || plate.value.trim()) {
+          payload.car_model = car.value.trim();
+          payload.car_plate = plate.value.trim().toUpperCase();
+        } else { toast("Укажите машину или выберите из списка.", "error"); return; }
+      }
+      if (comment.value.trim() !== (booking.client_comment || "")) payload.comment = comment.value.trim();
+      if (!Object.keys(payload).length) { toast("Ничего не изменилось.", "error"); return; }
+
+      save.disabled = true;
+      try {
+        const edited = await api.post("/master/bookings/" + booking.id + "/edit/", payload);
+        dlg.close();
+        toast(edited.local_time + " · " + (edited.service_title || "услуга не выбрана"), "ok", "Запись изменена");
+        if (payload.start_at) showBooking(edited);
+        else await reload();
+      } catch (err) {
+        toast(err.message || "Что-то пошло не так. Попробуйте ещё раз.", "error", "Не получилось");
+        if (err.code === "slot_taken" || err.code === "slot_too_soon") loadSlots();
+      } finally {
+        save.disabled = false;
+      }
+    };
+
+    if (movable) loadSlots();
+  }
+
   async function post(path, body, okText) {
     const ok = await guard(() => api.post(path, body || {}));
     if (ok) { toast(okText || "Готово", "ok"); await reload(); }
@@ -374,6 +542,9 @@
     }
     if (booking.status === "in_progress") {
       box.append(btn("Выполнено", "btn-ok", () => openCheckout(booking)));
+    }
+    if (booking.status === "pending" || booking.status === "in_progress") {
+      box.append(btn("Изменить", "btn-ghost", () => openEditBooking(booking.id)));
     }
     if (booking.status === "pending") {
       box.append(btn("Не приехал", "btn-ghost", async () => {
@@ -1360,27 +1531,38 @@
     ]);
     const cancel = el("button", { class: "btn", type: "button", text: "Отмена" });
     const save = el("button", { class: "btn btn-primary", type: "button", text: "Сохранить" });
+    // Договорились о другом времени или услуге — отмечаем звонок и сразу
+    // правим запись, не ища её в смене.
+    const saveAndEdit = item.booking
+      ? el("button", { class: "btn", type: "button", text: "Сохранить и изменить запись" })
+      : null;
     const dlg = App.dialog({
       title: "Звонок · " + (item.client_name || item.client_phone),
       sub: item.reason_display + (item.booking_code ? " · запись " + item.booking_code : ""),
-      body, actions: [cancel, save], wide: true,
+      body, actions: [cancel, saveAndEdit, save].filter(Boolean), wide: true,
     });
     cancel.onclick = dlg.close;
+    if (saveAndEdit) {
+      saveAndEdit.onclick = async () => {
+        if (await save.onclick()) openEditBooking(item.booking);
+      };
+    }
     save.onclick = async () => {
-      if (!form.outcome) { toast("Выберите, чем закончился звонок.", "error"); return; }
+      if (!form.outcome) { toast("Выберите, чем закончился звонок.", "error"); return false; }
       const payload = { outcome: form.outcome, reason: item.reason, note: note.value.trim() };
       if (form.outcome === "callback") {
-        if (!when.value) { toast("Когда перезвонить?", "error"); return; }
+        if (!when.value) { toast("Когда перезвонить?", "error"); return false; }
         payload.callback_at = new Date(when.value).toISOString();
       }
       if (!item.booking) payload.service_point = item.service_point;
       save.disabled = true;
       const ok = await guard(() => api.post(journalPath, payload));
       save.disabled = false;
-      if (!ok) return;
+      if (!ok) return false;
       dlg.close();
       toast(ok.outcome_display + (ok.callback_at ? " · " + fmt.dateTime(ok.callback_at) : ""), "ok", "Звонок отмечен");
       await reload();
+      return true;
     };
   }
 
