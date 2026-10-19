@@ -12,6 +12,8 @@ from apps.booking.constants import (
     NEXT_ACTION,
     OPEN_DRAFT_STEPS,
     BookingStatus,
+    CallOutcome,
+    CallReason,
     DraftCloseReason,
     DraftStep,
 )
@@ -494,3 +496,76 @@ class BookingPriceChange(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.booking_id}: {self.old_price} -> {self.new_price}"
+
+
+class BookingCall(BaseModel):
+    """Звонок мастера клиенту: зачем звонил, чем кончилось, кто и когда.
+
+    Журнал, а не состояние: очередь «Кому позвонить» вычисляется на лету из
+    записей и последних звонков (`services/calls.py`), как свободное время
+    из графика. Храним только факты — их потом и разбирают, если клиент
+    скажет «мне никто не звонил».
+
+    Запись необязательна: из карточки клиента звонят и без неё. Клиент и
+    точка обязательны — по ним журнал собирается для карточки, а событие
+    уходит мастерам нужной точки.
+    """
+
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="calls",
+        verbose_name="клиент",
+    )
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="calls",
+        verbose_name="запись",
+    )
+    service_point = models.ForeignKey(
+        "catalog.ServicePoint",
+        on_delete=models.PROTECT,
+        related_name="calls",
+        verbose_name="точка",
+    )
+    reason = models.CharField(
+        "зачем звонили", max_length=16, choices=CallReason.choices, default=CallReason.OTHER
+    )
+    outcome = models.CharField("итог", max_length=16, choices=CallOutcome.choices)
+    callback_at = models.DateTimeField("перезвонить в", null=True, blank=True)
+    note = models.CharField("заметка", max_length=500, blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="calls_made",
+        verbose_name="кто звонил",
+    )
+
+    class Meta:
+        verbose_name = "звонок клиенту"
+        verbose_name_plural = "звонки клиентам"
+        ordering = ["-created_at"]
+        constraints = [
+            # «Перезвонить» без времени — это «не дозвонился», а время у
+            # других итогов — мусор, который очередь бы прочла как обещание.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(outcome=CallOutcome.CALLBACK, callback_at__isnull=False)
+                    | (~models.Q(outcome=CallOutcome.CALLBACK) & models.Q(callback_at__isnull=True))
+                ),
+                name="call_callback_time_only_for_callback",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["booking", "-created_at"]),
+            models.Index(fields=["client", "-created_at"]),
+            models.Index(fields=["service_point", "outcome", "callback_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.client_id}: {self.get_outcome_display()}"

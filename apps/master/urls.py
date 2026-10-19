@@ -2,6 +2,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.master.views import (
+    CallQueueView,
+    ClientCallsView,
     LiveDraftListView,
     MasterBookingViewSet,
     MasterOilViewSet,
@@ -26,5 +28,7 @@ router.register("walk-in", WalkInViewSet, basename="master-walk-in")
 
 urlpatterns = [
     path("metrics/", MetricsView.as_view(), name="metrics"),
+    path("calls/", CallQueueView.as_view(), name="calls"),
+    path("clients/<uuid:client_id>/calls/", ClientCallsView.as_view(), name="client-calls"),
     path("", include(router.urls)),
 ]

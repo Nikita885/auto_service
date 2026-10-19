@@ -35,6 +35,9 @@
     services: null,
     servicePoint: null,
     categoryId: null,
+    // Очередь «Кому позвонить» — перечитывается вместе со сменой, чтобы
+    // счётчик на вкладке не врал.
+    calls: [],
   };
 
   const STATUS_BADGE = {
@@ -170,6 +173,7 @@
       guard(() => api.get("/master/bookings/?" + params.toString())),
       guard(() => api.get("/master/bookings/summary/?" + summaryParams().toString())),
       loadLive(),
+      loadCalls(),
     ]);
 
     if (list) renderRows(list.results);
@@ -283,23 +287,29 @@
     });
   }
 
-  /** Очередь звонков — отдельной строкой над сводкой: это дело на сейчас,
-      а не цифра дня. */
+  /** «Кому позвонить» — строкой над сводкой: это дело на сейчас, а не
+      цифра дня. Самое срочное — словами, остальное — числом и ссылкой на
+      вкладку со всей очередью. */
   function renderCallQueue() {
-    const waiting = (state.bookings || []).filter(isWaitingCall);
+    const calls = state.calls || [];
     let note = $("#call-queue");
     if (!note) {
       note = el("div", { class: "note note-warn", id: "call-queue", role: "status" });
       $("#summary").before(note);
     }
-    note.hidden = !waiting.length;
+    note.hidden = !calls.length;
+    if (!calls.length) return;
+    const first = calls[0];
     note.innerHTML = icon("phone");
     note.append(el("span", {
-      text: waiting.length === 1
-        ? "Клиент ждёт звонка: подобрать услугу" +
-          (waiting[0].category_title ? " («" + waiting[0].category_title + "»)" : "") +
-          " — " + waiting[0].local_time.split(" ")[1] + ", " + (waiting[0].client_name || waiting[0].client_phone) + "."
-        : waiting.length + " " + fmt.plural(waiting.length, "клиент ждёт", "клиента ждут", "клиентов ждут") + " звонка: подобрать услугу.",
+      // Строчной — только первая буква: в подсказке бывает название
+      // категории, и «замена масла» с маленькой читается как опечатка.
+      text: "Позвонить: " + (first.client_name || first.client_phone) + " — " +
+        first.hint.charAt(0).toLowerCase() + first.hint.slice(1) +
+        (calls.length > 1 ? ". И ещё " + (calls.length - 1) + " в очереди." : "."),
+    }), el("button", {
+      class: "btn btn-sm", type: "button", text: "Кому позвонить",
+      onClick: () => openTab("calls"),
     }));
   }
 
@@ -1042,6 +1052,170 @@
     name.focus();
   }
 
+  /* ---------------------------------------------------------- звонки */
+
+  const CALL_BADGE = {
+    on_site: "badge-warn", callback: "badge-info", late: "badge-danger",
+    tomorrow: "badge", off_hours: "badge", no_show: "badge-danger",
+  };
+  const OUTCOMES = [["reached", "Дозвонился"], ["no_answer", "Не дозвонился"], ["callback", "Перезвонить"]];
+
+  async function loadCalls() {
+    const point = $("#f-point").value;
+    const rows = await guard(() => api.get("/master/calls/" + (point ? "?service_point=" + point : "")));
+    if (!rows) return;
+    state.calls = rows;
+    const badge = $("#calls-count");
+    badge.hidden = !rows.length;
+    badge.textContent = String(rows.length);
+    renderCalls();
+  }
+
+  /** Последний звонок одной строкой: итог, время, кто. */
+  function lastCallText(call) {
+    if (!call) return "ещё не звонили";
+    const when = new Date(call.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+    return call.outcome_display.toLowerCase() + " в " + when + (call.actor ? " · " + call.actor : "");
+  }
+
+  function renderCalls() {
+    const tbody = $("#calls-rows");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    if (!state.calls.length) {
+      tbody.append(el("tr", { class: "row-empty" }, [
+        el("td", { colspan: "5" }, [empty("Звонить сейчас некому.", "phone")]),
+      ]));
+      return;
+    }
+    const today = new Date().toLocaleDateString("ru-RU");
+    state.calls.forEach((item) => {
+      const [date, time] = item.local_time.split(" ");
+      tbody.append(el("tr", {}, [
+        el("td", { class: "nowrap", "data-label": "Когда" }, [
+          el("div", { class: "cell-main", text: time }),
+          el("div", { class: "cell-sub mono", text: [date === today ? "" : date.slice(0, 5), item.booking_code].filter(Boolean).join(" · ") }),
+        ]),
+        el("td", { "data-label": "Клиент" }, [
+          el("div", { class: "cell-main", text: item.client_name || "Без имени" }),
+          el("div", { class: "cell-sub" }, [
+            el("a", { href: "tel:" + item.client_phone, text: item.client_phone }),
+            state.points.length > 1 ? document.createTextNode(" · " + item.service_point_name) : null,
+          ]),
+        ]),
+        el("td", { "data-label": "Зачем" }, [
+          el("span", { class: "badge " + (CALL_BADGE[item.reason] || "badge") }, [el("span", { class: "dot" }), item.reason_display]),
+          el("div", { class: "cell-sub", style: "margin-top:4px", text: item.hint }),
+        ]),
+        el("td", { "data-label": "Последний звонок" }, [
+          el("div", { class: "cell-sub", text: lastCallText(item.last_call) }),
+          item.attempts ? el("div", { class: "cell-sub", text: "не дозвонились: " + item.attempts }) : null,
+        ]),
+        el("td", { class: "num nowrap", "data-label": "" }, [
+          el("button", { class: "btn btn-sm btn-primary", type: "button", text: "Отметить звонок",
+            onClick: () => openCallDialog(item) }),
+        ]),
+      ]));
+    });
+  }
+
+  /** Отметка звонка: итог, «перезвонить в …», заметка и журнал по записи. */
+  async function openCallDialog(item) {
+    const journalPath = item.booking
+      ? "/master/bookings/" + item.booking + "/calls/"
+      : "/master/clients/" + item.client + "/calls/";
+    const history = await guard(() => api.get(journalPath));
+    if (!history) return;
+
+    const form = { outcome: null };
+    const outcomes = el("div", { class: "choice-row", role: "group", "aria-label": "Итог звонка" });
+    const when = el("input", { id: "call-when", type: "datetime-local" });
+    const quick = el("div", { class: "choice-row" });
+    const whenField = el("div", { class: "field field-wide", hidden: true }, [
+      el("label", { for: "call-when", text: "Перезвонить в" }), when, quick,
+    ]);
+    const note = el("input", { id: "call-note", maxlength: "500", placeholder: "Например: приедет к 15:30, просит Shell" });
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const toLocalInput = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    const point = state.points.find((p) => p.id === item.service_point);
+    const shortcuts = [
+      ["Через 30 минут", () => new Date(Date.now() + 30 * 60000)],
+      ["Через час", () => new Date(Date.now() + 60 * 60000)],
+    ];
+    if (point && point.opens_at) {
+      shortcuts.push(["Завтра к открытию", () => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        const [h, m] = point.opens_at.split(":");
+        d.setHours(Number(h), Number(m), 0, 0);
+        return d;
+      }]);
+    }
+    shortcuts.forEach(([label, make]) => quick.append(el("button", {
+      class: "btn btn-sm btn-ghost", type: "button", text: label,
+      onClick: () => { when.value = toLocalInput(make()); },
+    })));
+
+    OUTCOMES.forEach(([value, label]) => {
+      const btn = el("button", { class: "btn btn-sm", type: "button", text: label, "aria-pressed": "false" });
+      btn.onclick = () => {
+        form.outcome = value;
+        $$("button", outcomes).forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+        whenField.hidden = value !== "callback";
+        if (value === "callback" && !when.value) when.value = toLocalInput(new Date(Date.now() + 30 * 60000));
+      };
+      outcomes.append(btn);
+    });
+
+    const journal = history.length
+      ? el("div", { class: "stack-sm" }, history.slice(0, 5).map((call) => el("div", { class: "live-row" }, [
+        el("div", { style: "flex:1;min-width:0" }, [
+          el("div", { class: "cell-main", text: call.outcome_display + (call.callback_at ? " · на " + fmt.dateTime(call.callback_at) : "") }),
+          el("div", { class: "cell-sub", text: [fmt.dateTime(call.created_at), call.actor, call.note].filter(Boolean).join(" · ") }),
+        ]),
+      ])))
+      : el("p", { class: "hint", text: "Звонков по этой записи ещё не было." });
+
+    const body = el("div", { class: "stack" }, [
+      el("p", { class: "hint" }, [
+        // Подсказка бывает вопросом («приедет?») — точку после неё не ставим.
+        document.createTextNode(item.hint + (/[?.!]$/.test(item.hint) ? " " : ". ") + "Позвоните: "),
+        el("a", { href: "tel:" + item.client_phone, text: item.client_phone }),
+      ]),
+      el("div", { class: "field" }, [el("span", { class: "label", text: "Чем закончился звонок" }), outcomes]),
+      el("div", { class: "form-grid" }, [
+        whenField,
+        el("div", { class: "field field-wide" }, [el("label", { for: "call-note", text: "Заметка" }), note]),
+      ]),
+      el("div", { class: "stack-sm" }, [el("span", { class: "label", text: "Журнал звонков" }), journal]),
+    ]);
+    const cancel = el("button", { class: "btn", type: "button", text: "Отмена" });
+    const save = el("button", { class: "btn btn-primary", type: "button", text: "Сохранить" });
+    const dlg = App.dialog({
+      title: "Звонок · " + (item.client_name || item.client_phone),
+      sub: item.reason_display + (item.booking_code ? " · запись " + item.booking_code : ""),
+      body, actions: [cancel, save], wide: true,
+    });
+    cancel.onclick = dlg.close;
+    save.onclick = async () => {
+      if (!form.outcome) { toast("Выберите, чем закончился звонок.", "error"); return; }
+      const payload = { outcome: form.outcome, reason: item.reason, note: note.value.trim() };
+      if (form.outcome === "callback") {
+        if (!when.value) { toast("Когда перезвонить?", "error"); return; }
+        payload.callback_at = new Date(when.value).toISOString();
+      }
+      if (!item.booking) payload.service_point = item.service_point;
+      save.disabled = true;
+      const ok = await guard(() => api.post(journalPath, payload));
+      save.disabled = false;
+      if (!ok) return;
+      dlg.close();
+      toast(ok.outcome_display + (ok.callback_at ? " · " + fmt.dateTime(ok.callback_at) : ""), "ok", "Звонок отмечен");
+      await reload();
+    };
+  }
+
   /* ---------------------------------------------------------- черновики */
 
   async function loadLive() {
@@ -1217,14 +1391,15 @@
     // Вкладки «Записи» / «Услуги» (и «Метрики» у администратора). Каталог
     // загружается при открытии вкладки — смене он не нужен.
     $$(".tab[data-tab]").forEach((tab) => {
-      tab.onclick = () => {
-        $$(".tab[data-tab]").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
-        $$("[data-panel]").forEach((panel) => {
-          panel.hidden = panel.dataset.panel !== tab.dataset.tab;
-        });
-        if (tab.dataset.tab === "services") loadServices();
-      };
+      tab.onclick = () => openTab(tab.dataset.tab);
     });
+  }
+
+  function openTab(name) {
+    $$(".tab[data-tab]").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
+    $$("[data-panel]").forEach((panel) => { panel.hidden = panel.dataset.panel !== name; });
+    if (name === "services") loadServices();
+    if (name === "calls") renderCalls();
   }
 
   async function init(options) {

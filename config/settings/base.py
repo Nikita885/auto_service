@@ -272,6 +272,10 @@ BOOKING = {
     "REMINDER_LEAD_MINUTES": env.int("BOOKING_REMINDER_LEAD_MINUTES", default=120),
     # Через сколько дней физически удалять мёртвые черновики.
     "DRAFT_PURGE_AFTER_DAYS": env.int("BOOKING_DRAFT_PURGE_AFTER_DAYS", default=7),
+    # Через сколько минут после начала записи клиент, который так и не
+    # приехал, попадает в «Кому позвонить» как опаздывающий (решение
+    # заказчика, октябрь 2026).
+    "CALL_LATE_MINUTES": env.int("BOOKING_CALL_LATE_MINUTES", default=10),
 }
 
 OTP = {

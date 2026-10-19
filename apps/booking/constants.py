@@ -91,3 +91,28 @@ class DraftCloseReason(models.TextChoices):
     EXPIRED = "expired", "Истекло время"
     CANCELLED = "cancelled", "Отменена клиентом"
     RESTARTED = "restarted", "Начата заново"
+
+
+class CallOutcome(models.TextChoices):
+    """Чем закончился звонок мастера клиенту."""
+
+    REACHED = "reached", "Дозвонился"
+    NO_ANSWER = "no_answer", "Не дозвонился"
+    CALLBACK = "callback", "Перезвонить"
+
+
+class CallReason(models.TextChoices):
+    """Зачем звонить. Порядок перечисления — порядок очереди (решение
+    заказчика): первыми — скорая запись, где услугу ещё не выбрали."""
+
+    ON_SITE = "on_site", "Подобрать услугу"
+    CALLBACK = "callback", "Перезвонить"
+    LATE = "late", "Опаздывает"
+    TOMORROW = "tomorrow", "Запись на завтра"
+    OFF_HOURS = "off_hours", "Запись вне рабочих часов"
+    NO_SHOW = "no_show", "Не приехал"
+    OTHER = "other", "Другое"
+
+
+#: Приоритет причины в очереди «Кому позвонить»: меньше — выше.
+CALL_PRIORITY = {reason: index for index, reason in enumerate(CallReason.values)}

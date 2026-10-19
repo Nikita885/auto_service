@@ -1515,6 +1515,79 @@ paths:
               schema:
                 $ref: '#/components/schemas/MasterBookingDetail'
           description: ''
+  /api/v1/master/bookings/{id}/calls/:
+    get:
+      operationId: master_bookings_calls_list
+      summary: Журнал звонков по записи
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCallList'
+          description: ''
+    post:
+      operationId: master_bookings_calls_create
+      description: Дозвонился, не дозвонился или «перезвонить в …» (`callback_at`).
+        Мастерам точки уходит сигнал `call.logged`, очередь «Кому позвонить» у всех
+        меняется сразу. Повторное такое же нажатие в течение 10 секунд возвращает
+        тот же звонок.
+      summary: Отметить звонок по записи
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this запись.
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CallCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CallCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CallCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Call'
+          description: ''
   /api/v1/master/bookings/{id}/cancel/:
     post:
       operationId: master_bookings_cancel_create
@@ -1778,6 +1851,93 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DaySummary'
+          description: ''
+  /api/v1/master/calls/:
+    get:
+      operationId: master_calls_list
+      description: |-
+        «Кому позвонить»: очередь звонков по точкам сотрудника.
+
+        Вычисляется на лету — из записей и последних звонков; самое срочное
+        сверху (порядок причин — решение заказчика).
+      summary: Кому позвонить
+      parameters:
+      - in: query
+        name: service_point
+        schema:
+          type: string
+        description: UUID точки — фильтр
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CallQueueItem'
+          description: ''
+  /api/v1/master/clients/{client_id}/calls/:
+    get:
+      operationId: master_clients_calls_list
+      description: Журнал звонков клиенту и отметка звонка из его карточки.
+      summary: Журнал звонков клиенту
+      parameters:
+      - in: path
+        name: client_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Мастер
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Call'
+          description: ''
+    post:
+      operationId: master_clients_calls_create
+      description: Журнал звонков клиенту и отметка звонка из его карточки.
+      summary: Отметить звонок клиенту без записи
+      parameters:
+      - in: path
+        name: client_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Мастер
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientCallCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClientCallCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClientCallCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Call'
           description: ''
   /api/v1/master/live-drafts/:
     get:
@@ -3102,6 +3262,108 @@ components:
       - created_at
       - id
       - to_status
+    Call:
+      type: object
+      description: 'Звонок в журнале: зачем, чем кончилось, кто и когда.'
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        booking:
+          type: string
+          format: uuid
+          nullable: true
+          title: Запись
+        booking_code:
+          type: string
+          nullable: true
+          readOnly: true
+        client:
+          type: string
+          format: uuid
+          title: Клиент
+        service_point:
+          type: string
+          format: uuid
+          title: Точка
+        service_point_name:
+          type: string
+          readOnly: true
+        reason:
+          allOf:
+          - $ref: '#/components/schemas/ReasonEnum'
+          title: Зачем звонили
+        reason_display:
+          type: string
+          readOnly: true
+        outcome:
+          allOf:
+          - $ref: '#/components/schemas/OutcomeEnum'
+          title: Итог
+        outcome_display:
+          type: string
+          readOnly: true
+        callback_at:
+          type: string
+          format: date-time
+          nullable: true
+          title: Перезвонить в
+        note:
+          type: string
+          title: Заметка
+          maxLength: 500
+        actor:
+          type: string
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создано
+      required:
+      - actor
+      - booking_code
+      - client
+      - created_at
+      - id
+      - outcome
+      - outcome_display
+      - reason_display
+      - service_point
+      - service_point_name
+    CallCreateRequest:
+      type: object
+      description: Отметка звонка по записи.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OutcomeEnum'
+        reason:
+          allOf:
+          - $ref: '#/components/schemas/ReasonEnum'
+          default: other
+          description: |-
+            Зачем звонили — причина из очереди «Кому позвонить»
+
+            * `on_site` - Подобрать услугу
+            * `callback` - Перезвонить
+            * `late` - Опаздывает
+            * `tomorrow` - Запись на завтра
+            * `off_hours` - Запись вне рабочих часов
+            * `no_show` - Не приехал
+            * `other` - Другое
+        note:
+          type: string
+          default: ''
+          maxLength: 500
+        callback_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 'Только для «перезвонить»: когда, с часовым поясом'
+      required:
+      - outcome
     CallPending:
       type: object
       properties:
@@ -3114,6 +3376,77 @@ components:
       - pending
       type: string
       description: '* `pending` - pending'
+    CallQueueItem:
+      type: object
+      description: Строка очереди «Кому позвонить».
+      properties:
+        reason:
+          type: string
+        reason_display:
+          type: string
+          readOnly: true
+        priority:
+          type: integer
+        hint:
+          type: string
+          description: Что выяснить
+        due_at:
+          type: string
+          format: date-time
+        local_time:
+          type: string
+          readOnly: true
+          description: Время записи, а у «перезвонить» — назначенное время, в поясе
+            точки
+        booking:
+          type: string
+          nullable: true
+          readOnly: true
+        booking_code:
+          type: string
+          nullable: true
+          readOnly: true
+        client:
+          type: string
+          format: uuid
+        client_name:
+          type: string
+          readOnly: true
+        client_phone:
+          type: string
+        service_point:
+          type: string
+          format: uuid
+        service_point_name:
+          type: string
+        category_title:
+          type: string
+          readOnly: true
+        attempts:
+          type: integer
+          description: Сколько раз не дозвонились по этой причине
+        last_call:
+          allOf:
+          - $ref: '#/components/schemas/Call'
+          nullable: true
+          readOnly: true
+      required:
+      - attempts
+      - booking
+      - booking_code
+      - category_title
+      - client
+      - client_name
+      - client_phone
+      - due_at
+      - hint
+      - last_call
+      - local_time
+      - priority
+      - reason
+      - reason_display
+      - service_point
+      - service_point_name
     CallStatusRequest:
       type: object
       properties:
@@ -3319,6 +3652,41 @@ components:
           type: string
           format: date
           nullable: true
+    ClientCallCreateRequest:
+      type: object
+      description: Отметка звонка из карточки клиента — без записи, но с точкой.
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OutcomeEnum'
+        reason:
+          allOf:
+          - $ref: '#/components/schemas/ReasonEnum'
+          default: other
+          description: |-
+            Зачем звонили — причина из очереди «Кому позвонить»
+
+            * `on_site` - Подобрать услугу
+            * `callback` - Перезвонить
+            * `late` - Опаздывает
+            * `tomorrow` - Запись на завтра
+            * `off_hours` - Запись вне рабочих часов
+            * `no_show` - Не приехал
+            * `other` - Другое
+        note:
+          type: string
+          default: ''
+          maxLength: 500
+        callback_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 'Только для «перезвонить»: когда, с часовым поясом'
+        service_point:
+          type: string
+          format: uuid
+      required:
+      - outcome
+      - service_point
     ClientLookup:
       type: object
       description: 'Кто стоит за номером: подставить имя и машину в окно записи.'
@@ -5198,6 +5566,16 @@ components:
       required:
       - code
       - phone
+    OutcomeEnum:
+      enum:
+      - reached
+      - no_answer
+      - callback
+      type: string
+      description: |-
+        * `reached` - Дозвонился
+        * `no_answer` - Не дозвонился
+        * `callback` - Перезвонить
     PaginatedBookingList:
       type: object
       required:
@@ -5221,6 +5599,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Booking'
+    PaginatedCallList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Call'
     PaginatedMasterBookingList:
       type: object
       required:
@@ -5547,6 +5948,24 @@ components:
       - max_discount_percent
       - max_spend
       - total_price
+    ReasonEnum:
+      enum:
+      - on_site
+      - callback
+      - late
+      - tomorrow
+      - off_hours
+      - no_show
+      - other
+      type: string
+      description: |-
+        * `on_site` - Подобрать услугу
+        * `callback` - Перезвонить
+        * `late` - Опаздывает
+        * `tomorrow` - Запись на завтра
+        * `off_hours` - Запись вне рабочих часов
+        * `no_show` - Не приехал
+        * `other` - Другое
     ReferralSummary:
       type: object
       description: |-

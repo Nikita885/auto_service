@@ -1,7 +1,7 @@
 {% comment %}
 Рабочее место сотрудника — общее для мастера и администратора: вкладки
-«Записи» и «Услуги», у администратора ещё «Метрики» (панель метрик лежит в
-admin.html, здесь только кнопка вкладки).
+«Записи», «Кому позвонить» и «Услуги», у администратора ещё «Метрики»
+(панель метрик лежит в admin.html, здесь только кнопка вкладки).
 
 Всё, что мастер делает за смену, — на одном экране без прокрутки к
 фильтрам: дата и фильтры в одной строке, сводка — полосой над таблицей,
@@ -10,6 +10,9 @@ admin.html, здесь только кнопка вкладки).
 
 <div class="ws-tabs tabs" role="tablist">
   <button class="tab" type="button" role="tab" data-tab="shift" aria-selected="true">Записи</button>
+  <button class="tab" type="button" role="tab" data-tab="calls" aria-selected="false">
+    Кому позвонить <span class="badge badge-warn" id="calls-count" hidden></span>
+  </button>
   <button class="tab" type="button" role="tab" data-tab="services" aria-selected="false">Услуги</button>
   {% if with_metrics %}
   <button class="tab" type="button" role="tab" data-tab="metrics" aria-selected="false">Метрики</button>
@@ -71,6 +74,27 @@ admin.html, здесь только кнопка вкладки).
       </div>
       <div class="stack-sm" id="live"></div>
     </aside>
+  </div>
+</div>
+
+<!-- ------------------------------------------------------ кому позвонить -->
+<!-- Очередь вычисляет сервер: самое срочное сверху. Смена дня остаётся
+     главным экраном, а сюда ведёт счётчик на вкладке и строка над сводкой. -->
+<div data-panel="calls" hidden>
+  <p class="hint panel-hint">Сверху — самое срочное: записи, где услугу ещё не выбрали, потом «перезвонить», опоздания, записи на завтра. Отметка звонка сразу видна всем мастерам точки.</p>
+  <div class="table-wrap">
+    <table class="table-cards">
+      <thead>
+        <tr>
+          <th>Когда</th>
+          <th>Клиент</th>
+          <th>Зачем</th>
+          <th>Последний звонок</th>
+          <th class="num"></th>
+        </tr>
+      </thead>
+      <tbody id="calls-rows"></tbody>
+    </table>
   </div>
 </div>
 

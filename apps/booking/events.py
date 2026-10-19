@@ -37,6 +37,7 @@ DRAFT_CLOSED = "draft.closed"
 BOOKING_CREATED = "booking.created"
 BOOKING_UPDATED = "booking.updated"
 BOOKING_CANCELLED = "booking.cancelled"
+CALL_LOGGED = "call.logged"
 
 
 def user_group(user_id) -> str:
@@ -102,5 +103,22 @@ def publish_booking(booking, event: str = BOOKING_UPDATED) -> None:
             # Время точки, а не сервера и не браузера: у сети адреса могут
             # оказаться в разных часовых поясах.
             "local_time": booking.local_start().strftime("%d.%m.%Y %H:%M"),
+        },
+    )
+
+
+def publish_call(call) -> None:
+    """Мастер отметил звонок — у остальных мастеров точки очередь
+    «Кому позвонить» должна поменяться сразу, иначе двое позвонят одному
+    клиенту. Как и с записями, в канал уходит только сигнал: ни телефона,
+    ни заметки — данные панель заберёт REST-запросом."""
+    _send(
+        point_group(call.service_point_id),
+        CALL_LOGGED,
+        {
+            "call_id": str(call.id),
+            "booking_id": str(call.booking_id) if call.booking_id else None,
+            "service_point_id": str(call.service_point_id),
+            "outcome": call.outcome,
         },
     )

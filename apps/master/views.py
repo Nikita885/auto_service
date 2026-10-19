@@ -25,6 +25,7 @@ from rest_framework.views import APIView
 from apps.booking.constants import BookingStatus
 from apps.booking.models import Booking, BookingDraft
 from apps.booking.services import booking as booking_service
+from apps.booking.services import calls as calls_service
 from apps.booking.services import slots as slots_service
 from apps.booking.services import stock as stock_service
 from apps.booking.services import walk_in as walk_in_service
@@ -37,6 +38,10 @@ from apps.common.permissions import IsAdmin, IsMaster
 from apps.garage.services.cars import normalize_plate
 from apps.master import metrics
 from apps.master.serializers import (
+    CallCreateSerializer,
+    CallQueueItemSerializer,
+    CallSerializer,
+    ClientCallCreateSerializer,
     ClientLookupSerializer,
     DaySummarySerializer,
     LiveDraftSerializer,
@@ -304,6 +309,33 @@ class MasterBookingViewSet(
         return Response(PointsQuoteSerializer(referral_points.spend_quote(booking)).data)
 
     @extend_schema(
+        methods=["GET"],
+        responses={200: CallSerializer(many=True)},
+        summary="Журнал звонков по записи",
+    )
+    @extend_schema(
+        methods=["POST"],
+        request=CallCreateSerializer,
+        responses={201: CallSerializer},
+        summary="Отметить звонок по записи",
+        description=(
+            "Дозвонился, не дозвонился или «перезвонить в …» (`callback_at`). "
+            "Мастерам точки уходит сигнал `call.logged`, очередь «Кому "
+            "позвонить» у всех меняется сразу. Повторное такое же нажатие в "
+            "течение 10 секунд возвращает тот же звонок."
+        ),
+    )
+    @action(detail=True, methods=["get", "post"])
+    def calls(self, request: Request, pk=None) -> Response:
+        if request.method == "GET":
+            journal = calls_service.booking_journal(request.user, pk)
+            return Response(CallSerializer(journal, many=True).data)
+        payload = CallCreateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        call = calls_service.log_call(request.user, booking_id=pk, **payload.validated_data)
+        return Response(CallSerializer(call).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
         request=NoShowSerializer,
         responses={200: MasterBookingSerializer},
         summary="Клиент не приехал",
@@ -464,6 +496,54 @@ class LiveDraftListView(mixins.ListModelMixin, viewsets.GenericViewSet):
         if allowed is not None:
             qs = qs.filter(service_point_id__in=allowed)
         return qs.order_by("created_at")
+
+
+@extend_schema(tags=["Мастер"])
+class CallQueueView(APIView):
+    """«Кому позвонить»: очередь звонков по точкам сотрудника.
+
+    Вычисляется на лету — из записей и последних звонков; самое срочное
+    сверху (порядок причин — решение заказчика).
+    """
+
+    permission_classes = [IsMaster]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("service_point", str, description="UUID точки — фильтр")],
+        responses={200: CallQueueItemSerializer(many=True)},
+        summary="Кому позвонить",
+    )
+    def get(self, request: Request) -> Response:
+        items = calls_service.queue_for(
+            request.user, point_id=request.query_params.get("service_point")
+        )
+        return Response(CallQueueItemSerializer(items, many=True).data)
+
+
+@extend_schema(tags=["Мастер"])
+class ClientCallsView(APIView):
+    """Журнал звонков клиенту и отметка звонка из его карточки."""
+
+    permission_classes = [IsMaster]
+
+    @extend_schema(responses={200: CallSerializer(many=True)}, summary="Журнал звонков клиенту")
+    def get(self, request: Request, client_id) -> Response:
+        calls = calls_service.client_journal(request.user, client_id)
+        return Response(CallSerializer(calls, many=True).data)
+
+    @extend_schema(
+        request=ClientCallCreateSerializer,
+        responses={201: CallSerializer},
+        summary="Отметить звонок клиенту без записи",
+    )
+    def post(self, request: Request, client_id) -> Response:
+        payload = ClientCallCreateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = dict(payload.validated_data)
+        call = calls_service.log_call(
+            request.user, client_id=client_id, point_id=data.pop("service_point"), **data
+        )
+        return Response(CallSerializer(call).data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema(tags=["Мастер"])

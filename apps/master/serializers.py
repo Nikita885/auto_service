@@ -3,7 +3,8 @@ from decimal import Decimal
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.booking.models import Booking, BookingDraft
+from apps.booking.constants import CallOutcome, CallReason
+from apps.booking.models import Booking, BookingCall, BookingDraft
 from apps.catalog.models import OilType, ServiceJournalKind
 from apps.catalog.serializers import AvailableOilSerializer
 from apps.garage.serializers import CarShortSerializer
@@ -550,3 +551,108 @@ class MetricsSerializer(serializers.Serializer):
     clients = MetricsClientsSerializer()
     stock = MetricsStockSerializer()
     live = MetricsLiveSerializer()
+
+
+# ----------------------------------------------------------------- звонки
+class CallSerializer(serializers.ModelSerializer):
+    """Звонок в журнале: зачем, чем кончилось, кто и когда."""
+
+    reason_display = serializers.CharField(source="get_reason_display", read_only=True)
+    outcome_display = serializers.CharField(source="get_outcome_display", read_only=True)
+    booking_code = serializers.SerializerMethodField()
+    service_point_name = serializers.CharField(source="service_point.name", read_only=True)
+    actor = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BookingCall
+        fields = (
+            "id",
+            "booking",
+            "booking_code",
+            "client",
+            "service_point",
+            "service_point_name",
+            "reason",
+            "reason_display",
+            "outcome",
+            "outcome_display",
+            "callback_at",
+            "note",
+            "actor",
+            "created_at",
+        )
+
+    def get_booking_code(self, obj: BookingCall) -> str | None:
+        return obj.booking.code if obj.booking_id else None
+
+    def get_actor(self, obj: BookingCall) -> str | None:
+        return obj.actor.display_name if obj.actor_id else None
+
+
+class CallCreateSerializer(serializers.Serializer):
+    """Отметка звонка по записи."""
+
+    outcome = serializers.ChoiceField(choices=CallOutcome.choices)
+    reason = serializers.ChoiceField(
+        choices=CallReason.choices, default=CallReason.OTHER,
+        help_text="Зачем звонили — причина из очереди «Кому позвонить»",
+    )
+    note = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+    callback_at = serializers.DateTimeField(
+        required=False, allow_null=True, default=None,
+        help_text="Только для «перезвонить»: когда, с часовым поясом",
+    )
+
+
+class ClientCallCreateSerializer(CallCreateSerializer):
+    """Отметка звонка из карточки клиента — без записи, но с точкой."""
+
+    service_point = serializers.UUIDField()
+
+
+class CallQueueItemSerializer(serializers.Serializer):
+    """Строка очереди «Кому позвонить»."""
+
+    reason = serializers.CharField()
+    reason_display = serializers.SerializerMethodField()
+    priority = serializers.IntegerField()
+    hint = serializers.CharField(help_text="Что выяснить")
+    due_at = serializers.DateTimeField(source="sort_at")
+    local_time = serializers.SerializerMethodField(
+        help_text="Время записи, а у «перезвонить» — назначенное время, в поясе точки"
+    )
+    booking = serializers.SerializerMethodField()
+    booking_code = serializers.SerializerMethodField()
+    client = serializers.UUIDField(source="client.id")
+    client_name = serializers.SerializerMethodField()
+    client_phone = serializers.CharField(source="client.phone")
+    service_point = serializers.UUIDField(source="service_point.id")
+    service_point_name = serializers.CharField(source="service_point.name")
+    category_title = serializers.SerializerMethodField()
+    attempts = serializers.IntegerField(help_text="Сколько раз не дозвонились по этой причине")
+    last_call = serializers.SerializerMethodField()
+
+    def get_reason_display(self, obj) -> str:
+        return CallReason(obj.reason).label
+
+    def get_local_time(self, obj) -> str:
+        moment = obj.callback.callback_at if obj.callback else obj.booking.start_at
+        return moment.astimezone(obj.service_point.tz).strftime("%d.%m.%Y %H:%M")
+
+    def get_booking(self, obj) -> str | None:
+        return str(obj.booking.pk) if obj.booking else None
+
+    def get_booking_code(self, obj) -> str | None:
+        return obj.booking.code if obj.booking else None
+
+    def get_client_name(self, obj) -> str:
+        if obj.booking and obj.booking.client_name:
+            return obj.booking.client_name
+        return obj.client.full_name
+
+    def get_category_title(self, obj) -> str:
+        return obj.booking.category_title if obj.booking else ""
+
+    @extend_schema_field(CallSerializer(allow_null=True))
+    def get_last_call(self, obj):
+        return CallSerializer(obj.last_call).data if obj.last_call else None
