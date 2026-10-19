@@ -597,6 +597,22 @@
 }
 .choice[aria-pressed="true"] .choice-mark { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
 
+/* Подсказчик: разговор пузырями — свои справа, ответы слева. */
+.chat { display: grid; gap: var(--space-2); }
+.bubble {
+  max-width: 88%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.bubble-user { justify-self: end; border-color: transparent; background: var(--accent-soft); }
+.bubble-bot { justify-self: start; }
+.bubble .choice { margin-top: var(--space-2); }
+.chat-form { display: grid; grid-template-columns: 1fr auto; gap: var(--space-2); align-items: end; }
+.chat-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
 .days { display: flex; gap: var(--space-2); overflow-x: auto; margin-inline: calc(var(--space-4) * -1); padding: 0 var(--space-4) var(--space-1); scrollbar-width: none; }
 .days::-webkit-scrollbar { display: none; }
 .day {

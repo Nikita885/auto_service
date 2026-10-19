@@ -69,7 +69,7 @@ API обслуживает два мобильных приложения:
 ## 4. Что уже сделано (всё работает и проверено)
 
 Серверная часть **готова полностью**, поверх неё работают лендинг и панели
-сотрудников. 583 тестов, ruff чистый, OpenAPI генерируется без ошибок
+сотрудников. 611 тестов, ruff чистый, OpenAPI генерируется без ошибок
 (одно известное предупреждение: тип `id` у устаревшего `MasterOilViewSet`;
 имя перечисления `status` закреплено как `BookingStatusEnum`, чтобы схема
 не менялась от версии Django), сквозной сценарий прогнан по живому HTTP.
@@ -147,6 +147,11 @@ API обслуживает два мобильных приложения:
   правятся текстом в `apps/catalog/data/cars.txt` и грузятся командой
   `manage.py import_cars`.
 
+- Подсказчик в записи (`apps/assistant`): клиент пишет, что с машиной, —
+  YandexGPT предлагает услугу из каталога точки (без цен, код проверяется
+  по каталогу), «Выбрать» проводит её шагами черновика. Лимиты заказчика:
+  10 сообщений в день, 5 в разговоре, 1000 ₽ в месяц; текст разговора не
+  храним. Провайдер — `ASSISTANT_PROVIDER` (`off` / `yandex` / `fake`).
 - Баллы клиента до расчёта: в строке смены и в записях карточки —
   баланс и сколько можно списать в этот чек (`client_points`), без
   запроса на каждую строку.
@@ -589,6 +594,10 @@ docker-compose.prod.yml   надстройка для прода: закрыва
 `by_point`, `top_services`, `clients`, `stock` — остатки ограниченных
 услуг, `live`). Только роль `admin`.
 
+**Подсказчик:** `GET /assistant/?service_point=` (показывать ли кнопку),
+`POST /assistant/` (`message`, `chat`, `history` → `reply`, `category`,
+`service`, `on_site`, `handoff`). Лимиты — не ошибка, а `handoff`.
+
 **WebSocket клиента:** `ws://host/ws/booking/?token=<access JWT>` — события
 `draft.updated`, `draft.expired`, `draft.closed`, `booking.created`,
 `booking.updated`, `booking.cancelled`. Payload совпадает с форматом REST.
@@ -658,6 +667,15 @@ GARAGE_SUMMER_TIRES_FROM=04-20           # смена резины (ММ-ДД), 
 GARAGE_WINTER_TIRES_FROM=10-01
 GARAGE_SOON_KM=1000                      # «скоро» в напоминаниях
 GARAGE_SOON_DAYS=30
+ASSISTANT_PROVIDER=off                   # подсказчик: off / yandex / fake
+ASSISTANT_YANDEX_API_KEY=                # сервисный аккаунт, роль ai.languageModels.user
+ASSISTANT_YANDEX_FOLDER_ID=
+ASSISTANT_YANDEX_MODEL=yandexgpt-lite/latest
+ASSISTANT_MESSAGES_PER_DAY=10            # решения заказчика
+ASSISTANT_MESSAGES_PER_CHAT=5
+ASSISTANT_MONTHLY_BUDGET_RUB=1000
+ASSISTANT_PRICE_INPUT_PER_1K_RUB=0.20    # тариф модели, ₽ за 1000 токенов с НДС
+ASSISTANT_PRICE_OUTPUT_PER_1K_RUB=0.20
 ```
 
 Витрина настраивается там же — `COMPANY_*`: название, тег-лайн, телефон,
@@ -679,7 +697,7 @@ GARAGE_SOON_DAYS=30
 ```bash
 cp .env.example .env
 docker compose build api && docker compose up -d   # или make up
-make test    # 583 тестов
+make test    # 611 тестов
 make lint    # ruff
 ```
 
@@ -837,7 +855,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api python 
 
 Работа не считается сделанной, пока не выполнено всё:
 
-- `make test` зелёный. Сейчас 583 тестов — новых падений быть не должно.
+- `make test` зелёный. Сейчас 611 тестов — новых падений быть не должно.
 - Новая логика покрыта тестами. Особенно граничные случаи: гонки, повторные
   нажатия, истёкшие сроки, права доступа.
 - `make lint` чистый.
@@ -915,7 +933,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api python 
 
 > Проект — бэкенд автосервиса (запись на замену масла): Django 5 + DRF +
 > PostgreSQL + Celery/Redis + JWT + Channels, всё в Docker Compose. Серверная
-> часть готова, 583 тестов; клиентское приложение под Android лежит в
+> часть готова, 611 тестов; клиентское приложение под Android лежит в
 > `mobile/android`. Проект **развёрнут и работает** на https://moi-servis.ru —
 > правки поедут на живой сервер, выкатка описана в `PROMPT.md`, раздел 13.
 > Прочитай `README.md` и `PROMPT.md` целиком — там полный контекст,

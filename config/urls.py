@@ -17,6 +17,7 @@ api_v1 = [
     path("master/", include("apps.master.urls")),
     path("referral/", include("apps.referral.urls")),
     path("garage/", include("apps.garage.urls")),
+    path("assistant/", include("apps.assistant.urls")),
 ]
 
 urlpatterns = [

@@ -15,6 +15,7 @@
    тоже серверный: `seconds_left` при каждом ответе, локально только
    тикаем до следующего. */
 
+import { AssistantChat } from "app/assistant";
 import { CarPicker, carLabel } from "app/cars";
 import {
   CONFIG, InfoRow, Skel, api, ask, call, errorText, fmt, html, toast, useEffect, useRef, useState,
@@ -52,6 +53,13 @@ export function BookingWizard({ onClose, onBooked }) {
   const [created, setCreated] = useState(null);
   const [expired, setExpired] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Подсказчик: доступен ли на этой точке, с какого шага открыт, разговор.
+  const [helper, setHelper] = useState(false);
+  const [helperFrom, setHelperFrom] = useState(null);
+  const [chat, setChat] = useState(null);
+  // Предложение, которое не успели выбрать: пять минут вышли — после
+  // «Начать заново» проводим его сами, а не просим выбирать снова.
+  const pending = useRef(null);
 
   function accept(next) {
     setDraft(next);
@@ -62,18 +70,76 @@ export function BookingWizard({ onClose, onBooked }) {
   async function begin(restart) {
     setBusy(true);
     try {
-      accept(await api.post("/bookings/drafts/", { restart: Boolean(restart) }));
+      const next = await api.post("/bookings/drafts/", { restart: Boolean(restart) });
+      accept(next);
       setExpired(false);
       setCreated(null);
+      return next;
     } catch (err) {
       setDraft(null);
       toast(errorText(err), "error");
+      return undefined;
     } finally {
       setBusy(false);
     }
   }
 
   useEffect(() => { begin(false); }, []);
+
+  // Кнопку подсказчика показываем, только если сервер говорит «доступен»:
+  // провайдер настроен, бюджет не выбран, вопросы на сегодня остались.
+  // Не вышло спросить — просто без кнопки: запись работает и так.
+  const pointId = draft && draft.service_point && draft.service_point.id;
+  useEffect(() => {
+    setHelper(false);
+    if (!pointId) return;
+    api.get("/assistant/?service_point=" + pointId)
+      .then((s) => setHelper(Boolean(s && s.available)), () => setHelper(false));
+  }, [pointId]);
+
+  function openHelper() {
+    setHelperFrom(view);
+    setView("assistant");
+  }
+
+  /** Провести предложение подсказчика обычными шагами черновика.
+      `from` — черновик, с которого начинаем; `point` — сначала выбрать
+      адрес (после «Начать заново» черновик пустой). */
+  async function applySuggestion(s, from = draft, point = null) {
+    if (busy && !point) return;
+    setBusy(true);
+    let current = from;
+    const post = async (path, body) => {
+      current = await api.post("/bookings/drafts/" + current.id + "/" + path + "/", body);
+    };
+    try {
+      if (point) await post("select-point", { service_point_id: point });
+      if (!current.service_category || current.service_category.id !== s.category.id) {
+        await post("select-category", { category_id: s.category.id });
+      }
+      if (s.service) await post("select-service", { service_id: s.service.id });
+      else if (s.on_site) await post("select-service", { on_site: true });
+      // Предложена только категория — откроется её список услуг.
+      accept(current);
+    } catch (err) {
+      if (GONE.includes(err.code)) {
+        pending.current = { s, point: point || from.service_point.id };
+        setExpired(true);
+      } else {
+        toast(errorText(err), "error");
+        reload();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function restart() {
+    const wanted = pending.current;
+    pending.current = null;
+    const next = await begin(true);
+    if (next && wanted) await applySuggestion(wanted.s, next, wanted.point);
+  }
 
   async function reload() {
     try {
@@ -146,7 +212,7 @@ export function BookingWizard({ onClose, onBooked }) {
       <span class="empty-ico" dangerouslySetInnerHTML=${{ __html: window.App.icon("clock", 24) }}></span>
       <b>Пять минут вышли</b>
       <p>Выбранное время освободилось. Начните заново — это быстро.</p>
-      <button class="btn btn-primary btn-lg" type="button" disabled=${busy} onClick=${() => begin(true)}>Начать заново</button>
+      <button class="btn btn-primary btn-lg" type="button" disabled=${busy} onClick=${restart}>Начать заново</button>
     </div>`;
   }
   if (draft === undefined) return html`<${WizardSkeleton} />`;
@@ -160,17 +226,23 @@ export function BookingWizard({ onClose, onBooked }) {
 
   const point = draft.service_point;
   let content;
+  const onHelp = helper ? openHelper : null;
   if (view === "point") content = html`<${PointStep} draft=${draft} busy=${busy} step=${step} />`;
-  else if (view === "category") content = html`<${CategoryStep} draft=${draft} busy=${busy} step=${step} />`;
-  else if (view === "service") content = html`<${ServiceStep} draft=${draft} busy=${busy} step=${step} />`;
-  else if (view === "slot") {
+  else if (view === "category") content = html`<${CategoryStep} draft=${draft} busy=${busy} step=${step} onHelp=${onHelp} />`;
+  else if (view === "service") content = html`<${ServiceStep} draft=${draft} busy=${busy} step=${step} onHelp=${onHelp} />`;
+  else if (view === "assistant") {
+    content = html`<${AssistantChat} pointId=${point.id} state=${chat} setState=${setChat} busy=${busy}
+      callbackText=${CALLBACK_TEXT} onApply=${(s) => applySuggestion(s)}
+      onBack=${() => setView(helperFrom || "category")} />`;
+  } else if (view === "slot") {
     content = html`<${SlotPicker} pointId=${point.id} zone=${point.timezone} pointName=${point.name}
       initial=${draft.slot_start} busy=${busy} actionLabel="Дальше"
       onPick=${(startAt) => step("select-slot", { start_at: startAt })} />`;
   } else content = html`<${ConfirmStep} draft=${draft} busy=${busy} confirm=${confirm} />`;
 
   return html`<div class="wizard">
-    <${StepChips} draft=${draft} view=${view} onPick=${setView} onExpire=${() => setExpired(true)} />
+    <${StepChips} draft=${draft} view=${view === "assistant" ? helperFrom : view} onPick=${setView}
+      onExpire=${() => setExpired(true)} />
     ${content}
     <button class="link-btn wizard-drop" type="button" onClick=${drop}>Прервать запись</button>
   </div>`;
@@ -277,7 +349,14 @@ function categoryMeta(category) {
   return names.length > 2 ? shown + " и ещё " + (names.length - 2) : shown;
 }
 
-function CategoryStep({ draft, busy, step }) {
+/** «Помочь с выбором» — открывает подсказчика, если он доступен. */
+function HelpChoice({ onHelp, busy }) {
+  if (!onHelp) return null;
+  return html`<${Choice} disabled=${busy} icon="chat" title="Помочь с выбором"
+    meta="Опишите, что с машиной, — подскажем услугу" onClick=${onHelp} />`;
+}
+
+function CategoryStep({ draft, busy, step, onHelp }) {
   const [categories, setCategories] = useState(null);
   useEffect(() => {
     call(() => api.get("/service-points/" + draft.service_point.id + "/categories/"))
@@ -290,12 +369,13 @@ function CategoryStep({ draft, busy, step }) {
       : !categories.length ? html`<p class="muted">На этом адресе сейчас не записаться — выберите другой или позвоните: ${CONFIG.phone}.</p>`
       : html`<div class="stack-sm">${categories.map((c) => html`<${Choice} key=${c.id} selected=${c.id === chosen}
           disabled=${busy} icon=${kindIcon(c.journal_kind)} title=${c.name} meta=${categoryMeta(c)}
-          onClick=${() => step("select-category", { category_id: c.id })} />`)}</div>`}
+          onClick=${() => step("select-category", { category_id: c.id })} />`)}
+          <${HelpChoice} onHelp=${onHelp} busy=${busy} /></div>`}
     ${chosen && html`<p class="hint">Другая категория — услугу выберете заново, время останется за вами.</p>`}
   </section>`;
 }
 
-function ServiceStep({ draft, busy, step }) {
+function ServiceStep({ draft, busy, step, onHelp }) {
   const category = draft.service_category;
   const [services, setServices] = useState(null);
   useEffect(() => {
@@ -313,6 +393,7 @@ function ServiceStep({ draft, busy, step }) {
           ${category.allow_on_site && html`<${Choice} selected=${draft.on_site} disabled=${busy}
             title="Не знаю — подберите на месте" meta=${CALLBACK_TEXT}
             onClick=${() => step("select-service", { on_site: true })} />`}
+          <${HelpChoice} onHelp=${onHelp} busy=${busy} />
         </div>`}
     ${services && !services.length && html`<p class="hint">${category.allow_on_site
       ? "Сейчас здесь нечего выбрать — нажмите «Подберите на месте» или выберите другой адрес."

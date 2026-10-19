@@ -5,6 +5,60 @@ info:
   description: 'Бэкенд записи на замену масла: вход по SMS-коду, пошаговая запись
     с черновиком на 5 минут, панель мастера.'
 paths:
+  /api/v1/assistant/:
+    get:
+      operationId: assistant_retrieve
+      description: 'Кнопку показывают, только если `available`: провайдер настроен,
+        месячный потолок трат не выбран и у клиента остались вопросы на сегодня.'
+      summary: Доступен ли подсказчик
+      parameters:
+      - in: query
+        name: service_point
+        schema:
+          type: string
+        description: UUID точки
+        required: true
+      tags:
+      - Подсказчик
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantStatus'
+          description: ''
+    post:
+      operationId: assistant_create
+      description: 'Ответ и, если понятно, что нужно, — категория и услуга точки (или
+        «мастер подберёт на месте»). Запись не меняется: предложение выбирают обычными
+        шагами черновика. Лимиты — не ошибка: ответ с `handoff` и текстом «дальше
+        с мастером».'
+      summary: Спросить подсказчика
+      tags:
+      - Подсказчик
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssistantAskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssistantAskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssistantAskRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantAnswer'
+          description: ''
   /api/v1/auth/me/:
     get:
       operationId: auth_me_retrieve
@@ -2758,6 +2812,93 @@ paths:
           description: ''
 components:
   schemas:
+    AssistantAnswer:
+      type: object
+      description: Ответ подсказчика. Цен нет — их нет и в каталоге, который видит
+        модель.
+      properties:
+        chat:
+          type: string
+          format: uuid
+        reply:
+          type: string
+        category:
+          allOf:
+          - $ref: '#/components/schemas/SuggestedCategory'
+          nullable: true
+          description: Предложенная категория
+        service:
+          allOf:
+          - $ref: '#/components/schemas/SuggestedService'
+          nullable: true
+          description: Предложенная услуга
+        on_site:
+          type: boolean
+          description: Предложено «мастер подберёт на месте» в категории
+        handoff:
+          type: string
+          description: 'Не пусто — дальше с мастером: chat_limit, daily_limit, budget,
+            unavailable, nothing'
+        messages_left:
+          type: integer
+          description: Сколько ещё сообщений в этом разговоре
+        phone:
+          type: string
+          description: Телефон точки — для «позвонить мастеру»
+      required:
+      - category
+      - chat
+      - handoff
+      - messages_left
+      - on_site
+      - phone
+      - reply
+      - service
+    AssistantAskRequest:
+      type: object
+      properties:
+        service_point:
+          type: string
+          format: uuid
+        chat:
+          type: string
+          format: uuid
+          nullable: true
+          description: Разговор из прошлого ответа. Пусто — новый разговор
+        message:
+          type: string
+          description: Что с машиной, своими словами
+          maxLength: 2000
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryItemRequest'
+          description: 'Прошлые сообщения этого разговора: на сервере текст не хранится'
+      required:
+      - message
+      - service_point
+    AssistantRoleEnum:
+      enum:
+      - user
+      - assistant
+      type: string
+      description: |-
+        * `user` - user
+        * `assistant` - assistant
+    AssistantStatus:
+      type: object
+      properties:
+        available:
+          type: boolean
+          description: Показывать ли кнопку подсказчика
+        messages_left_today:
+          type: integer
+        messages_per_chat:
+          type: integer
+      required:
+      - available
+      - messages_left_today
+      - messages_per_chat
     AttachRequest:
       type: object
       properties:
@@ -4115,6 +4256,17 @@ components:
         * `wash` - Мойка
         * `fine` - Штраф
         * `other` - Другое
+    HistoryItemRequest:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/AssistantRoleEnum'
+        text:
+          type: string
+          maxLength: 1000
+      required:
+      - role
+      - text
     InviteResult:
       type: object
       properties:
@@ -6778,6 +6930,31 @@ components:
         * `confirmed` - Подтверждена
         * `expired` - Истекла
         * `cancelled` - Отменена клиентом
+    SuggestedCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        allow_on_site:
+          type: boolean
+      required:
+      - allow_on_site
+      - id
+      - name
+    SuggestedService:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
     Summary:
       type: object
       properties:

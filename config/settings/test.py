@@ -1,5 +1,5 @@
 from config.settings.base import *  # noqa: F401,F403
-from config.settings.base import OTP, REST_FRAMEWORK
+from config.settings.base import ASSISTANT, OTP, REST_FRAMEWORK
 
 DEBUG = False
 
@@ -26,3 +26,6 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
 }
 
 OTP["DEBUG_EXPOSE_CODE"] = True
+
+# Подсказчик в тестах не ходит в сеть: провайдер подменяют сами тесты.
+ASSISTANT["PROVIDER"] = "fake"

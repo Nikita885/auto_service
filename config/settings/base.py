@@ -53,6 +53,7 @@ LOCAL_APPS = [
     "apps.master",
     "apps.referral",
     "apps.garage",
+    "apps.assistant",
     "apps.web",
 ]
 
@@ -235,6 +236,10 @@ SPECTACULAR_SETTINGS = {
         # приклеивает хеш, а хеш зависит от того, как версия Django
         # раскладывает choices, — и файл схемы менялся от машины к машине.
         "BookingStatusEnum": "apps.booking.constants.BookingStatus",
+        # `role` появился и у сообщения подсказчику: без явных имён генератор
+        # переименовал бы прежний RoleEnum, и сгенерированные клиенты сломались.
+        "RoleEnum": "apps.accounts.constants.UserRole",
+        "AssistantRoleEnum": ["user", "assistant"],
     },
 }
 
@@ -413,6 +418,29 @@ GARAGE = {
     # Когда напоминание становится «скоро»: за столько км или дней до срока.
     "SOON_KM": env.int("GARAGE_SOON_KM", default=1000),
     "SOON_DAYS": env.int("GARAGE_SOON_DAYS", default=30),
+}
+
+# ------------------------------------------------------------ подсказчик
+# Нейроподсказчик в записи: клиент пишет, что с машиной, и получает услугу
+# из каталога точки. Лимиты и потолок трат — решения заказчика (октябрь
+# 2026). Пока провайдер "off", кнопки в приложении нет.
+ASSISTANT = {
+    # off — выключен; yandex — YandexGPT; fake — без сети, для разработки.
+    "PROVIDER": env("ASSISTANT_PROVIDER", default="off"),
+    "YANDEX_API_KEY": env("ASSISTANT_YANDEX_API_KEY", default=""),
+    "YANDEX_FOLDER_ID": env("ASSISTANT_YANDEX_FOLDER_ID", default=""),
+    # Хвост URI модели: gpt://<каталог>/<это>.
+    "YANDEX_MODEL": env("ASSISTANT_YANDEX_MODEL", default="yandexgpt-lite/latest"),
+    "TIMEOUT_SECONDS": env.int("ASSISTANT_TIMEOUT_SECONDS", default=20),
+    "MESSAGES_PER_DAY": env.int("ASSISTANT_MESSAGES_PER_DAY", default=10),
+    # После стольких сообщений в одном разговоре — «дальше с мастером».
+    "MESSAGES_PER_CHAT": env.int("ASSISTANT_MESSAGES_PER_CHAT", default=5),
+    "MONTHLY_BUDGET_RUB": Decimal(env("ASSISTANT_MONTHLY_BUDGET_RUB", default="1000")),
+    # Цена за 1000 токенов в рублях с НДС — по тарифу провайдера. Нужна,
+    # чтобы считать потолок трат; счёт выставляет сам провайдер.
+    "PRICE_INPUT_PER_1K_RUB": Decimal(env("ASSISTANT_PRICE_INPUT_PER_1K_RUB", default="0.20")),
+    "PRICE_OUTPUT_PER_1K_RUB": Decimal(env("ASSISTANT_PRICE_OUTPUT_PER_1K_RUB", default="0.20")),
+    "MAX_MESSAGE_CHARS": env.int("ASSISTANT_MAX_MESSAGE_CHARS", default=500),
 }
 
 # ---------------------------------------------------------------- лендинг
