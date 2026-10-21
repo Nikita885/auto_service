@@ -18,3 +18,6 @@ docker-compose.override.yml
 
 # Снимки базы: делает deploy/backup.sh, в репозиторий им нельзя.
 /backups/
+
+# Файлы-замки Word и Excel, пока документ открыт
+~$*
