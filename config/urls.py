@@ -18,6 +18,7 @@ api_v1 = [
     path("referral/", include("apps.referral.urls")),
     path("garage/", include("apps.garage.urls")),
     path("assistant/", include("apps.assistant.urls")),
+    path("onec/", include("apps.onec.urls")),
 ]
 
 urlpatterns = [

@@ -54,6 +54,7 @@ LOCAL_APPS = [
     "apps.referral",
     "apps.garage",
     "apps.assistant",
+    "apps.onec",
     "apps.web",
 ]
 
@@ -190,6 +191,9 @@ REST_FRAMEWORK = {
         # можно перебирать шестизначные коды и собирать имена
         # пригласивших. Лимит делает перебор бессмысленным.
         "referral_check": "30/hour",
+        # Обмен с 1С: цикл раз в минуту — три запроса и пачки «ещё».
+        # Лимит только от зацикленной обработки, не от нормальной работы.
+        "onec": "1200/hour",
     },
     # Сколько СВОИХ обратных прокси стоит перед приложением. Значение
     # обязательно: по умолчанию DRF берёт `X-Forwarded-For` целиком, а этот
@@ -441,6 +445,24 @@ ASSISTANT = {
     "PRICE_INPUT_PER_1K_RUB": Decimal(env("ASSISTANT_PRICE_INPUT_PER_1K_RUB", default="0.20")),
     "PRICE_OUTPUT_PER_1K_RUB": Decimal(env("ASSISTANT_PRICE_OUTPUT_PER_1K_RUB", default="0.20")),
     "MAX_MESSAGE_CHARS": env.int("ASSISTANT_MAX_MESSAGE_CHARS", default=500),
+}
+
+# ---------------------------------------------------------------- 1С
+# Обмен записями с «1С:Автосервисом» (integrations/1c/). Обмен начинает
+# 1С: забирает новые записи в заявки на ремонт и присылает, что с ними
+# сделали — перенос, отмена, заказ-наряд, оплата и чек. Пустой ключ —
+# обмен выключен.
+ONEC = {
+    # Не короче 32 символов: python -c "import secrets; print(secrets.token_urlsafe(32))"
+    "API_KEY": env("ONEC_API_KEY", default=""),
+    # Сотрудник (мастер или администратор), от имени которого 1С меняет
+    # записи: его имя в истории записи, его точки — то, что видит 1С.
+    "USER_PHONE": env("ONEC_USER_PHONE", default=""),
+    # Сколько дней назад от сегодня записи ещё уходят в 1С.
+    "EXPORT_DAYS_BACK": env.int("ONEC_EXPORT_DAYS_BACK", default=1),
+    "BATCH_SIZE": env.int("ONEC_BATCH_SIZE", default=50),
+    # Сколько записей 1С сверяет за обмен — потолок от разросшегося списка.
+    "LINKED_LIMIT": env.int("ONEC_LINKED_LIMIT", default=500),
 }
 
 # ---------------------------------------------------------------- лендинг

@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.core.exceptions import ObjectDoesNotExist
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -38,6 +39,23 @@ class BookingPointsPreviewSerializer(serializers.Serializer):
     max_discount_percent = serializers.IntegerField()
 
 
+class OneCStateSerializer(serializers.Serializer):
+    """Что с записью в 1С: заявка, заказ-наряд, чек.
+
+    Мастеру на сайте видно, что запись уже дошла до 1С и оплачена там, —
+    чтобы не пробить чек второй раз и не звонить клиенту зря.
+    """
+
+    request_number = serializers.CharField()
+    order_number = serializers.CharField()
+    order_state = serializers.CharField()
+    order_total = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    paid_total = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    receipt_number = serializers.CharField()
+    paid_at = serializers.DateTimeField(allow_null=True)
+    last_error = serializers.CharField()
+
+
 class MasterBookingSerializer(serializers.ModelSerializer):
     """Запись глазами мастера: видно клиента, машину и масло.
 
@@ -64,6 +82,9 @@ class MasterBookingSerializer(serializers.ModelSerializer):
     )
     client_points = serializers.SerializerMethodField(
         help_text="Баллы клиента до расчёта. null — запись уже закрыта"
+    )
+    onec = serializers.SerializerMethodField(
+        help_text="Заявка, заказ-наряд и чек в 1С. null — запись в 1С не выгружалась"
     )
 
     class Meta:
@@ -102,8 +123,17 @@ class MasterBookingSerializer(serializers.ModelSerializer):
             "client_points",
             "client_comment",
             "cancel_reason",
+            "onec",
             "created_at",
         )
+
+    @extend_schema_field(OneCStateSerializer(allow_null=True))
+    def get_onec(self, obj: Booking):
+        try:
+            sync = obj.onec_sync
+        except ObjectDoesNotExist:
+            return None
+        return OneCStateSerializer(sync).data
 
     @extend_schema_field(BookingPointsPreviewSerializer(allow_null=True))
     def get_client_points(self, obj: Booking):

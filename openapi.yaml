@@ -2527,6 +2527,134 @@ paths:
                 items:
                   $ref: '#/components/schemas/Slot'
           description: ''
+  /api/v1/onec/bookings/{booking_id}/resend/:
+    post:
+      operationId: onec_bookings_resend_create
+      description: Сотрудник просит выгрузить запись в 1С заново — из панели или 1С.
+      summary: Выгрузить запись в 1С заново
+      parameters:
+      - in: path
+        name: booking_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Обмен с 1С
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/onec/bookings/ack/:
+    post:
+      operationId: onec_bookings_ack_create
+      description: '`version` — та, что пришла в выгрузке. С `error` запись тоже считается
+        выгруженной, ошибка видна в 1С и в Django-админке.'
+      summary: 1С записала заявки
+      tags:
+      - Обмен с 1С
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AckRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AckRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AckRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/onec/bookings/changes/:
+    post:
+      operationId: onec_bookings_changes_create
+      description: 'Заявка и заказ-наряд по каждой записи. Сайт применяет только изменившееся
+        с прошлого обмена (по версиям 1С): перенос, отмену, «в работе» по проведённому
+        заказ-наряду, «выполнена» по закрытому или оплаченному. Не принятая правка
+        возвращается ошибкой, а запись уходит в 1С заново.'
+      summary: Правки из 1С
+      tags:
+      - Обмен с 1С
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangesRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangesRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangesRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/onec/bookings/linked/:
+    get:
+      operationId: onec_bookings_linked_retrieve
+      description: id выгруженных записей — живых и недавних. По ним 1С собирает заявки
+        и заказ-наряды для `changes`.
+      summary: Записи, заявки которых 1С сверяет с сайтом
+      tags:
+      - Обмен с 1С
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/onec/bookings/pending/:
+    get:
+      operationId: onec_bookings_pending_retrieve
+      description: Новые и изменённые на сайте записи — целиком, самые давние правки
+        первыми. `more` — за этой пачкой есть ещё. Время — местное время точки.
+      summary: Записи для выгрузки в 1С
+      tags:
+      - Обмен с 1С
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/onec/ping/:
+    get:
+      operationId: onec_ping_retrieve
+      summary: Проверка связи и ключа
+      tags:
+      - Обмен с 1С
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/referral/:
     get:
       operationId: referral_retrieve
@@ -2812,6 +2940,37 @@ paths:
           description: ''
 components:
   schemas:
+    AckItemRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: string
+          minLength: 1
+          maxLength: 64
+        request_number:
+          type: string
+          maxLength: 32
+        request_version:
+          type: string
+          maxLength: 64
+        error:
+          type: string
+          maxLength: 2000
+      required:
+      - id
+      - version
+    AckRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AckItemRequest'
+      required:
+      - items
     AssistantAnswer:
       type: object
       description: Ответ подсказчика. Цен нет — их нет и в каталоге, который видит
@@ -3907,6 +4066,29 @@ components:
           type: string
           format: date
           nullable: true
+    ChangeItemRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        request:
+          $ref: '#/components/schemas/RequestStateRequest'
+        order:
+          allOf:
+          - $ref: '#/components/schemas/OrderStateRequest'
+          nullable: true
+      required:
+      - id
+    ChangesRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangeItemRequest'
+      required:
+      - items
     ClientCallCreateRequest:
       type: object
       description: Отметка звонка из карточки клиента — без записи, но с точкой.
@@ -4649,6 +4831,12 @@ components:
           type: string
           title: Причина отмены
           maxLength: 500
+        onec:
+          allOf:
+          - $ref: '#/components/schemas/OneCState'
+          nullable: true
+          readOnly: true
+          description: Заявка, заказ-наряд и чек в 1С. null — запись в 1С не выгружалась
         created_at:
           type: string
           format: date-time
@@ -4666,6 +4854,7 @@ components:
       - needs_service
       - oil_price
       - oil_title
+      - onec
       - paid_amount
       - service_point
       - service_point_name
@@ -4877,6 +5066,12 @@ components:
           type: string
           title: Причина отмены
           maxLength: 500
+        onec:
+          allOf:
+          - $ref: '#/components/schemas/OneCState'
+          nullable: true
+          readOnly: true
+          description: Заявка, заказ-наряд и чек в 1С. null — запись в 1С не выгружалась
         created_at:
           type: string
           format: date-time
@@ -4907,6 +5102,7 @@ components:
       - needs_service
       - oil_price
       - oil_title
+      - onec
       - paid_amount
       - price_changes
       - service_point
@@ -5935,6 +6131,104 @@ components:
         * `synthetic` - Синтетическое
         * `semi_synthetic` - Полусинтетическое
         * `mineral` - Минеральное
+    OneCState:
+      type: object
+      description: |-
+        Что с записью в 1С: заявка, заказ-наряд, чек.
+
+        Мастеру на сайте видно, что запись уже дошла до 1С и оплачена там, —
+        чтобы не пробить чек второй раз и не звонить клиенту зря.
+      properties:
+        request_number:
+          type: string
+        order_number:
+          type: string
+        order_state:
+          type: string
+        order_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        paid_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        receipt_number:
+          type: string
+        paid_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_error:
+          type: string
+      required:
+      - last_error
+      - order_number
+      - order_state
+      - order_total
+      - paid_at
+      - paid_total
+      - receipt_number
+      - request_number
+    OrderLineRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - name
+    OrderStateRequest:
+      type: object
+      description: Заказ-наряд, созданный в 1С на основании заявки.
+      properties:
+        ref:
+          type: string
+          format: uuid
+        number:
+          type: string
+          maxLength: 32
+        version:
+          type: string
+          minLength: 1
+          maxLength: 64
+        state:
+          type: string
+          maxLength: 64
+        posted:
+          type: boolean
+          default: false
+        deleted:
+          type: boolean
+          default: false
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        paid_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        receipt_number:
+          type: string
+          maxLength: 32
+        paid_at:
+          type: string
+          maxLength: 32
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLineRequest'
+      required:
+      - ref
+      - version
     OtpRequestChannelEnum:
       enum:
       - call
@@ -6556,6 +6850,25 @@ components:
         * `soon` - soon
         * `ok` - ok
         * `unknown` - unknown
+    RequestStateRequest:
+      type: object
+      description: Заявка на ремонт, как она лежит в 1С.
+      properties:
+        number:
+          type: string
+          maxLength: 32
+        version:
+          type: string
+          minLength: 1
+          maxLength: 64
+        start:
+          type: string
+          maxLength: 32
+        deleted:
+          type: boolean
+          default: false
+      required:
+      - version
     RescheduleRequest:
       type: object
       properties:
@@ -6772,11 +7085,13 @@ components:
           type: integer
           maximum: 32767
           minimum: 5
+          format: int64
           title: Длительность слота, мин
         posts_count:
           type: integer
           maximum: 32767
           minimum: 1
+          format: int64
           title: Постов
           description: Сколько машин обслуживается одновременно — ёмкость одного слота.
       required:
@@ -6831,11 +7146,13 @@ components:
           type: integer
           maximum: 32767
           minimum: 5
+          format: int64
           title: Длительность слота, мин
         posts_count:
           type: integer
           maximum: 32767
           minimum: 1
+          format: int64
           title: Постов
           description: Сколько машин обслуживается одновременно — ёмкость одного слота.
       required:

@@ -127,7 +127,7 @@ class MasterBookingViewSet(
         # Узел рефералки — тем же JOIN: баллы клиента видны в строке смены,
         # и запрос на каждую строку списка здесь недопустим.
         qs = Booking.objects.select_related(
-            "service_point", "service_category", "user__referral_node"
+            "service_point", "service_category", "user__referral_node", "onec_sync"
         ).prefetch_related("items")
 
         # Мастер видит только свои точки; у админа ограничения нет.

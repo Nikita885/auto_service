@@ -23,6 +23,7 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     # Словарь заменяется целиком: забытая область роняет свою вьюху с
     # ImproperlyConfigured — так уже падала проверка кода приглашения.
     "referral_check": "100000/hour",
+    "onec": "100000/hour",
 }
 
 OTP["DEBUG_EXPOSE_CODE"] = True
