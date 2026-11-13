@@ -2655,6 +2655,167 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/onec/workplace/bookings/{booking_id}/event/:
+    post:
+      operationId: onec_workplace_bookings_event_create
+      description: Обычный JWT сотрудника, без отдельного фонового ключа обмена.
+      summary: Зафиксировать результат оборудования
+      parameters:
+      - in: path
+        name: booking_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Рабочее место 1С
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutEventRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CheckoutEventRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CheckoutEventRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/onec/workplace/bookings/{booking_id}/order/:
+    get:
+      operationId: onec_workplace_bookings_order_retrieve
+      description: Обычный JWT сотрудника, без отдельного фонового ключа обмена.
+      summary: Состав обслуживания и состояние расчёта
+      parameters:
+      - in: path
+        name: booking_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Рабочее место 1С
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: onec_workplace_bookings_order_create
+      description: Обычный JWT сотрудника, без отдельного фонового ключа обмена.
+      summary: Сохранить состав обслуживания
+      parameters:
+      - in: path
+        name: booking_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Рабочее место 1С
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderSaveRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderSaveRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderSaveRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/onec/workplace/bookings/{booking_id}/prepare/:
+    post:
+      operationId: onec_workplace_bookings_prepare_create
+      description: Обычный JWT сотрудника, без отдельного фонового ключа обмена.
+      summary: Зафиксировать расчёт и зарезервировать баллы
+      parameters:
+      - in: path
+        name: booking_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Рабочее место 1С
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutPrepareRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CheckoutPrepareRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CheckoutPrepareRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/onec/workplace/bookings/{booking_id}/quote/:
+    get:
+      operationId: onec_workplace_bookings_quote_retrieve
+      description: Обычный JWT сотрудника, без отдельного фонового ключа обмена.
+      parameters:
+      - in: path
+        name: booking_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: total
+        schema:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        required: true
+      tags:
+      - Рабочее место 1С
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/referral/:
     get:
       operationId: referral_retrieve
@@ -3256,6 +3417,11 @@ components:
         can_reschedule:
           type: boolean
           readOnly: true
+        service_report:
+          nullable: true
+          readOnly: true
+          description: Состав выполненных работ и материалов из 1С; до завершения
+            null
         created_at:
           type: string
           format: date-time
@@ -3274,6 +3440,7 @@ components:
       - oil_title
       - paid_amount
       - service_point
+      - service_report
       - services
       - start_at
       - status_display
@@ -3392,6 +3559,11 @@ components:
         can_reschedule:
           type: boolean
           readOnly: true
+        service_report:
+          nullable: true
+          readOnly: true
+          description: Состав выполненных работ и материалов из 1С; до завершения
+            null
         created_at:
           type: string
           format: date-time
@@ -3420,6 +3592,7 @@ components:
       - oil_title
       - paid_amount
       - service_point
+      - service_report
       - services
       - start_at
       - status_display
@@ -4089,6 +4262,50 @@ components:
             $ref: '#/components/schemas/ChangeItemRequest'
       required:
       - items
+    CheckoutEventRequest:
+      type: object
+      properties:
+        checkout_id:
+          type: string
+          format: uuid
+        event:
+          $ref: '#/components/schemas/EventEnum'
+        bank_reference:
+          type: string
+          default: ''
+          maxLength: 128
+        receipt:
+          $ref: '#/components/schemas/ReceiptRequest'
+      required:
+      - checkout_id
+      - event
+    CheckoutPrepareRequest:
+      type: object
+      properties:
+        revision:
+          type: integer
+          minimum: 1
+        checkout_id:
+          type: string
+          format: uuid
+        points:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        card:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - card
+      - cash
+      - checkout_id
+      - points
+      - revision
     ClientCallCreateRequest:
       type: object
       description: Отметка звонка из карточки клиента — без записи, но с точкой.
@@ -4384,6 +4601,26 @@ components:
         note:
           type: string
           maxLength: 200
+    EventEnum:
+      enum:
+      - card_started
+      - card_succeeded
+      - card_declined
+      - cash_confirmed
+      - fiscal_started
+      - fiscal_succeeded
+      - review
+      - cancel
+      type: string
+      description: |-
+        * `card_started` - card_started
+        * `card_succeeded` - card_succeeded
+        * `card_declined` - card_declined
+        * `cash_confirmed` - cash_confirmed
+        * `fiscal_started` - fiscal_started
+        * `fiscal_succeeded` - fiscal_succeeded
+        * `review` - review
+        * `cancel` - cancel
     Fuel:
       type: object
       properties:
@@ -4694,6 +4931,18 @@ components:
           type: string
           format: uuid
           readOnly: true
+        version:
+          type: string
+          format: date-time
+          readOnly: true
+        car_vin:
+          type: string
+          readOnly: true
+          default: ''
+        car_mileage:
+          type: integer
+          readOnly: true
+          nullable: true
         code:
           type: string
           title: Код записи
@@ -4843,6 +5092,8 @@ components:
           readOnly: true
           title: Создано
       required:
+      - car_mileage
+      - car_vin
       - client_phone
       - client_points
       - created_at
@@ -4863,6 +5114,7 @@ components:
       - status_display
       - total_price
       - user
+      - version
       - work_price
     MasterBookingCreateRequest:
       type: object
@@ -4929,6 +5181,18 @@ components:
           type: string
           format: uuid
           readOnly: true
+        version:
+          type: string
+          format: date-time
+          readOnly: true
+        car_vin:
+          type: string
+          readOnly: true
+          default: ''
+        car_mileage:
+          type: integer
+          readOnly: true
+          nullable: true
         code:
           type: string
           title: Код записи
@@ -5091,6 +5355,8 @@ components:
           description: Кто, когда и почему менял итог при расчёте.
           readOnly: true
       required:
+      - car_mileage
+      - car_vin
       - client_phone
       - client_points
       - created_at
@@ -5113,6 +5379,7 @@ components:
       - status_logs
       - total_price
       - user
+      - version
       - work_price
     MasterBookingEditRequest:
       type: object
@@ -5122,6 +5389,20 @@ components:
           type: string
           format: uuid
           description: Услуга точки — в той же категории или в другой
+        expected_version:
+          type: string
+          format: date-time
+        start_local:
+          type: string
+          minLength: 1
+          maxLength: 16
+        car_vin:
+          type: string
+          maxLength: 24
+        car_mileage:
+          type: integer
+          maximum: 3000000
+          minimum: 0
         start_at:
           type: string
           format: date-time
@@ -6184,6 +6465,31 @@ components:
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
       required:
       - name
+    OrderSaveRequest:
+      type: object
+      properties:
+        revision:
+          type: integer
+          minimum: 1
+        order_ref:
+          type: string
+          format: uuid
+          nullable: true
+        order_number:
+          type: string
+          default: ''
+          maxLength: 32
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkplaceOrderLineRequest'
+        recommendations:
+          type: string
+          default: ''
+          maxLength: 4000
+      required:
+      - lines
+      - revision
     OrderStateRequest:
       type: object
       description: Заказ-наряд, созданный в 1С на основании заявки.
@@ -6729,6 +7035,27 @@ components:
         * `off_hours` - Запись вне рабочих часов
         * `no_show` - Не приехал
         * `other` - Другое
+    ReceiptRequest:
+      type: object
+      properties:
+        number:
+          type: string
+          minLength: 1
+          maxLength: 32
+        shift:
+          type: string
+          maxLength: 32
+        fiscal_drive:
+          type: string
+          maxLength: 32
+        fiscal_document:
+          type: string
+          maxLength: 32
+        fiscal_sign:
+          type: string
+          maxLength: 32
+      required:
+      - number
     ReferralSummary:
       type: object
       description: |-
@@ -7085,13 +7412,11 @@ components:
           type: integer
           maximum: 32767
           minimum: 5
-          format: int64
           title: Длительность слота, мин
         posts_count:
           type: integer
           maximum: 32767
           minimum: 1
-          format: int64
           title: Постов
           description: Сколько машин обслуживается одновременно — ёмкость одного слота.
       required:
@@ -7146,13 +7471,11 @@ components:
           type: integer
           maximum: 32767
           minimum: 5
-          format: int64
           title: Длительность слота, мин
         posts_count:
           type: integer
           maximum: 32767
           minimum: 1
-          format: int64
           title: Постов
           description: Сколько машин обслуживается одновременно — ёмкость одного слота.
       required:
@@ -7402,6 +7725,53 @@ components:
       - id
       - phone
       - role
+    WorkplaceOrderLineKindEnum:
+      enum:
+      - work
+      - material
+      type: string
+      description: |-
+        * `work` - work
+        * `material` - material
+    WorkplaceOrderLineRequest:
+      type: object
+      properties:
+        ref:
+          type: string
+          format: uuid
+          nullable: true
+        line_id:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        kind:
+          $ref: '#/components/schemas/WorkplaceOrderLineKindEnum'
+        unit:
+          type: string
+          minLength: 1
+          default: шт.
+          maxLength: 20
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - kind
+      - name
+      - price
+      - quantity
   securitySchemes:
     jwtAuth:
       type: http

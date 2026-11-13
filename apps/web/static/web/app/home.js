@@ -321,6 +321,23 @@ function BookingSheet({ booking, onClose }) {
         ${withPoints && html`<div class="summary-row"><span>Деньгами</span><span>${money(booking.paid_amount)}</span></div>
           <div class="summary-row"><span>Баллами</span><span>${money(booking.points_spent)}</span></div>`}
       </div>`}
+      ${booking.service_report && html`<section class="stack">
+        <h3 class="step-title">Что сделали</h3>
+        <div class="card pad info-list">
+          ${booking.service_report.lines.map((line, index) => html`<div key=${index}>
+            <b>${line.name}</b>
+            <div class="summary-row"><span class="muted">${line.quantity} ${line.unit} × ${money(line.price)}</span>
+              <span>${money(line.amount != null ? line.amount : Number(line.quantity) * Number(line.price))}</span></div>
+          </div>`)}
+        </div>
+        ${booking.service_report.recommendations && html`<div class="card pad">
+          <b>Рекомендации мастера</b><p>${booking.service_report.recommendations}</p>
+        </div>`}
+        ${booking.service_report.receipt.number && html`<p class="hint">
+          Кассовый чек № ${booking.service_report.receipt.number}
+          ${booking.service_report.receipt.shift ? " · смена " + booking.service_report.receipt.shift : ""}
+        </p>`}
+      </section>`}
       <div class="row"><span class="muted">Код записи</span><span class="spacer"></span><b class="mono">${booking.code}</b></div>
     </div>
   </${Sheet}>`;

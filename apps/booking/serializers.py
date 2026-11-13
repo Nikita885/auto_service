@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -186,6 +187,9 @@ class BookingSerializer(serializers.ModelSerializer):
     category_kind = serializers.SerializerMethodField(
         help_text="Вид категории (oil, tires, wash, service, other) — для значка в приложении"
     )
+    service_report = serializers.SerializerMethodField(
+        help_text="Состав выполненных работ и материалов из 1С; до завершения null"
+    )
 
     class Meta:
         model = Booking
@@ -216,6 +220,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "cancelled_at",
             "can_cancel",
             "can_reschedule",
+            "service_report",
             "created_at",
         )
 
@@ -242,6 +247,25 @@ class BookingSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True))
     def get_paid_amount(self, obj: Booking) -> str | None:
         return f"{obj.paid_amount:.2f}" if self._completed(obj) else None
+
+    @extend_schema_field(serializers.JSONField(allow_null=True))
+    def get_service_report(self, obj: Booking):
+        if not self._completed(obj):
+            return None
+        try:
+            order = obj.workplace_order
+        except ObjectDoesNotExist:
+            return None
+        if order.state != "completed":
+            return None
+        return {
+            "order_number": order.order_number,
+            "lines": [{key: value for key, value in line.items() if key not in ("ref", "line_id")}
+                      for line in order.lines],
+            "total": str(order.total), "points": str(order.points),
+            "cash": str(order.cash), "card": str(order.card),
+            "recommendations": order.recommendations, "receipt": order.receipt,
+        }
 
 
 class BookingDetailSerializer(BookingSerializer):

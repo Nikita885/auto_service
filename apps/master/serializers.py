@@ -64,6 +64,11 @@ class MasterBookingSerializer(serializers.ModelSerializer):
     """
 
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    version = serializers.DateTimeField(source="updated_at", read_only=True)
+    car_vin = serializers.CharField(source="car.vin", read_only=True, default="")
+    car_mileage = serializers.IntegerField(
+        source="car.mileage", read_only=True, allow_null=True, default=None
+    )
     service_point_name = serializers.CharField(source="service_point.name", read_only=True)
     local_time = serializers.SerializerMethodField()
     paid_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
@@ -91,6 +96,9 @@ class MasterBookingSerializer(serializers.ModelSerializer):
         model = Booking
         fields = (
             "id",
+            "version",
+            "car_vin",
+            "car_mileage",
             "code",
             "status",
             "status_display",
@@ -233,6 +241,10 @@ class MasterBookingEditSerializer(serializers.Serializer):
     service = serializers.UUIDField(
         required=False, help_text="Услуга точки — в той же категории или в другой"
     )
+    expected_version = serializers.DateTimeField(required=False)
+    start_local = serializers.CharField(max_length=16, required=False)
+    car_vin = serializers.CharField(max_length=24, required=False, allow_blank=True)
+    car_mileage = serializers.IntegerField(required=False, min_value=0, max_value=3000000)
     start_at = serializers.DateTimeField(
         required=False, help_text="start_at слота из /master/walk-in/slots/ как есть"
     )
@@ -247,6 +259,10 @@ class MasterBookingEditSerializer(serializers.Serializer):
         if "car_id" in attrs and ("car_model" in attrs or "car_plate" in attrs):
             raise serializers.ValidationError(
                 {"car_id": "Либо машина клиента, либо марка и номер — не вместе."}
+            )
+        if "start_at" in attrs and "start_local" in attrs:
+            raise serializers.ValidationError(
+                {"start_local": "Передайте одно представление времени"}
             )
         return attrs
 

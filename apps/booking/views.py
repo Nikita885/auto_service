@@ -364,7 +364,7 @@ class BookingViewSet(
             return self.queryset
         qs = (
             Booking.objects.for_user(self.request.user)
-            .select_related("service_point", "service_category", "car")
+            .select_related("service_point", "service_category", "car", "workplace_order")
             .prefetch_related("items")
             .order_by("-start_at")
         )

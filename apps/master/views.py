@@ -127,7 +127,7 @@ class MasterBookingViewSet(
         # Узел рефералки — тем же JOIN: баллы клиента видны в строке смены,
         # и запрос на каждую строку списка здесь недопустим.
         qs = Booking.objects.select_related(
-            "service_point", "service_category", "user__referral_node", "onec_sync"
+            "service_point", "service_category", "user__referral_node", "onec_sync", "car"
         ).prefetch_related("items")
 
         # Мастер видит только свои точки; у админа ограничения нет.
@@ -290,6 +290,9 @@ class MasterBookingViewSet(
             service_id=data.get("service"), start_at=data.get("start_at"),
             car_id=data.get("car_id"), car_model=data.get("car_model"),
             car_plate=data.get("car_plate"), comment=data.get("comment"),
+            car_vin=data.get("car_vin"), car_mileage=data.get("car_mileage"),
+            expected_version=data.get("expected_version"),
+            start_local=data.get("start_local"),
         )
         return Response(MasterBookingDetailSerializer(self.get_queryset().get(pk=booking.pk)).data)
 

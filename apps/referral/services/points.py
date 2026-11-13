@@ -277,7 +277,9 @@ def _already_spent(booking) -> Decimal:
 def spend_quote(booking) -> dict:
     """Что показать мастеру в окне расчёта: баланс клиента и сколько можно списать."""
     node = tree.get_node(booking.user)
-    balance = node.balance if node else ZERO
+    from apps.onec.services.workplace import held_points
+
+    balance = max((node.balance if node else ZERO) - held_points(booking.user_id), ZERO)
     limit = max(max_discount(booking) - _already_spent(booking), ZERO)
     return {
         "balance": balance,
@@ -324,11 +326,14 @@ def spend(node: ReferralNode, amount: Decimal, *, booking=None, comment: str = "
         raise ValidationError("Сумма списания должна быть больше нуля", code="invalid_amount")
 
     locked = ReferralNode.objects.select_for_update().get(pk=node.pk)
-    if locked.balance < amount:
+    from apps.onec.services.workplace import held_points
+
+    available = locked.balance - held_points(locked.user_id)
+    if available < amount:
         raise ConflictError(
             "Недостаточно баллов",
             code="not_enough_points",
-            details={"balance": str(locked.balance), "requested": str(amount)},
+            details={"balance": str(max(available, ZERO)), "requested": str(amount)},
         )
 
     if booking is not None:

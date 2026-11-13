@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
@@ -86,6 +87,9 @@ def _transition(
     comment_suffix: str = "",
     extra_fields: dict | None = None,
 ) -> Booking:
+    from apps.onec.services.workplace import require_editable
+
+    require_editable(booking)
     if booking.status in FINAL_BOOKING_STATUSES:
         raise ConflictError(
             "Запись уже завершена, изменить статус нельзя",
@@ -292,6 +296,9 @@ def reschedule_by_client(user, booking_id, start_at) -> Booking:
     booking = Booking.objects.select_for_update().get(
         pk=get_for_client(user, booking_id).pk
     )
+    from apps.onec.services.workplace import require_editable
+
+    require_editable(booking)
     if not booking.is_cancellable_by_client:
         raise ConflictError(
             "Перенести запись уже нельзя — слишком близко к времени визита "
@@ -336,6 +343,9 @@ def reschedule_by_client(user, booking_id, start_at) -> Booking:
 
 # ------------------------------------------------------------------ мастер
 def _require_not_final(booking: Booking, message: str) -> None:
+    from apps.onec.services.workplace import require_editable
+
+    require_editable(booking)
     if booking.status in FINAL_BOOKING_STATUSES:
         raise ConflictError(message, code="booking_final", details={"status": booking.status})
 
@@ -446,6 +456,10 @@ def edit_by_master(
     car_model: str | None = None,
     car_plate: str | None = None,
     comment: str | None = None,
+    car_vin: str | None = None,
+    car_mileage: int | None = None,
+    expected_version=None,
+    start_local=None,
 ) -> Booking:
     """Мастер поправил запись после звонка: услугу, время, машину, комментарий.
 
@@ -471,8 +485,22 @@ def edit_by_master(
         pk=get_for_master(master, booking_id).pk
     )
     _require_not_final(booking, "Запись уже завершена, изменить её нельзя")
+    if start_local is not None:
+        try:
+            local_start = datetime.fromisoformat(start_local)
+        except ValueError as exc:
+            raise ValidationError("Проверьте местное время записи", code="bad_date") from exc
+        if local_start.tzinfo is not None:
+            raise ValidationError("Передайте местное время без пояса", code="bad_date")
+        start_at = local_start.replace(tzinfo=booking.service_point.tz)
+    if expected_version is not None and expected_version != booking.updated_at:
+        raise ConflictError(
+            "Запись уже изменена. Обновите её перед сохранением.", code="booking_version_conflict"
+        )
     car_named = car_model is not None or car_plate is not None
-    if all(value is None for value in (service_id, start_at, car_id, comment)) and not car_named:
+    car_details = car_vin is not None or car_mileage is not None
+    if (all(value is None for value in (service_id, start_at, car_id, comment))
+            and not car_named and not car_details):
         raise ValidationError("Нечего менять", code="edit_empty")
 
     changes: list[str] = []
@@ -514,6 +542,20 @@ def edit_by_master(
             booking.car, booking.car_model, booking.car_plate = car, model, plate
             fields |= {"car", "car_model", "car_plate"}
             changes.append(f"машина: {_car_title(model, plate)} (было: {old})")
+
+    if car_details:
+        if not booking.car_id:
+            raise ValidationError("Сначала укажите автомобиль", code="car_required")
+        car_fields = {}
+        if car_vin is not None:
+            car_fields["vin"] = car_vin
+        if car_mileage is not None:
+            car_fields["mileage"] = car_mileage
+        before = (booking.car.vin, booking.car.mileage)
+        car = cars_service.update_car(booking.user, booking.car_id, **car_fields)
+        if (car.vin, car.mileage) != before:
+            changes.append("уточнены VIN / пробег автомобиля")
+            fields.add("car")
 
     if comment is not None and comment.strip() != booking.client_comment:
         booking.client_comment = comment.strip()
