@@ -10,6 +10,11 @@ def verify(config: Path):
     source = Path(__file__).parent
     text = "\n".join(p.read_text(encoding="utf-8-sig") for p in source.glob("*.bsl"))
     failures, checked = [], []
+    # Имя совпадает со встроенным свойством формы только для чтения.
+    for path in source.glob("*.bsl"):
+        for number, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
+            if re.match(r"\s*Параметры\s*=", line, re.I):
+                failures.append(f"{path.name}:{number}: присваивание свойству формы Параметры")
     for module, method in sorted(set(re.findall(r"\b(\w+)\.(\w+)\s*\(", text))):
         path = config / "CommonModules" / module / "Ext/Module.bsl"
         if not path.exists():
