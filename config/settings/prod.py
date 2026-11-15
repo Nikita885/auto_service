@@ -23,6 +23,7 @@ if is_placeholder_secret_key(SECRET_KEY):
 # телефона. В проде переключателя для этого нет вовсе: настройка читается,
 # но результат всегда False. Опечатка в .env не должна открывать дверь.
 OTP["DEBUG_EXPOSE_CODE"] = False
+OTP["DEBUG_PHONES"] = []
 
 # За nginx реальный адрес клиента — последний элемент X-Forwarded-For
 # (nginx дописывает его через $proxy_add_x_forwarded_for). Значение по

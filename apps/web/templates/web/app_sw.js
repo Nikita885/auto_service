@@ -28,7 +28,7 @@ self.addEventListener("activate", (event) => {
   // Старые версии кеша удаляем: иначе они копятся на телефоне с каждой выкаткой.
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("app-") && key !== CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -43,8 +43,11 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
+          if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) {
+            return caches.match(SHELL).then((cached) => cached || response);
+          }
           const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(SHELL, copy));
+          event.waitUntil(caches.open(CACHE).then((cache) => cache.put(SHELL, copy)));
           return response;
         })
         .catch(() => caches.match(SHELL))

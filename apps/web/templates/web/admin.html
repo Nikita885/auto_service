@@ -145,5 +145,5 @@
 {% block scripts %}
 <script src="{% static 'web/js/staff.js' %}"></script>
 <script src="{% static 'web/js/metrics.js' %}"></script>
-<script>Staff.init({ role: "admin", onReady: Metrics.init });</script>
+<script nonce="{{ request.csp_nonce }}">Staff.init({ role: "admin", onReady: Metrics.init });</script>
 {% endblock %}

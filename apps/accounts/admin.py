@@ -1,7 +1,32 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from apps.accounts.models import OtpCode, User
+from apps.accounts.models import AccountDeletionRequest, OtpCode, User
+
+
+@admin.register(AccountDeletionRequest)
+class AccountDeletionRequestAdmin(admin.ModelAdmin):
+    list_display = ("user", "created_at", "processed_at")
+    list_filter = ("processed_at",)
+    search_fields = ("user__phone", "user__full_name")
+    readonly_fields = ("user", "created_at", "processed_at", "note")
+    actions = ["process_requests"]
+
+    @admin.action(description="Удалить данные по выбранным заявкам")
+    def process_requests(self, request, queryset):
+        from apps.accounts.deletion import process_deletion
+        from apps.common.exceptions import ConflictError
+
+        for item in queryset:
+            try:
+                process_deletion(item.pk)
+            except ConflictError as exc:
+                self.message_user(request, str(exc), level="error")
+            else:
+                self.message_user(request, "Данные удалены; проверьте внешние системы и бэкапы.")
+
+    def has_add_permission(self, request):
+        return False
 
 
 @admin.register(User)
@@ -15,7 +40,8 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = (
         (None, {"fields": ("id", "phone", "password")}),
         ("Профиль", {"fields": ("full_name",)}),
-        ("Права", {"fields": ("role", "is_active", "is_staff", "is_superuser", "groups")}),
+        ("Права", {"fields": ("role", "is_active", "is_staff", "is_superuser", "groups",
+                             "service_points", "allow_all_points")}),
         ("Даты", {"fields": ("last_login", "date_joined")}),
     )
     add_fieldsets = (

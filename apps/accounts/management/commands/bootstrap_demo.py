@@ -21,7 +21,7 @@ POINTS = [
     {
         "name": "Северная",
         "address": "г. Москва, ул. Складочная, 1с18",
-        "phone": "+74991234567",
+        "phone": "+73519481212",
         "opens_at": time(9, 0),
         "closes_at": time(21, 0),
         "posts_count": 2,
@@ -29,7 +29,7 @@ POINTS = [
     {
         "name": "Южная",
         "address": "г. Москва, Варшавское ш., 132",
-        "phone": "+74991234568",
+        "phone": "+73519481212",
         "opens_at": time(10, 0),
         "closes_at": time(20, 0),
         "posts_count": 1,
@@ -132,6 +132,7 @@ class Command(BaseCommand):
             phone="+79000000001",
             defaults={
                 "full_name": "Мастер Иванов",
+                "allow_all_points": True,
                 "role": UserRole.MASTER,
                 "is_staff": True,
             },

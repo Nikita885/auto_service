@@ -2,6 +2,8 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 
 from apps.accounts.views import (
+    AccountDeletionView,
+    LogoutView,
     MeView,
     OtpCallStatusView,
     OtpRequestView,
@@ -12,6 +14,8 @@ from apps.accounts.views import (
 app_name = "accounts"
 
 urlpatterns = [
+    path("logout/", LogoutView.as_view(), name="logout"),
+    path("account/deletion/", AccountDeletionView.as_view(), name="account-deletion"),
     path("otp/request/", OtpRequestView.as_view(), name="otp-request"),
     path("otp/verify/", OtpVerifyView.as_view(), name="otp-verify"),
     path("otp/call-status/", OtpCallStatusView.as_view(), name="otp-call-status"),

@@ -15,7 +15,7 @@ import {
 
 /* Статусы глазами клиента: «Ждём вас» понятнее, чем «Ожидает». */
 const STATUS = {
-  pending: ["is-wait", "Ждём вас"],
+  pending: ["is-wait", "Запись подтверждена"],
   in_progress: ["is-work", "Машина в работе"],
   completed: ["is-ok", "Выполнена"],
   cancelled_by_client: ["is-off", "Отменили вы"],
@@ -39,6 +39,7 @@ export function Home({ user }) {
   const history = useLoad(() => api.get("/bookings/?scope=history"), [], "history");
   const draft = useLoad(() => api.get("/bookings/drafts/current/"));
   const car = useLoad(loadPrimaryCar, [], "home.car");
+  const servicePoints = useLoad(() => api.get("/service-points/"), [], "points");
   const bonus = useLoad(() => api.get("/referral/"), [], "referral");
   const net = useNet();
   // «Записаться» нажали на другом экране (гараж) — мастер открыт сразу.
@@ -86,16 +87,20 @@ export function Home({ user }) {
       ${liveDraft && html`<${ResumeBanner} draft=${liveDraft} onOpen=${() => setWizard(true)} onExpire=${draft.reload} />`}
       ${next.length > 0
         ? html`<${Ticket} booking=${next[0]} onMove=${setMoving} onMore=${setMore} />`
-        : html`<section class="card pad invite-book">
-            <span class="empty-ico" dangerouslySetInnerHTML=${svg("calendar", 24)}></span>
-            <div>
-              <b>Запишитесь в сервис</b>
-              <p class="muted">Выберите адрес и время — пост будет ждать вас, без очереди.</p>
-            </div>
+        : html`<section class="home-booking stack">
+            <h2>Позаботимся о машине</h2>
+            <${PrimaryCar} data=${car.data} />
             ${!liveDraft && html`<button class="btn btn-primary btn-block btn-lg" type="button" disabled=${!canBook}
-              onClick=${() => setWizard(true)}>${canBook ? "Записаться" : "Записаться — нужна сеть"}</button>`}
+              onClick=${() => setWizard(true)}>${canBook ? "Записаться в сервис" : "Для записи нужен интернет"}</button>`}
           </section>`}
-      <${OilStrip} data=${car.data} />
+      ${next.length > 0 && html`<${PrimaryCar} data=${car.data} />`}
+      ${servicePoints.data && servicePoints.data.length > 0 && next.length === 0 && html`<section class="stack-sm">
+        <h2 class="section-title">Ваш сервис</h2>
+        <a class="strip" href=${routeUrl(servicePoints.data[0])} target="_blank" rel="noopener">
+          <span class="strip-ico" dangerouslySetInnerHTML=${svg("pin")}></span>
+          <span class="strip-body"><b>${servicePoints.data[0].name}</b><span class="muted">${servicePoints.data[0].address}</span></span>
+          <span class="chev" dangerouslySetInnerHTML=${svg("right", 18)}></span>
+        </a></section>`}
       <${BonusStrip} data=${bonus.data} />
       ${next.length > 0 && !liveDraft && html`<button class="btn btn-block" type="button" disabled=${!canBook}
         onClick=${() => setWizard(true)}>${canBook ? "Записаться на другое время" : "Записаться — нужна сеть"}</button>`}
@@ -111,7 +116,8 @@ export function Home({ user }) {
   }
 
   return html`<main class="screen">
-    <div class="screen-head"><h1>${greeting(user && user.full_name)}</h1></div>
+    <div class="app-brand"><span dangerouslySetInnerHTML=${svg("car", 22)}></span><b>${CONFIG.company}</b></div>
+    <div class="screen-head"><h1>${next.length ? "Вы записаны" : greeting(user && user.full_name)}</h1></div>
     ${body}
     ${wizard && html`<${Sheet} tall title="Запись" onClose=${closeWizard}>
       <${BookingWizard} onClose=${closeWizard} onBooked=${() => bus.emit("bookings:changed")} />
@@ -139,8 +145,7 @@ async function loadPrimaryCar() {
   const cars = await api.get("/garage/cars/");
   const primary = (cars || []).find((c) => c.is_primary) || (cars || [])[0];
   if (!primary) return { car: null };
-  const summary = await api.get("/garage/cars/" + primary.id + "/summary/");
-  return { car: primary, oil: (summary.reminders || []).find((r) => r.kind === "oil") || null };
+  return { car: primary };
 }
 
 function HomeSkeleton() {
@@ -177,7 +182,7 @@ function routeUrl(point) {
   return "https://yandex.ru/maps/?text=" + encodeURIComponent(point.address);
 }
 
-const telHref = (phone) => "tel:" + String(phone || CONFIG.phone).replace(/[^\d+]/g, "");
+const telHref = (phone) => "tel:" + String(CONFIG.phone || phone).replace(/[^\d+]/g, "");
 const carLine = (booking) => [booking.car_model, booking.car_plate].filter(Boolean).join(" · ");
 
 /** «Среда, 14 октября» и «13:00» отдельно: время — главное, его крупно. */
@@ -220,15 +225,11 @@ function Ticket({ booking, onMove, onMore }) {
           : html`<${InfoRow} icon=${kindIcon(booking.category_kind)} label=${booking.category_title}>${booking.service_title}</${InfoRow}>`}
         ${carLine(booking) && html`<${InfoRow} icon="car">${carLine(booking)}</${InfoRow}>`}
       </div>
-      <div class="ticket-actions">
-        <a class="round-act" href=${routeUrl(point)} target="_blank" rel="noopener">
-          <span dangerouslySetInnerHTML=${svg("pin")}></span>Маршрут</a>
-        <a class="round-act" href=${telHref(point.phone)}>
-          <span dangerouslySetInnerHTML=${svg("phone")}></span>Позвонить</a>
-        ${booking.can_reschedule && html`<button class="round-act" type="button" onClick=${() => onMove(booking)}>
-          <span dangerouslySetInnerHTML=${svg("clock")}></span>Перенести</button>`}
-        <button class="round-act" type="button" onClick=${() => onMore(booking)}>
-          <span dangerouslySetInnerHTML=${svg("more")}></span>Ещё</button>
+      <a class="btn btn-primary btn-lg btn-block" href=${routeUrl(point)} target="_blank" rel="noopener">
+        <span dangerouslySetInnerHTML=${svg("pin", 18)}></span>Построить маршрут</a>
+      <div class="booking-secondary">
+        ${booking.can_reschedule && html`<button class="btn" type="button" onClick=${() => onMove(booking)}>Перенести</button>`}
+        <button class="btn" type="button" onClick=${() => onMore(booking)}>Управление записью</button>
       </div>
     </div>
     <div class="ticket-stub">
@@ -238,38 +239,13 @@ function Ticket({ booking, onMove, onMore }) {
   </article>`;
 }
 
-/** Масло по основной машине: сколько осталось — и запись в одно касание. */
-function OilStrip({ data }) {
-  if (!data) return null;
-  if (!data.car) {
-    return html`<button class="strip" type="button" onClick=${() => bus.emit("goto", "garage")}>
-      <span class="strip-ico" dangerouslySetInnerHTML=${svg("car")}></span>
-      <span class="strip-body"><b>Добавьте машину</b><span class="muted">Подскажем, когда менять масло</span></span>
-      <span class="chev" dangerouslySetInnerHTML=${svg("right", 18)}></span>
-    </button>`;
-  }
-  const r = data.oil;
-  const name = data.car.title || data.car.plate || "Машина";
-  if (!r || r.status === "unknown") {
-    return html`<button class="strip" type="button" onClick=${() => bus.emit("goto", "garage")}>
-      <span class="strip-ico" dangerouslySetInnerHTML=${svg("drop")}></span>
-      <span class="strip-body"><b>Когда меняли масло?</b><span class="muted">${name} · добавьте замену, подскажем следующую</span></span>
-      <span class="chev" dangerouslySetInnerHTML=${svg("right", 18)}></span>
-    </button>`;
-  }
-  const km = r.left_km != null ? (r.left_km < 0 ? "пробег превышен на " + fmt.number(-r.left_km) + " км" : "через " + fmt.number(r.left_km) + " км") : "";
-  const due = r.due_date ? new Date(r.due_date + "T12:00:00") : null;
-  const date = due ? due.toLocaleDateString("ru-RU", {
-    day: "numeric", month: "long", year: due.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-  }).replace(" г.", "") : "";
-  const text = r.status === "overdue" ? "Пора менять масло" : "Замена масла " + (km || "до " + date);
-  const sub = r.status === "overdue" ? (km || "срок прошёл " + date) : km && date ? "или до " + date : name;
-  const urgent = r.status !== "ok";
-  return html`<button class=${"strip" + (urgent ? " is-" + r.status : "")} type="button"
-    onClick=${() => (urgent ? startBooking() : bus.emit("goto", "garage"))}>
-    <span class="strip-ico" dangerouslySetInnerHTML=${svg("drop")}></span>
-    <span class="strip-body"><b>${text}</b><span class="muted">${sub}</span></span>
-    ${urgent ? html`<span class="strip-go">Записаться</span>` : html`<span class="chev" dangerouslySetInnerHTML=${svg("right", 18)}></span>`}
+/** Автомобиль — вход в гараж без лишних напоминаний на главной. */
+function PrimaryCar({ data }) {
+  return html`<button class="strip primary-car" type="button" onClick=${() => bus.emit("goto", "garage")}>
+    <span class="strip-ico" dangerouslySetInnerHTML=${svg("car")}></span>
+    <span class="strip-body"><b>${data && data.car ? data.car.title || "Мой автомобиль" : "Добавить автомобиль"}</b>
+      <span class="muted">${data && data.car ? [data.car.plate, "основной автомобиль"].filter(Boolean).join(" · ") : "Для записи и истории обслуживания"}</span></span>
+    <span class="chev" dangerouslySetInnerHTML=${svg("right", 18)}></span>
   </button>`;
 }
 

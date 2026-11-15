@@ -1,6 +1,15 @@
 from rest_framework import serializers
 
 
+class AssistantReportSerializer(serializers.Serializer):
+    chat = serializers.UUIDField()
+    text = serializers.CharField(max_length=500)
+
+
+class AssistantReportResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+
+
 class HistoryItemSerializer(serializers.Serializer):
     role = serializers.ChoiceField(choices=["user", "assistant"])
     text = serializers.CharField(max_length=1000, allow_blank=True)

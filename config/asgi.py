@@ -10,6 +10,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.dev")
 django_asgi_app = get_asgi_application()
 
 from channels.routing import ProtocolTypeRouter, URLRouter  # noqa: E402
+from channels.security.websocket import AllowedHostsOriginValidator  # noqa: E402
 from django.contrib.staticfiles.handlers import ASGIStaticFilesHandler  # noqa: E402
 
 from apps.common.ws_auth import JWTAuthMiddleware  # noqa: E402
@@ -24,6 +25,8 @@ http_app = ASGIStaticFilesHandler(django_asgi_app) if settings.DEBUG else django
 application = ProtocolTypeRouter(
     {
         "http": http_app,
-        "websocket": JWTAuthMiddleware(URLRouter(websocket_urlpatterns)),
+        "websocket": AllowedHostsOriginValidator(
+            JWTAuthMiddleware(URLRouter(websocket_urlpatterns)),
+        ),
     }
 )

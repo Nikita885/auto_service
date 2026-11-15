@@ -74,4 +74,13 @@ public final class TokenStorage {
             prefs.edit().putString(key, value).apply();
         }
     }
+
+    public synchronized void clearPrefix(@NonNull String prefix) {
+        if (prefs == null) return;
+        SharedPreferences.Editor edit = prefs.edit();
+        for (String key : prefs.getAll().keySet()) {
+            if (key.startsWith(prefix)) edit.remove(key);
+        }
+        edit.apply();
+    }
 }

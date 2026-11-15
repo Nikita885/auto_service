@@ -18,7 +18,7 @@ export function reportInvite(result) {
   if (!result) return;
   invite.done();
   if (result.status === "attached") {
-    toast("Вы в команде: " + result.inviter_name + ". Ваши замены будут приносить баллы пригласившему.", "ok", "Приглашение принято");
+    toast("Вы в команде: " + result.inviter_name + ". Ваши визиты будут приносить баллы пригласившему.", "ok", "Приглашение принято");
   } else if (result.code !== "referral_already_attached") {
     toast(result.message || "Код приглашения не подошёл.", "error");
   }
@@ -263,6 +263,7 @@ export function Auth({ onSignedIn }) {
   return html`<main class="screen screen-plain">
     <div class="auth">
       <${Brand} />
+      <p class="privacy-note">Телефон нужен для входа и уведомлений о записи. <a href=${CONFIG.privacyUrl} target="_blank" rel="noopener">Как мы используем данные</a></p>
       ${content}
       <p class="legal">Продолжая, вы соглашаетесь с обработкой персональных данных.</p>
     </div>
@@ -411,7 +412,7 @@ export function Onboarding({ user, onDone }) {
       ` : html`
         <div class="auth-copy">
           <h1>Какая у вас машина?</h1>
-          <p class="muted">Мастер будет знать, что заезжает, а гараж — подсказывать, когда менять масло.</p>
+          <p class="muted">Автомобиль появится в записи, а история обслуживания будет храниться в гараже.</p>
         </div>
         <form class="stack" onSubmit=${(e) => { e.preventDefault(); finish(false); }}>
           <${CarField} value=${car} onChange=${(value, id) => { setCar(value); setModelId(id || null); }} />

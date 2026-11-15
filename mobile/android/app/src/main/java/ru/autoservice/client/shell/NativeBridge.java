@@ -67,6 +67,11 @@ final class NativeBridge {
         setItem(key, null);
     }
 
+    @JavascriptInterface
+    public void clearCache() {
+        if (trusted) tokens.clearPrefix("cache.");
+    }
+
     // --------------------------------------------------------- приглашение
 
     @JavascriptInterface

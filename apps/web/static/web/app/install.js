@@ -1,15 +1,6 @@
-/* Кто и как попадает в веб-приложение.
-
-   Веб-приложение — только для iPhone и только установленное на главный
-   экран. Android получает настоящее приложение из Google Play, компьютер —
-   QR-код, чтобы открыть страницу на телефоне. В Safari на iPhone вместо
-   входа — инструкция «На экран „Домой“»: из браузера приложением не
-   пользуются, потому что у него своё хранилище и вход из Safari туда не
-   переедет, а уведомления приходят только установленному.
-
-   Код приглашения при этом не теряется: он уже лежит в start_url
-   манифеста (см. ClientAppView), и установленное приложение откроется с
-   ним. */
+/* Установка необязательна: запись и удаление аккаунта доступны из браузера.
+   Эти экраны остаются запасным вариантом, если allowBrowser выключен
+   в специальной конфигурации. Android-оболочка открывает тот же клиент. */
 
 import { CONFIG, html, isAndroidShell, isIos, isStandalone } from "app/lib";
 
@@ -17,6 +8,7 @@ import { CONFIG, html, isAndroidShell, isIos, isStandalone } from "app/lib";
 export function gate() {
   // Android-приложение из Google Play — оболочка над этими же экранами.
   if (isAndroidShell()) return null;
+  if (CONFIG.allowBrowser) return null;
   if (!isIos()) return "not-iphone";
   if (!isStandalone() && !CONFIG.allowBrowser) return "install";
   return null;

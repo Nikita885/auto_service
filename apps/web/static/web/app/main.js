@@ -53,8 +53,10 @@ function Root() {
 
   useEffect(() => {
     if (user !== undefined) return;
+    let active = true;
     api.get("/auth/me/")
       .then((me) => {
+        if (!active) return;
         if (me.role !== "client") {
           // Сотрудник вошёл не туда: его место — на сайте, а бонусы и
           // запись здесь сервер ему всё равно не отдаст.
@@ -68,6 +70,7 @@ function Root() {
         attachPendingInvite();
       })
       .catch((err) => {
+        if (!active) return;
         if (err.status === 401) { setUser(null); return; }
         // Нет сети — не выкидываем из аккаунта: токен цел, покажем экраны
         // с последними данными, а строка «нет сети» скажет, от какого они
@@ -76,6 +79,7 @@ function Root() {
         if (!isNetworkError(err)) toast(errorText(err), "error");
         setUser({ ...(saved ? saved.data : { full_name: "", role: "client" }), offline: true });
       });
+    return () => { active = false; };
   }, [user]);
 
   // Выход — сам или по протухшему refresh: последние данные экранов
@@ -125,7 +129,7 @@ function Root() {
     return html`<div class="pwa-splash" aria-busy="true"><img src=${CONFIG.icon} alt="" width="96" height="96" /></div>`;
   }
   if (user === null) {
-    return html`<${Auth} onSignedIn=${(me, isNew) => { setWelcome(isNew || !me.full_name); setUser(me); }} />`;
+    return html`<${Auth} onSignedIn=${(me, isNew) => { setWelcome(!new URLSearchParams(location.search).has("delete") && (isNew || !me.full_name)); setUser(me); }} />`;
   }
   if (welcome) {
     return html`<${Onboarding} user=${user} onDone=${(me) => { setWelcome(false); setUser(me); go(TABS[0][0]); }} />`;
@@ -155,6 +159,10 @@ async function attachPendingInvite() {
     await api.post("/referral/attach/", { code });
     toast("Вы приняли приглашение по коду " + code + ".", "ok", "Приглашение принято");
   } catch (err) {
+    if (isNetworkError(err) || err.status >= 500 || err.status === 429) {
+      toast("Не удалось принять приглашение. Повторим при следующем входе в приложение.", "info");
+      return;
+    }
     if (err.code !== "referral_already_attached") toast(errorText(err), "error");
   }
   invite.done();

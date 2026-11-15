@@ -6,6 +6,8 @@ from rest_framework.views import APIView
 from apps.assistant.serializers import (
     AssistantAnswerSerializer,
     AssistantAskSerializer,
+    AssistantReportResponseSerializer,
+    AssistantReportSerializer,
     AssistantStatusSerializer,
 )
 from apps.assistant.services import assistant as assistant_service
@@ -18,6 +20,7 @@ class AssistantView(APIView):
     """Подсказчик в записи: помогает выбрать услугу точки по описанию."""
 
     permission_classes = [IsClient]
+    throttle_scope = "assistant"
 
     @extend_schema(
         parameters=[
@@ -56,3 +59,29 @@ class AssistantView(APIView):
             message=data["message"], chat=data["chat"], history=data["history"],
         )
         return Response(AssistantAnswerSerializer(answer).data)
+
+
+class AssistantReportView(APIView):
+    permission_classes = [IsClient]
+    throttle_scope = "assistant"
+
+    @extend_schema(
+        request=AssistantReportSerializer, responses={202: AssistantReportResponseSerializer},
+        summary="Сообщить о проблемном ответе ИИ",
+    )
+    def post(self, request):
+
+        from apps.assistant.models import AssistantFeedback, AssistantRequest
+        from apps.common.exceptions import NotFoundError
+
+        payload = AssistantReportSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        item = AssistantRequest.objects.filter(
+            user=request.user, chat=payload.validated_data["chat"], error="",
+        ).first()
+        if item is None:
+            raise NotFoundError("Ответ не найден", code="assistant_answer_not_found")
+        AssistantFeedback.objects.get_or_create(
+            request=item, reported_text=payload.validated_data["text"],
+        )
+        return Response({"status": "reported"}, status=202)

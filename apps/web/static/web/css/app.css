@@ -934,3 +934,9 @@ tr.is-next td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+.legal-page { max-width: 800px; margin: var(--space-6) auto; }
+.legal-page h1 { font-size: var(--fs-title); }
+.legal-page h2 { font-size: var(--fs-h3); margin-top: var(--space-4); }
+.legal-page p, .legal-page li { line-height: 1.7; }
+.legal-page ol { padding-left: var(--space-6); }

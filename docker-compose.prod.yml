@@ -9,12 +9,14 @@
 # кладётся в каталог на хосте — оттуда её раздаёт nginx.
 
 x-app-prod: &app-prod
+  environment:
+    DJANGO_SETTINGS_MODULE: config.settings.prod
+    BOOTSTRAP_DEMO: "false"
   build:
     context: .
     args:
       REQUIREMENTS: prod
-  volumes:
-    - .:/app
+  volumes: !override
     # Вместо именованных томов — каталоги хоста: nginx живёт вне Docker и
     # читать содержимое тома напрямую не может.
     - ./static:/app/static

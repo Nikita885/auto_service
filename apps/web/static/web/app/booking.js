@@ -18,8 +18,8 @@
 import { AssistantChat } from "app/assistant";
 import { CarPicker, carLabel } from "app/cars";
 import {
-  CONFIG, InfoRow, Skel, api, ask, call, errorText, fmt, html, toast, useEffect, useRef, useState,
-  visitTime,
+  CONFIG, InfoRow, LoadError, Skel, api, ask, cache, call, errorText, fmt, html, toast, useEffect, useLoad, useRef, useState,
+  visitTime, localDay,
 } from "app/lib";
 
 const GONE = ["draft_expired", "draft_closed"];
@@ -71,6 +71,10 @@ export function BookingWizard({ onClose, onBooked }) {
     setBusy(true);
     try {
       const next = await api.post("/bookings/drafts/", { restart: Boolean(restart) });
+      const saved = cache.read("booking.form");
+      if (restart && draft && saved && saved.data.draftId === draft.id) {
+        cache.write("booking.form", { ...saved.data, draftId: next.id });
+      }
       accept(next);
       setExpired(false);
       setCreated(null);
@@ -135,10 +139,27 @@ export function BookingWizard({ onClose, onBooked }) {
   }
 
   async function restart() {
+    const previous = draft;
     const wanted = pending.current;
     pending.current = null;
     const next = await begin(true);
     if (next && wanted) await applySuggestion(wanted.s, next, wanted.point);
+    else if (next && previous && previous.service_point) {
+      setBusy(true);
+      try {
+        let restored = await api.post("/bookings/drafts/" + next.id + "/select-point/", { service_point_id: previous.service_point.id });
+        accept(restored);
+        if (previous.service_category) {
+          restored = await api.post("/bookings/drafts/" + next.id + "/select-category/", { category_id: previous.service_category.id });
+          accept(restored);
+          if (previous.service || previous.on_site) {
+            restored = await api.post("/bookings/drafts/" + next.id + "/select-service/", previous.on_site ? { on_site: true } : { service_id: previous.service.id });
+            accept(restored);
+          }
+        }
+      } catch (err) { toast("Часть выбора изменилась. Проверьте доступные услуги.", "info"); }
+      finally { setBusy(false); }
+    }
   }
 
   async function reload() {
@@ -180,6 +201,7 @@ export function BookingWizard({ onClose, onBooked }) {
       const booking = await api.post("/bookings/drafts/" + draft.id + "/confirm/", {
         comment, car_id: carId || null,
       });
+      cache.remove("booking.form");
       setCreated(booking);
       onBooked(booking);
     } catch (err) {
@@ -202,7 +224,9 @@ export function BookingWizard({ onClose, onBooked }) {
       confirmLabel: "Прервать", cancelLabel: "Продолжить запись", danger: true,
     });
     if (!yes) return;
-    await call(() => api.post("/bookings/drafts/" + draft.id + "/cancel/", {}));
+    const cancelled = await call(() => api.post("/bookings/drafts/" + draft.id + "/cancel/", {}));
+    if (!cancelled) return;
+    cache.remove("booking.form");
     onClose();
   }
 
@@ -210,9 +234,9 @@ export function BookingWizard({ onClose, onBooked }) {
   if (expired) {
     return html`<div class="empty-state">
       <span class="empty-ico" dangerouslySetInnerHTML=${{ __html: window.App.icon("clock", 24) }}></span>
-      <b>Пять минут вышли</b>
-      <p>Выбранное время освободилось. Начните заново — это быстро.</p>
-      <button class="btn btn-primary btn-lg" type="button" disabled=${busy} onClick=${restart}>Начать заново</button>
+      <b>Проверим время ещё раз</b>
+      <p>Время удержания закончилось. Сохраним выбранную услугу и проверим свободные часы.</p>
+      <button class="btn btn-primary btn-lg" type="button" disabled=${busy} onClick=${restart}>Проверить свободное время</button>
     </div>`;
   }
   if (draft === undefined) return html`<${WizardSkeleton} />`;
@@ -236,7 +260,7 @@ export function BookingWizard({ onClose, onBooked }) {
       onBack=${() => setView(helperFrom || "category")} />`;
   } else if (view === "slot") {
     content = html`<${SlotPicker} pointId=${point.id} zone=${point.timezone} pointName=${point.name}
-      initial=${draft.slot_start} busy=${busy} actionLabel="Дальше"
+      initial=${draft.slot_start} busy=${busy} actionLabel="Проверить запись"
       onPick=${(startAt) => step("select-slot", { start_at: startAt })} />`;
   } else content = html`<${ConfirmStep} draft=${draft} busy=${busy} confirm=${confirm} />`;
 
@@ -261,35 +285,28 @@ function WizardSkeleton() {
     текущий подсвечен, будущие недоступны. Справа — таймер. */
 function StepChips({ draft, view, onPick, onExpire }) {
   const reached = indexOf(viewOf(draft.next_action));
-  const value = {
-    point: draft.service_point && draft.service_point.name,
-    category: draft.service_category && draft.service_category.name,
-    service: draft.on_site ? "На месте" : draft.service && draft.service.name,
-    slot: draft.slot_start && visitTime(draft.slot_start, draft.service_point.timezone),
-    confirm: null,
-  };
-  const at = indexOf(view);
+  const group = view === "slot" ? 1 : view === "confirm" ? 2 : 0;
+  const groups = [["Услуга", "point", 0], ["Время", "slot", 3], ["Подтверждение", "confirm", 4]];
   return html`<div class="wizard-top">
-    <div class="wizard-head">
-      <span class="kicker">Шаг ${at + 1} из ${STEPS.length}</span>
-      <${Timer} seconds=${draft.seconds_left} stamp=${draft.id + draft.step} onExpire=${onExpire} />
-    </div>
-    <nav class="step-chips" aria-label="Шаги записи">
-      ${STEPS.map(([key, , label], i) => {
-        const current = key === view;
-        const done = i < reached || (i <= reached && value[key]);
-        return html`<button type="button" key=${key} class=${"step-chip" + (current ? " is-current" : "") + (done ? " is-done" : "")}
-          disabled=${i > reached} aria-current=${current ? "step" : null}
-          aria-label=${label + (done && value[key] ? ": " + value[key] : "")} onClick=${() => onPick(key)}>
-          <small>${label}</small>
-          <span>${(done && value[key]) || (current ? "выбираем" : "—")}</span>
-        </button>`;
-      })}
+    <div class="wizard-head"><span class="kicker">Шаг ${group + 1} из 3</span>
+      <${Timer} quiet seconds=${draft.seconds_left} stamp=${draft.id + draft.step} onExpire=${onExpire} /></div>
+    <nav class="booking-progress" aria-label="Этапы записи">
+      ${groups.map(([label, target, min], i) => html`<button type="button" class=${i <= group ? "is-reached" : ""}
+        disabled=${reached < min} aria-current=${i === group ? "step" : null} onClick=${() => onPick(target)}>
+        <span class="progress-node" aria-hidden="true"></span><span>${label}</span>
+      </button>`)}
     </nav>
+    ${draft.service_point && html`<button class="wizard-summary strip" type="button" onClick=${() => onPick("point")}>
+      <span class="strip-ico" dangerouslySetInnerHTML=${{ __html: window.App.icon("pin", 18) }}></span>
+      <span class="strip-body"><b>${draft.service_point.name}</b><span class="muted">${draft.service_category ? draft.service_category.name : "Выберите услугу"}</span></span>
+      <span class="link-btn">Изменить</span>
+    </button>`}
+    ${group === 0 && view !== "point" && html`<button class="link-btn" type="button" onClick=${() => onPick(view === "service" ? "category" : "point")}>
+      ← ${view === "service" ? "Все категории" : "Другой адрес"}</button>`}
   </div>`;
 }
 
-export function Timer({ seconds, stamp, onExpire }) {
+export function Timer({ seconds, stamp, onExpire, quiet }) {
   const deadline = useRef(Date.now() + seconds * 1000);
   const [left, setLeft] = useState(seconds);
 
@@ -308,6 +325,7 @@ export function Timer({ seconds, stamp, onExpire }) {
     return () => clearInterval(t);
   }, [stamp]);
 
+  if (quiet && left > 60) return null;
   return html`<span class=${"timer" + (left <= 60 ? " low" : "")} role="timer"
     aria-label=${"На запись осталось " + fmt.clock(left)}>${fmt.clock(left)}</span>`;
 }
@@ -327,8 +345,9 @@ function Choice({ selected, disabled, onClick, title, meta, side, icon }) {
 const hours = (p) => p.opens_at.slice(0, 5) + "–" + p.closes_at.slice(0, 5);
 
 function PointStep({ draft, busy, step }) {
-  const [points, setPoints] = useState(null);
-  useEffect(() => { call(() => api.get("/service-points/")).then((p) => setPoints(p || [])); }, []);
+  const list = useLoad(() => api.get("/service-points/"), [], "points");
+  const points = list.data;
+  if (list.error && !points) return html`<${LoadError} error=${list.error} onRetry=${list.reload} />`;
   const chosen = draft.service_point && draft.service_point.id;
   return html`<section class="stack">
     <h3 class="step-title">Куда приедете?</h3>
@@ -357,11 +376,9 @@ function HelpChoice({ onHelp, busy }) {
 }
 
 function CategoryStep({ draft, busy, step, onHelp }) {
-  const [categories, setCategories] = useState(null);
-  useEffect(() => {
-    call(() => api.get("/service-points/" + draft.service_point.id + "/categories/"))
-      .then((rows) => setCategories(rows || []));
-  }, [draft.service_point.id]);
+  const list = useLoad(() => api.get("/service-points/" + draft.service_point.id + "/categories/"), [draft.service_point.id]);
+  const categories = list.data;
+  if (list.error && !categories) return html`<${LoadError} error=${list.error} onRetry=${list.reload} />`;
   const chosen = draft.service_category && draft.service_category.id;
   return html`<section class="stack">
     <h3 class="step-title">Что нужно сделать?</h3>
@@ -377,12 +394,9 @@ function CategoryStep({ draft, busy, step, onHelp }) {
 
 function ServiceStep({ draft, busy, step, onHelp }) {
   const category = draft.service_category;
-  const [services, setServices] = useState(null);
-  useEffect(() => {
-    setServices(null);
-    call(() => api.get("/service-points/" + draft.service_point.id + "/services/?category=" + category.id))
-      .then((rows) => setServices(rows || []));
-  }, [category.id]);
+  const list = useLoad(() => api.get("/service-points/" + draft.service_point.id + "/services/?category=" + category.id), [category.id]);
+  const services = list.data;
+  if (list.error && !services) return html`<${LoadError} error=${list.error} onRetry=${list.reload} />`;
   const chosen = draft.service && draft.service.id;
   return html`<section class="stack">
     <h3 class="step-title">${category.name}: что именно?</h3>
@@ -428,11 +442,14 @@ export function SlotPicker({ pointId, zone, pointName, busy, actionLabel, onPick
 
   useEffect(() => {
     if (!day) return;
+    let active = true;
     setSlots(null);
+    setPicked(initial && localDay(initial, zone) === day ? initial : null);
     call(() => api.get("/service-points/" + pointId + "/slots/?date=" + day)).then((data) => {
-      setSlots((data && data.slots) || []);
+      if (active) setSlots((data && data.slots) || []);
     });
-  }, [day]);
+    return () => { active = false; };
+  }, [pointId, day]);
 
   if (!days) {
     return html`<div class="stack" aria-busy="true"><${Skel} h="var(--control-lg)" r="var(--radius)" /><${Skel} h="var(--space-9)" r="var(--radius)" /></div>`;
@@ -441,7 +458,7 @@ export function SlotPicker({ pointId, zone, pointName, busy, actionLabel, onPick
 
   const today = localDay(new Date().toISOString(), zone);
   const dayDate = (d) => new Date(d + "T12:00:00");
-  const month = day ? MONTHS[dayDate(day).getMonth()] : "";
+  const month = day ? MONTHS[dayDate(day).getMonth()] + " " + dayDate(day).getFullYear() : "";
 
   return html`<section class="stack">
     <h3 class="step-title">Когда удобно?</h3>
@@ -479,18 +496,17 @@ export function SlotPicker({ pointId, zone, pointName, busy, actionLabel, onPick
   </section>`;
 }
 
-/** День в календаре точки: «2026-10-14». */
-function localDay(iso, zone) {
-  try { return new Date(iso).toLocaleDateString("en-CA", { timeZone: zone || undefined }); } catch (e) { return iso.slice(0, 10); }
-}
 const sameMoment = (a, b) => Boolean(a && b) && new Date(a).getTime() === new Date(b).getTime();
 
 function ConfirmStep({ draft, busy, confirm }) {
-  const [comment, setComment] = useState("");
-  const [carId, setCarId] = useState(null);
+  const saved = cache.read("booking.form");
+  const form = saved && saved.data.draftId === draft.id ? saved.data : {};
+  const [comment, setComment] = useState(form.comment || "");
+  const [carId, setCarId] = useState(form.carId || null);
+  useEffect(() => { cache.write("booking.form", { draftId: draft.id, comment, carId }); }, [draft.id, comment, carId]);
   const point = draft.service_point;
   return html`<section class="stack">
-    <h3 class="step-title">Проверьте и подтвердите</h3>
+    <h3 class="step-title">Всё верно?</h3>
     <div class="card pad info-list">
       <${InfoRow} icon="calendar" label="Когда">${visitTime(draft.slot_start, point.timezone)}</${InfoRow}>
       <${InfoRow} icon="pin" label=${point.name}>${point.address}</${InfoRow}>
@@ -500,13 +516,13 @@ function ConfirmStep({ draft, busy, confirm }) {
     <${CarPicker} value=${carId} onChange=${setCarId} />
     <div class="field">
       <label for="comment">Комментарий мастеру</label>
-      <textarea id="comment" rows="2" maxlength="500" placeholder="Необязательно. Например: приеду на 5 минут раньше"
+      <textarea id="comment" rows="2" maxlength="500" placeholder="Если есть пожелания к обслуживанию"
         value=${comment} onInput=${(e) => setComment(e.target.value)}></textarea>
     </div>
     <p class="hint">Баллами можно оплатить до ${CONFIG.maxDiscount}% чека — скажите мастеру при расчёте.</p>
     <div class="sticky-actions">
       <button class="btn btn-primary btn-lg" type="button" disabled=${busy} onClick=${() => confirm(comment, carId)}>
-        ${busy ? "Записываем…" : "Записаться"}
+        ${busy ? "Записываем…" : "Подтвердить запись"}
       </button>
     </div>
   </section>`;

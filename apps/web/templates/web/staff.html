@@ -26,5 +26,5 @@
 
 {% block scripts %}
 <script src="{% static 'web/js/staff.js' %}"></script>
-<script>Staff.init({ role: "master" });</script>
+<script nonce="{{ request.csp_nonce }}">Staff.init({ role: "master" });</script>
 {% endblock %}

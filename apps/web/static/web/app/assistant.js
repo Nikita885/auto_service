@@ -11,7 +11,7 @@
    Цен здесь нет и взяться им неоткуда: их нет в каталоге, который видит
    модель, а ответ с рублями сервер заменяет. */
 
-import { api, errorText, html, toast, useEffect, useRef, useState } from "app/lib";
+import { api, ask, call, errorText, html, toast, useEffect, useRef, useState } from "app/lib";
 
 /** Пустой разговор для точки. */
 export const freshChat = (pointId) => ({ pointId, chat: null, turns: [], left: null, phone: "", handoff: "" });
@@ -32,8 +32,21 @@ function Suggestion({ s, busy, onApply, callbackText }) {
 export function AssistantChat({ pointId, state, setState, busy, onApply, onBack, callbackText }) {
   const [text, setText] = useState("");
   const [waiting, setWaiting] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const end = useRef(null);
   const chat = state && state.pointId === pointId ? state : freshChat(pointId);
+
+  async function report(text) {
+    if (reporting) return;
+    const yes = await ask({ title: "Сообщить о проблемном ответе?",
+      text: "Этот ответ будет отправлен администратору для проверки.",
+      confirmLabel: "Сообщить", cancelLabel: "Отмена" });
+    if (!yes) return;
+    setReporting(true);
+    const result = await call(() => api.post("/assistant/report/", { chat: chat.chat, text }));
+    setReporting(false);
+    if (result) toast("Спасибо. Ответ отправлен на проверку.", "ok");
+  }
 
   useEffect(() => { if (end.current) end.current.scrollIntoView({ block: "end", behavior: "smooth" }); },
     [chat.turns.length, waiting, chat.handoff]);
@@ -80,12 +93,13 @@ export function AssistantChat({ pointId, state, setState, busy, onApply, onBack,
 
   return html`<section class="stack">
     <h3 class="step-title">Подскажем, что выбрать</h3>
-    <p class="hint">Опишите своими словами, что с машиной или что хотите сделать. Цену и сроки скажет мастер.</p>
+    <p class="hint">Подсказчик использует YandexGPT и может ошибаться. Сообщения отправляются провайдеру ИИ. Не указывайте личные данные. Цену и сроки скажет мастер.</p>
     <div class="chat" aria-live="polite">
       ${chat.turns.map((t, i) => t.role === "user"
         ? html`<div class="bubble bubble-user" key=${i}>${t.text}</div>`
         : html`<div class="bubble bubble-bot" key=${i}>
             <p>${t.text}</p>
+            ${chat.chat && html`<button class="link-btn" type="button" disabled=${reporting} onClick=${() => report(t.text)}>Сообщить о проблеме</button>`}
             ${t.suggestion && html`<${Suggestion} s=${t.suggestion} busy=${busy} onApply=${onApply} callbackText=${callbackText} />`}
           </div>`)}
       ${waiting && html`<div class="bubble bubble-bot muted">Подбираем…</div>`}

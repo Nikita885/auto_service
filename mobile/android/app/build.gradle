@@ -11,17 +11,17 @@ if (project.hasProperty('BUILD_DIR')) {
 
 android {
     namespace 'ru.autoservice.client'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "ru.autoservice.client"
         minSdk 24
-        targetSdk 35
+        targetSdk 36
 
         // versionCode обязан расти при каждой загрузке в Play Console.
         // 2 — оболочка над веб-приложением вместо нативных экранов.
-        versionCode 2
-        versionName "2.0.0"
+        versionCode 3
+        versionName "2.1.0"
 
         resConfigs "ru"
     }

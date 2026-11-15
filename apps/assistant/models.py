@@ -4,6 +4,28 @@ from django.db import models
 from apps.common.models import BaseModel
 
 
+class AssistantBudgetMonth(models.Model):
+    """Строка-блокировка для атомарного резервирования месячного бюджета."""
+
+    month = models.DateField(primary_key=True)
+
+    def __str__(self):
+        return str(self.month)
+
+
+class AssistantFeedback(BaseModel):
+    request = models.ForeignKey("AssistantRequest", on_delete=models.SET_NULL, null=True)
+    reported_text = models.CharField("Ответ, отправленный пользователем", max_length=500)
+    reviewed = models.BooleanField("Рассмотрено", default=False)
+
+    class Meta:
+        verbose_name = "жалоба на подсказчик"
+        verbose_name_plural = "жалобы на подсказчик"
+
+    def __str__(self):
+        return f"Жалоба {self.created_at:%d.%m.%Y}"
+
+
 class AssistantRequest(BaseModel):
     """Одно сообщение клиента подсказчику — счётчик, а не переписка.
 

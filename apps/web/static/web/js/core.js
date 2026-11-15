@@ -56,11 +56,15 @@
       const headers = { "Content-Type": "application/json" };
       if (auth && store.access) headers["Authorization"] = "Bearer " + store.access;
 
-      const res = await fetch(API + path, {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      let res;
+      try { res = await fetch(API + path, {
         method,
         headers,
         body: body === null ? null : JSON.stringify(body),
-      });
+        signal: controller.signal,
+      }); } finally { clearTimeout(timeout); }
 
       if (res.status === 204) return null;
 
@@ -79,7 +83,7 @@
     // Access живёт час: молча обновляем его по refresh и повторяем запрос,
     // иначе вкладка, открытая с утра, начнёт сыпать 401 на ровном месте.
     async function renew() {
-      if (!store.refresh) return false;
+      if (!store.refresh) { store.clear(); return false; }
       if (!refreshing) {
         refreshing = raw("/auth/token/refresh/", {
           method: "POST",
@@ -90,9 +94,14 @@
             store.save(data.access, data.refresh);
             return true;
           })
-          .catch(() => {
-            store.clear();
-            return false;
+          .catch((err) => {
+            // Только окончательный отказ авторизации завершает сессию.
+            // Сеть и 5xx не делают действующий refresh недействительным.
+            if (err.status === 400 || err.status === 401 || err.status === 403) {
+              store.clear();
+              return false;
+            }
+            throw err;
           })
           .finally(() => { refreshing = null; });
       }
@@ -121,7 +130,15 @@
       // 204 без тела — true, чтобы `if (await call(...))` читалось как успех.
       del: (path) => request(path, { method: "DELETE" }).then(() => true),
       get isAuthorized() { return Boolean(store.access); },
-      signOut() { store.clear(); },
+      async signOut() {
+        const refresh = store.refresh;
+        store.clear();
+        if (refresh) {
+          try {
+            await raw("/auth/logout/", { method: "POST", body: { refresh }, auth: false });
+          } catch (err) { /* Локальный выход выполняется и без сети. */ }
+        }
+      },
     };
   }
 

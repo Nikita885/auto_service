@@ -12,7 +12,6 @@ import re
 from datetime import date
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
@@ -117,7 +116,9 @@ def _clean(fields: dict) -> dict:
 
 def _lock_owner(user) -> None:
     """Сериализовать изменения автомобилей одного клиента."""
-    get_user_model().objects.select_for_update().filter(pk=user.pk).first()
+    from apps.accounts.services import lock_active_user
+
+    lock_active_user(user)
 
 
 def list_cars(user):

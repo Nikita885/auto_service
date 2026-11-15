@@ -100,7 +100,9 @@ def test_bookings_of_another_point_are_not_shown(
 
 def test_unknown_and_staff_ids_are_404(auth, master_user):
     api = auth(master_user)
-    staff = User.objects.create_master(phone="+79000000009", full_name="Другой мастер")
+    staff = User.objects.create_master(
+        phone="+79000000009", full_name="Другой мастер", allow_all_points=True,
+    )
 
     for target in (uuid.uuid4(), staff.pk):
         response = api.get(reverse("v1:master:client-card", args=[target]))

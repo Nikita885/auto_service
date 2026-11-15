@@ -63,6 +63,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "apps.common.middleware.SecurityHeadersMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -194,6 +195,9 @@ REST_FRAMEWORK = {
         # Обмен с 1С: цикл раз в минуту — три запроса и пачки «ещё».
         # Лимит только от зацикленной обработки, не от нормальной работы.
         "onec": "1200/hour",
+        "assistant": "30/min",
+        "account_delete": "5/hour",
+        "logout": "60/hour",
     },
     # Сколько СВОИХ обратных прокси стоит перед приложением. Значение
     # обязательно: по умолчанию DRF берёт `X-Forwarded-For` целиком, а этот
@@ -223,9 +227,9 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Автосервис — API замены масла",
+    "TITLE": "МойАвтоСервис — API",
     "DESCRIPTION": (
-        "Бэкенд записи на замену масла: вход по SMS-коду, пошаговая запись "
+        "Запись на услуги автосервиса: вход по телефону, пошаговая запись "
         "с черновиком на 5 минут, панель мастера."
     ),
     "VERSION": "1.0.0",
@@ -470,15 +474,15 @@ ONEC = {
 # телефон и ссылки меняет не программист, и правка не должна требовать
 # ни редактирования кода, ни пересборки образа.
 COMPANY = {
-    "NAME": env("COMPANY_NAME", default="Мой Сервис"),
+    "NAME": env("COMPANY_NAME", default="МойАвтоСервис"),
     # Публичный адрес сайта. Нужен там, где ссылку строит сервер и
     # подставить Host из запроса нельзя: приглашение уезжает в чужой
     # мессенджер и должно вести на канонический домен, а не на тот, с
     # которого его случайно открыли.
     "SITE_URL": env("COMPANY_SITE_URL", default="https://moi-servis.ru").rstrip("/"),
-    "TAGLINE": env("COMPANY_TAGLINE", default="Замена масла по записи"),
-    "PHONE": env("COMPANY_PHONE", default="+7 (499) 123-45-67"),
-    "EMAIL": env("COMPANY_EMAIL", default="hello@example.com"),
+    "TAGLINE": env("COMPANY_TAGLINE", default="Обслуживание автомобиля по записи"),
+    "PHONE": env("COMPANY_PHONE", default="+7 (3519) 48-12-12"),
+    "EMAIL": env("COMPANY_EMAIL", default="nic84062@gmail.com"),
     "WORKING_HOURS": env("COMPANY_WORKING_HOURS", default="Ежедневно 09:00–21:00"),
     # Пока приложения не опубликованы, ссылки пустые — кнопки в этом случае
     # показываются неактивными с пометкой «скоро», а не ведут в никуда.
@@ -500,11 +504,13 @@ COMPANY = {
     # регистрации имени отправителя SMS проверяют, что на сайте «при беглом
     # осмотре» видно, чьё это юрлицо или ИП. Без них заявку отклоняют.
     # Пустые значения просто не показываются.
-    "LEGAL_NAME": env("COMPANY_LEGAL_NAME", default=""),
+    "LEGAL_NAME": env("COMPANY_LEGAL_NAME", default="Жизнин Никита Сергеевич"),
     "INN": env("COMPANY_INN", default=""),
     "OGRN": env("COMPANY_OGRN", default=""),
     "LEGAL_ADDRESS": env("COMPANY_LEGAL_ADDRESS", default=""),
 }
+
+PRIVACY_POLICY_APPROVED = env.bool("PRIVACY_POLICY_APPROVED", default=False)
 
 # ------------------------------------------------- мобильное приложение
 # Нужно для Android App Links: по `/.well-known/assetlinks.json` система

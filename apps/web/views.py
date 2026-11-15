@@ -19,7 +19,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET
 from django.views.generic import TemplateView
 
-from apps.catalog.models import Oil, ServicePoint
+from apps.catalog.models import ServicePoint
 from apps.common.exceptions import NotFoundError
 from apps.referral.services import tree as referral_tree
 
@@ -113,7 +113,23 @@ class LandingView(CompanyMixin, TemplateView):
         context["points"] = ServicePoint.objects.filter(is_active=True)
         # Прайс на витрине — справочные цены, без остатков: наличие на
         # конкретной точке клиент увидит в приложении, когда будет выбирать.
-        context["oils"] = Oil.objects.filter(is_active=True).order_by("brand", "name")
+        from django.db.models import Prefetch
+
+        from apps.catalog.models import Service, ServiceCategory
+
+        context["service_categories"] = ServiceCategory.objects.filter(
+            is_active=True, service_point__is_active=True,
+        ).select_related("service_point").prefetch_related(
+            Prefetch(
+                "services", to_attr="public_services",
+                queryset=Service.objects.filter(
+                    is_active=True, show_on_landing=True,
+                ).order_by("sort_order", "name"),
+            ),
+        ).order_by("sort_order", "name", "service_point__name")
+        context["service_categories"] = [
+            category for category in context["service_categories"] if category.public_services
+        ]
         # Сроки, которые витрина обещает клиенту, — из тех же настроек, по
         # которым работает сервер. Напоминание обещаем, только если такие
         # SMS вообще отправляются: их можно выключить в SMS_ENABLED_KINDS.
@@ -130,6 +146,14 @@ class MasterView(CompanyMixin, TemplateView):
     """Рабочее место мастера: записи в реальном времени, действия по ним."""
 
     template_name = "web/staff.html"
+
+
+class PrivacyView(CompanyMixin, TemplateView):
+    template_name = "web/privacy.html"
+
+
+class DeleteAccountPageView(CompanyMixin, TemplateView):
+    template_name = "web/delete_account.html"
 
 
 class AdminView(CompanyMixin, TemplateView):
@@ -285,10 +309,10 @@ class ClientAppView(CompanyMixin, TemplateView):
             "qrDecoderUrl": static("web/app/vendor/jsQR.js"),
             # Android видит кнопку Google Play (с кодом приглашения в referrer).
             "playUrl": install_links(self.request, invite=invite)["play_url"],
-            # Из браузера веб-приложением пользоваться нельзя — только с
-            # главного экрана iPhone. В разработке — можно, иначе экраны
-            # не проверить без телефона.
-            "allowBrowser": settings.DEBUG,
+            # Первая запись и запрос удаления доступны без установки.
+            "allowBrowser": True,
+            "privacyUrl": reverse("web:privacy"),
+            "deleteAccountUrl": reverse("web:delete-account"),
         }
         return context
 

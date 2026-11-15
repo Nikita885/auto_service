@@ -2,7 +2,7 @@
 {% load humanize static web_tags %}
 
 {% block title %}{{ company.NAME }} — {{ company.TAGLINE }}{% endblock %}
-{% block description %}{{ company.NAME }}: замена масла по записи из мобильного приложения или по телефону {{ company.PHONE }}. Свой пост к назначенному времени, без очереди и без «оставьте машину до вечера».{% endblock %}
+{% block description %}{{ company.NAME }}: обслуживание автомобиля по записи из приложения или по телефону {{ company.PHONE }}. Свой пост к назначенному времени, без очереди и без «оставьте машину до вечера».{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'web/css/landing.css' %}">
@@ -12,7 +12,7 @@
 мигнёт светлой темой панелей) и объявляет, что JS есть — только после
 этого CSS разрешает себе прятать блоки до появления.
 {% endcomment %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
   document.documentElement.dataset.theme = "dark";
   document.documentElement.classList.add("has-js");
 </script>
@@ -42,7 +42,7 @@
 {% block nav %}
   <a href="#how">Как записаться</a>
   <a href="#addresses">Адреса</a>
-  <a href="#oils">Масла</a>
+  <a href="#services">Услуги</a>
   <a href="#faq">Вопросы</a>
 {% endblock %}
 
@@ -68,7 +68,7 @@
 
     <div class="hero-grid">
       <div class="hero-text">
-        <span class="kicker">Замена масла · {{ points|length }} {{ points|length|ru_plural:"адрес,адреса,адресов" }} в городе</span>
+        <span class="kicker">Услуги автосервиса · {{ points|length }} {{ points|length|ru_plural:"адрес,адреса,адресов" }} в городе</span>
 
         <h1>Приезжаете к своему времени<br>и уезжаете <span class="hl">без очереди</span></h1>
 
@@ -150,11 +150,11 @@ Mobbin): живой экран продаёт приложение лучше с
     </li>
     <li class="how-step glass" data-reveal>
       <div class="shot" aria-hidden="true">
-        <span class="shot-chips"><i>{% if points %}{{ points.0.name|truncatechars:12 }}{% else %}Адрес{% endif %}</i><i>{% if oils %}{{ oils.0.brand|truncatechars:10 }}{% else %}Масло{% endif %}</i></span>
+        <span class="shot-chips"><i>{% if points %}{{ points.0.name|truncatechars:12 }}{% else %}Адрес{% endif %}</i><i>Услуга</i></span>
         <span class="shot-slots"><i>09:30</i><i class="on">10:00</i><i>10:30</i><i>11:00</i></span>
       </div>
-      <h3><span class="how-n">2</span>Адрес, масло, время</h3>
-      <p>Выбираете из того, что есть в наличии и свободно. Не знаете, какое масло, — подберём на месте.</p>
+      <h3><span class="how-n">2</span>Адрес, услуга, время</h3>
+      <p>Выбираете услугу и свободное время. Сомневаетесь — поможем с выбором.</p>
     </li>
     <li class="how-step glass" data-reveal>
       <div class="shot" aria-hidden="true">
@@ -218,7 +218,7 @@ Mobbin): живой экран продаёт приложение лучше с
             {% if point.workdays %}По графику{% else %}Ежедневно{% endif %}, {{ point.opens_at|time:"H:i" }}–{{ point.closes_at|time:"H:i" }}
             · {{ point.posts_count }} {{ point.posts_count|ru_plural:"пост,поста,постов" }}
           </p>
-          {% if point.phone %}<a class="address-phone" href="tel:{{ point.phone|tel_href }}">{{ point.phone }}</a>{% endif %}
+          {% if point.phone %}<a class="address-phone" href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>{% endif %}
         </div>
       </article>
     {% empty %}
@@ -233,25 +233,28 @@ Mobbin): живой экран продаёт приложение лучше с
 телефону и мастер на месте. Ассортимент — строкой: клиенту важно
 увидеть, что его масло есть. Данные — из таблицы `Oil`, той же, что у API.
 {% endcomment %}
-<section class="block" id="oils">
+<section class="block" id="services">
   <div class="block-head" data-reveal-group>
-    <span class="kicker kicker-dark" data-reveal>В наличии</span>
-    <h2 data-reveal>Масла</h2>
-    <p data-reveal>Подберём по марке, году и пробегу. Стоимость назовём по телефону.</p>
+    <span class="kicker kicker-dark" data-reveal>Для вашего автомобиля</span>
+    <h2 data-reveal>Услуги автосервиса</h2>
+    <p data-reveal>Выберите нужную услугу. Детали работ обсудим перед обслуживанием.</p>
   </div>
-
-  {% if oils %}
-    <ul class="oil-list" data-reveal-group>
-      {% for oil in oils %}
-        <li class="oil-item glass" data-reveal>
-          <span class="oil-brand">{{ oil.brand }}</span>
-          <b class="oil-title">{{ oil.name }}</b>
-          <span class="oil-meta">{{ oil.viscosity }} · {{ oil.get_oil_type_display|lower }} · {{ oil.volume_liters|floatformat:"-1" }} л</span>
-        </li>
-      {% endfor %}
-    </ul>
+  {% if service_categories %}
+    <div class="services-grid" data-reveal-group>
+    {% for category in service_categories %}
+      {% if category.public_services or category.allow_on_site %}
+      <article class="service-card glass" data-reveal>
+        <span class="service-point-name">{{ category.service_point.name }}</span>
+        <h3>{{ category.name }}</h3>
+        {% if category.description %}<p>{{ category.description }}</p>{% endif %}
+        <ul>{% for service in category.public_services %}<li><b>{{ service.name }}</b>{% if service.description %}<span>{{ service.description }}</span>{% endif %}</li>{% endfor %}</ul>
+        <a class="service-link" href="{{ app_cta_url }}">Выбрать время <span aria-hidden="true">→</span></a>
+      </article>
+      {% endif %}
+    {% endfor %}
+    </div>
   {% else %}
-    <p class="muted">Ассортимент уточняйте по телефону <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>.</p>
+    <p>Расскажите, что нужно автомобилю — поможем выбрать услугу. <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a></p>
   {% endif %}
 </section>
 
@@ -268,15 +271,15 @@ Mobbin): живой экран продаёт приложение лучше с
   {% endcomment %}
   <div class="faq" data-reveal>
     <details>
-      <summary>Что входит в замену масла?</summary>
+      <summary>Какие услуги можно записать?</summary>
       <div class="faq-answer"><div>
-        <p>Сливаем отработку, ставим новый масляный фильтр, заливаем выбранное масло и проверяем уровень. Пока вы на посту, туда никого не ставят.</p>
+        <p>Актуальные услуги указаны выше и в приложении. Выберите адрес — увидите доступные на нём услуги и время для записи.</p>
       </div></div>
     </details>
     <details>
-      <summary>Не знаю, какое масло нужно</summary>
+      <summary>Не знаю, какую услугу выбрать</summary>
       <div class="faq-answer"><div>
-        <p>При записи выберите «Подберите на месте» — мастер позвонит и поможет выбрать: в рабочее время в течение 30 минут, вне рабочих часов — утром. Или позвоните нам сами: <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>.</p>
+        <p>В приложении воспользуйтесь помощью с выбором или, если доступно, выберите «Подберите на месте» — мастер позвонит и поможет выбрать: в рабочее время в течение 30 минут, вне рабочих часов — утром. Или позвоните нам сами: <a href="tel:{{ company.PHONE|tel_href }}">{{ company.PHONE }}</a>.</p>
       </div></div>
     </details>
     <details>
@@ -298,16 +301,16 @@ Mobbin): живой экран продаёт приложение лучше с
       </div></div>
     </details>
     <details>
-      <summary>Своё масло принимать будете?</summary>
+      <summary>Как узнать подробности работ?</summary>
       <div class="faq-answer"><div>
-        <p>Позвоните и уточните: работа считается отдельно, а гарантию на само масло в этом случае мы не даём.</p>
+        <p>Позвоните нам: мастер уточнит задачу, расскажет о работах и необходимых материалах. Состав обслуживания согласуем с вами.</p>
       </div></div>
     </details>
     {% if referral_enabled %}
     <details>
       <summary>Что за баллы в приложении?</summary>
       <div class="faq-answer"><div>
-        <p>Приглашайте друзей по своему коду: с их замен вам приходят баллы. Баллами можно оплатить до {{ max_discount }}% чека, 1 балл — 1 рубль.</p>
+        <p>Приглашайте друзей по своему коду: с их обслуживания вам приходят баллы. Баллами можно оплатить до {{ max_discount }}% чека, 1 балл — 1 рубль.</p>
       </div></div>
     </details>
     {% endif %}
@@ -353,7 +356,7 @@ Mobbin): живой экран продаёт приложение лучше с
   {% endif %}
 
   <div class="wrap footer-bottom">
-    <span>© {{ company.NAME }}</span>
+    <span>© {{ company.NAME }}</span><a href="{% url 'web:privacy' %}">Конфиденциальность</a><a href="{% url 'web:delete-account' %}">Удаление аккаунта</a>
   </div>
 </footer>
 {% endblock %}

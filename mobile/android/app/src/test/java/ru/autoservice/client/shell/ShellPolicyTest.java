@@ -68,4 +68,11 @@ public class ShellPolicyTest {
         assertNull(ShellPolicy.storageKey("client.invite"));
         assertNull(ShellPolicy.storageKey(null));
     }
+
+    @Test
+    public void clientCacheIsEncryptedButStaffDataIsNotExposed() {
+        assertEquals("cache.garage.123", ShellPolicy.storageKey("client.cache.garage.123"));
+        assertNull(ShellPolicy.storageKey("staff.cache.me"));
+        assertNull(ShellPolicy.storageKey("client.cache." + new String(new char[140])));
+    }
 }

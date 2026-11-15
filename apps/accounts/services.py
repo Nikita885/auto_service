@@ -620,6 +620,15 @@ def issue_tokens(user: User) -> dict[str, str]:
     return {"refresh": str(refresh), "access": str(refresh.access_token)}
 
 
+def lock_active_user(user: User) -> User:
+    """Сериализовать запись данных с удалением/блокировкой аккаунта."""
+    current = User.objects.select_for_update().filter(pk=user.pk, is_active=True).first()
+    if current is None:
+        raise PermissionError_("Аккаунт недоступен", code="user_blocked")
+    return current
+
+
+@transaction.atomic
 def update_profile(user: User, **fields) -> User:
     """Обновление профиля. Телефон и роль сменить через профиль нельзя.
 
@@ -628,6 +637,7 @@ def update_profile(user: User, **fields) -> User:
     """
     from apps.garage.services.cars import update_primary_from_profile
 
+    user = lock_active_user(user)
     if user.is_client:
         update_primary_from_profile(
             user, title=fields.pop("car_model", None), plate=fields.pop("car_plate", None)

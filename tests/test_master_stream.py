@@ -81,6 +81,19 @@ async def test_admin_sees_every_point(admin_user, point, second_point):
     await communicator.disconnect()
 
 
+async def test_blocked_master_cannot_receive_new_events(master_user, point):
+    communicator, connected = await connect(master_user)
+    assert connected
+    await hello(communicator)
+    await sync_to_async(User.objects.filter(pk=master_user.pk).update)(is_active=False)
+    await get_channel_layer().group_send(events.point_group(point.pk), {
+        "type": "stream.event", "event": "booking.created", "payload": {"booking_id": "test"},
+    })
+    message = await communicator.receive_output(timeout=3)
+    assert message["type"] == "websocket.close" and message["code"] == 4401
+    await communicator.disconnect()
+
+
 # --------------------------------------------------------------- сигналы
 async def test_new_booking_reaches_the_master(master_user, client_user, ready_draft, point):
     communicator, _ = await connect(master_user)

@@ -1,3 +1,4 @@
+from contextlib import suppress
 from dataclasses import asdict
 
 from drf_spectacular.utils import extend_schema
@@ -9,9 +10,12 @@ from rest_framework.views import APIView
 
 from apps.accounts import services
 from apps.accounts.serializers import (
+    AccountDeletionResponseSerializer,
+    AccountDeletionSerializer,
     AuthResponseSerializer,
     CallPendingSerializer,
     CallStatusSerializer,
+    LogoutSerializer,
     OtpRequestResponseSerializer,
     OtpRequestSerializer,
     OtpVerifySerializer,
@@ -149,6 +153,7 @@ class MeView(APIView):
     def get(self, request: Request) -> Response:
         return Response(UserSerializer(request.user).data)
 
+
     @extend_schema(
         request=ProfileUpdateSerializer,
         responses={200: UserSerializer},
@@ -160,3 +165,39 @@ class MeView(APIView):
 
         user = services.update_profile(request.user, **payload.validated_data)
         return Response(UserSerializer(user).data)
+
+class LogoutView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_scope = "logout"
+
+    @extend_schema(request=LogoutSerializer, responses={204: None}, summary="Завершить сессию")
+    def post(self, request):
+        from rest_framework_simplejwt.exceptions import TokenError
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        raw = request.data.get("refresh", "")
+        if isinstance(raw, str) and 0 < len(raw) <= 4096:
+            with suppress(TokenError):
+                RefreshToken(raw).blacklist()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AccountDeletionView(APIView):
+    from apps.common.permissions import IsClient
+
+    permission_classes = [IsClient]
+    throttle_scope = "account_delete"
+
+    @extend_schema(
+        request=AccountDeletionSerializer, responses={202: AccountDeletionResponseSerializer},
+        summary="Запросить удаление аккаунта и данных",
+    )
+    def post(self, request):
+        from apps.accounts.models import AccountDeletionRequest
+        from apps.common.exceptions import ValidationError
+
+        if request.data.get("confirm") is not True:
+            raise ValidationError("Подтвердите запрос на удаление", code="confirmation_required")
+        item, _ = AccountDeletionRequest.objects.get_or_create(user=request.user)
+        return Response({"status": "requested", "requested_at": item.created_at}, status=202)

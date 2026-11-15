@@ -15,8 +15,7 @@
 * **Лимиты** (решение заказчика, октябрь 2026): сообщений в день на клиента,
   сообщений в одном разговоре и рублей в месяц на всех. Упёрлись — не
   ошибка, а «дальше поможет мастер»: запись работает и без подсказчика.
-  Лимиты считаются без блокировок: два одновременных сообщения могут
-  перешагнуть потолок на одно — это копейки, а не повод держать замок.
+  Квота и бюджет резервируются под блокировками до обращения к провайдеру.
 * **Текст разговора не храним** (решение заказчика): историю присылает
   приложение, в базе — только счётчики (`AssistantRequest`). Подделанная
   история ничего не даёт: ответ всё равно проверяется по каталогу, а лимиты
@@ -33,10 +32,12 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
-from apps.assistant.models import AssistantRequest
+from apps.assistant.models import AssistantBudgetMonth, AssistantRequest
 from apps.assistant.providers import AssistantProviderError, get_provider
 from apps.booking.services import stock as stock_service
 from apps.catalog.models import ServicePoint
@@ -118,7 +119,7 @@ def _point(point_id) -> ServicePoint:
 
 def _done(qs):
     """Ответы, которые идут в лимиты клиента: неудачи провайдера — не его вина."""
-    return qs.filter(error="")
+    return qs.filter(error__in=["", "pending"])
 
 
 def _used_today(user) -> int:
@@ -189,12 +190,14 @@ def _history(history, limit_chars: int, per_chat: int) -> list[dict]:
 
 def _parse(text: str) -> dict:
     try:
-        return json.loads(text)
+        value = json.loads(text)
+        return value if isinstance(value, dict) else {}
     except (TypeError, ValueError):
         match = re.search(r"\{.*\}", text or "", re.DOTALL)
         if match:
             try:
-                return json.loads(match.group(0))
+                value = json.loads(match.group(0))
+                return value if isinstance(value, dict) else {}
             except ValueError:
                 pass
     # Не JSON: если похоже на обычную фразу — это и есть ответ, без подсказки.
@@ -265,12 +268,40 @@ def ask(user, point_id, *, message: str, chat=None, history=None) -> Answer:
     turns = _history(history, conf["MAX_MESSAGE_CHARS"], per_chat)
     turns.append({"role": "user", "text": text})
 
-    record = AssistantRequest(user=user, service_point=point, chat=chat, provider=provider.name)
+    # Консервативный резерв: байты UTF-8 ограничивают токены сверху,
+    # плюс служебная обвязка и максимум ответа. Оба HTTP-вызова при
+    # fallback формата учитываются. Сетевой timeout может быть платным.
+    input_bound = len((system + json.dumps(turns, ensure_ascii=False)
+                       + json.dumps(ANSWER_SCHEMA)).encode("utf-8")) + 1024
+    reserve = (_cost(input_bound, 400) * 2).quantize(Decimal("0.0001"))
+    month = timezone.localdate().replace(day=1)
+    with transaction.atomic():
+        AssistantBudgetMonth.objects.get_or_create(month=month)
+        AssistantBudgetMonth.objects.select_for_update().get(month=month)
+        active_user = get_user_model().objects.select_for_update().get(pk=user.pk)
+        if not active_user.is_active:
+            return handoff("unavailable")
+        used_in_chat = _done(AssistantRequest.objects.filter(user=user, chat=chat)).count()
+        if _used_today(user) >= conf["MESSAGES_PER_DAY"]:
+            return handoff("daily_limit")
+        if used_in_chat >= per_chat:
+            return handoff("chat_limit")
+        if spent_this_month() + reserve > conf["MONTHLY_BUDGET_RUB"]:
+            return handoff("budget")
+        record = AssistantRequest.objects.create(
+            user=user, service_point=point, chat=chat, provider=provider.name,
+            cost=reserve, error="pending",
+        )
     try:
         completion = provider.complete(system, turns, ANSWER_SCHEMA)
     except AssistantProviderError:
         record.error = "provider"
         record.save()
+        return handoff("unavailable")
+    except Exception:
+        record.error = "unexpected"
+        record.save(update_fields=["error"])
+        logger.exception("Ошибка подсказчика; резерв расхода сохранён")
         return handoff("unavailable")
 
     data = {} if completion.filtered else _parse(completion.text)
@@ -281,6 +312,7 @@ def ask(user, point_id, *, message: str, chat=None, history=None) -> Answer:
         reply = SAFE_REPLY if category else NOT_UNDERSTOOD
 
     record.model = completion.model[:120]
+    record.error = ""
     record.input_tokens = completion.input_tokens
     record.output_tokens = completion.output_tokens
     record.cost = _cost(completion.input_tokens, completion.output_tokens)

@@ -1,6 +1,20 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.accounts.models import User
+
+
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField(max_length=4096)
+
+
+class AccountDeletionSerializer(serializers.Serializer):
+    confirm = serializers.BooleanField()
+
+
+class AccountDeletionResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    requested_at = serializers.DateTimeField()
 
 
 class OtpRequestSerializer(serializers.Serializer):
@@ -72,6 +86,7 @@ class InviteResultSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    deletion_requested_at = serializers.SerializerMethodField()
     # Основной автомобиль строками — для сборок приложений, которые знают
     # одну машину в профиле. Новые читают список из /garage/cars/.
     car_model = serializers.SerializerMethodField()
@@ -87,8 +102,19 @@ class UserSerializer(serializers.ModelSerializer):
             "car_model",
             "car_plate",
             "date_joined",
+            "deletion_requested_at",
         )
         read_only_fields = ("id", "phone", "role", "date_joined")
+
+    @extend_schema_field(serializers.DateTimeField(allow_null=True))
+    def get_deletion_requested_at(self, user):
+        from apps.accounts.models import AccountDeletionRequest
+
+        return AccountDeletionRequest.objects.filter(
+            user=user, processed_at__isnull=True,
+        ).values_list(
+            "created_at", flat=True,
+        ).first()
 
     def _primary(self, user):
         from apps.garage.services.cars import primary_car

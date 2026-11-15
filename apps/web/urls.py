@@ -3,9 +3,11 @@ from django.urls import path
 from apps.web.views import (
     AdminView,
     ClientAppView,
+    DeleteAccountPageView,
     InviteView,
     LandingView,
     MasterView,
+    PrivacyView,
     android_assetlinks,
     app_manifest,
     app_service_worker,
@@ -14,6 +16,8 @@ from apps.web.views import (
 app_name = "web"
 
 urlpatterns = [
+    path("privacy/", PrivacyView.as_view(), name="privacy"),
+    path("delete-account/", DeleteAccountPageView.as_view(), name="delete-account"),
     path("", LandingView.as_view(), name="landing"),
     path("master/", MasterView.as_view(), name="master"),
     # Не "admin/" — этот префикс занят Django-админкой, которая остаётся

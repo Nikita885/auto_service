@@ -92,6 +92,9 @@ def _lock_draft(user, draft_id) -> BookingDraft:
     а Postgres не умеет блокировать nullable-сторону внешнего соединения.
     Блокируем только строку черновика — она и есть предмет гонки.
     """
+    from apps.accounts.services import lock_active_user
+
+    lock_active_user(user)
     try:
         draft = (
             BookingDraft.objects.select_for_update(of=("self",))
@@ -148,6 +151,9 @@ def start_draft(user, *, restart: bool = False) -> BookingDraft:
     так перезагрузка экрана не сбрасывает прогресс и не крадёт время таймера.
     `restart=True` явно выбрасывает старый черновик и начинает заново.
     """
+    from apps.accounts.services import lock_active_user
+
+    user = lock_active_user(user)
     existing = (
         BookingDraft.objects.select_for_update().filter(user=user, is_open=True).first()
     )

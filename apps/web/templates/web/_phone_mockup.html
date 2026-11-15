@@ -13,7 +13,7 @@
 серые полоски: по референсам (TravelPerk, Fresha на Mobbin) живой экран
 продаёт приложение лучше схемы. Нет данных — подставляем нейтральное.
 {% endcomment %}
-{% with point=points.0 oil=oils.0 %}
+{% with point=points.0 category=service_categories.0 %}
 <div class="hero-phone">
   <svg class="mockup" viewBox="0 0 300 580" role="presentation" focusable="false">
     <!-- корпус -->
@@ -23,7 +23,7 @@
 
     <!-- шапка экрана -->
     <text x="44" y="76" class="mk-title">Запись</text>
-    <text x="44" y="96" class="mk-sub">Шаг 3 из 4 · время</text>
+    <text x="44" y="96" class="mk-sub">Шаг 2 из 3 · время</text>
 
     <!-- прогресс из четырёх шагов: три проходит клиент, четвёртый — итог -->
     <rect x="44" y="112" width="46" height="5" rx="2.5" class="mk-step mk-step-1"/>
@@ -42,8 +42,8 @@
     <rect x="44" y="202" width="212" height="58" rx="14" class="mk-card"/>
     <circle cx="70" cy="231" r="13" class="mk-dot-accent"/>
     <path d="M70 224.5c-2.6 3.4-4.2 5.8-4.2 7.6a4.2 4.2 0 0 0 8.4 0c0-1.8-1.6-4.2-4.2-7.6z" class="mk-icon"/>
-    <text x="92" y="227" class="mk-card-title">{% if oil %}{{ oil.brand|truncatechars:18 }}{% else %}Синтетика{% endif %}</text>
-    <text x="92" y="245" class="mk-card-sub">{% if oil %}{{ oil.viscosity }} · {{ oil.volume_liters }} л{% else %}подобрано по марке{% endif %}</text>
+    <text x="92" y="227" class="mk-card-title">{% if category %}{{ category.name|truncatechars:18 }}{% else %}Услуга автосервиса{% endif %}</text>
+    <text x="92" y="245" class="mk-card-sub">Поможем с выбором</text>
     <path d="M226 231l5 5 9-10" class="mk-check"/>
 
     <!-- сетка свободного времени -->
@@ -63,13 +63,11 @@
 
     <!-- таймер брони: пять минут на всю запись -->
     <rect x="44" y="406" width="212" height="44" rx="14" class="mk-card"/>
-    <text x="62" y="434" class="mk-timer">04:38</text>
-    <rect x="122" y="425" width="118" height="6" rx="3" class="mk-line-soft"/>
-    <rect x="122" y="425" width="118" height="6" rx="3" class="mk-timer-fill"/>
+    <text x="62" y="434" class="mk-timer">Время выбрано</text>
 
     <!-- кнопка подтверждения -->
     <rect x="44" y="468" width="212" height="48" rx="16" class="mk-cta"/>
-    <text x="150" y="497" class="mk-cta-label">Записаться</text>
+    <text x="150" y="497" class="mk-cta-label">Проверить запись</text>
 
     <!-- вспышка подтверждения: запись создана -->
     <g class="mk-glow">

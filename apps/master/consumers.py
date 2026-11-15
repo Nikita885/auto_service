@@ -18,9 +18,10 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
 from apps.accounts.constants import UserRole
 from apps.booking import events
+from apps.common.ws_auth import LiveAccessMixin
 
 
-class MasterStreamConsumer(AsyncJsonWebsocketConsumer):
+class MasterStreamConsumer(LiveAccessMixin, AsyncJsonWebsocketConsumer):
     async def connect(self) -> None:
         user = self.scope.get("user")
         if user is None or not user.is_authenticated:
@@ -38,6 +39,7 @@ class MasterStreamConsumer(AsyncJsonWebsocketConsumer):
             await self.channel_layer.group_add(group, self.channel_name)
 
         await self.accept()
+        self.watch_access()
         # Сообщаем, за какими точками канал следит: панель по этому списку
         # понимает, что подписка живая и полная.
         await self.send_json(
@@ -48,16 +50,18 @@ class MasterStreamConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def disconnect(self, code) -> None:
+        self.stop_access_watch()
         for group in getattr(self, "joined", []):
             await self.channel_layer.group_discard(group, self.channel_name)
 
     async def receive_json(self, content, **kwargs) -> None:
         """Канал односторонний. Отвечаем только на ping, чтобы держать соединение."""
-        if content.get("action") == "ping":
+        if await self.access_allowed() and content.get("action") == "ping":
             await self.send_json({"event": "pong"})
 
     async def stream_event(self, message) -> None:
-        await self.send_json({"event": message["event"], "payload": message["payload"]})
+        if await self.access_allowed():
+            await self.send_json({"event": message["event"], "payload": message["payload"]})
 
     @database_sync_to_async
     def _point_ids(self, user) -> list:

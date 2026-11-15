@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{{ company.NAME|default:"Автосервис" }}{% endblock %}</title>
-<meta name="description" content="{% block description %}Замена масла по записи: мобильное приложение или звонок.{% endblock %}">
+<meta name="description" content="{% block description %}Обслуживание автомобиля по записи: мобильное приложение или звонок.{% endblock %}">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2305080f'/><path d='M4.5 21.5C8 14 14 10 21 10c3.6 0 6.2 1.6 7.5 4' fill='none' stroke='%2350b8ff' stroke-width='2.6' stroke-linecap='round'/><path d='M7 24.5c4.5-2 9.5-3 16-3' fill='none' stroke='%23cfeaff' stroke-width='2.2' stroke-linecap='round'/></svg>">
 <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
 {% block extra_head %}{% endblock %}
@@ -48,7 +48,7 @@
 {% block footer %}{% endblock %}
 
 <script src="{% static 'web/js/core.js' %}"></script>
-{% block theme_init %}<script>App.theme.init();</script>{% endblock %}
+{% block theme_init %}<script nonce="{{ request.csp_nonce }}">App.theme.init();</script>{% endblock %}
 {% block scripts %}{% endblock %}
 
 </body>

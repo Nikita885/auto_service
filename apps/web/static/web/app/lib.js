@@ -81,12 +81,16 @@ export const ask = App.ask;
 /* ------------------------------------------------------------ события */
 
 const listeners = {};
+let sessionEpoch = 0;
 export const bus = {
   on(name, fn) {
     (listeners[name] = listeners[name] || []).push(fn);
     return () => { listeners[name] = listeners[name].filter((f) => f !== fn); };
   },
-  emit(name, payload) { (listeners[name] || []).forEach((fn) => fn(payload)); },
+  emit(name, payload) {
+    if (name === "signout") sessionEpoch += 1;
+    (listeners[name] || []).forEach((fn) => fn(payload));
+  },
 };
 
 // Отдельная «область» токенов: клиентская сессия не должна пересекаться
@@ -123,20 +127,30 @@ export async function call(fn) {
     только экран. Хранилище общее с токенами и чистится при выходе: на
     телефоне после выхода чужие записи не должны оставаться. */
 const CACHE_PREFIX = "client.cache.";
+const cacheBox = native && native.clearCache ? native : localStorage;
+if (native && native.clearCache) {
+  try {
+    Object.keys(localStorage).filter((k) => k.startsWith(CACHE_PREFIX)).forEach((k) => localStorage.removeItem(k));
+  } catch (e) { /* Старый незашифрованный кеш необязателен. */ }
+}
 export const cache = {
   read(key) {
     try {
-      const raw = localStorage.getItem(CACHE_PREFIX + key);
+      const raw = cacheBox.getItem(CACHE_PREFIX + key);
       return raw ? JSON.parse(raw) : null;
     } catch (e) {
       return null;
     }
   },
   write(key, data) {
-    try { localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ data, at: Date.now() })); } catch (e) { /* место кончилось — просто без кеша */ }
+    try { cacheBox.setItem(CACHE_PREFIX + key, JSON.stringify({ data, at: Date.now() })); } catch (e) { /* место кончилось — просто без кеша */ }
+  },
+  remove(key) {
+    try { cacheBox.removeItem(CACHE_PREFIX + key); } catch (e) { /* необязательный кеш */ }
   },
   clear() {
     try {
+      if (native && native.clearCache) native.clearCache();
       Object.keys(localStorage).filter((k) => k.startsWith(CACHE_PREFIX)).forEach((k) => localStorage.removeItem(k));
     } catch (e) { /* приватный режим */ }
   },
@@ -147,10 +161,15 @@ export const cache = {
     `navigator.onLine` на Android в WebView и на iPhone с главного экрана
     врёт в обе стороны, верить стоит только ответу сервера. */
 const net = { offline: false, at: null };
-function setNet(offline, at) {
+const offlineSources = new Map();
+function setNet(source, failed, at) {
+  if (failed) offlineSources.set(source, at || Date.now());
+  else offlineSources.delete(source);
+  const offline = offlineSources.size > 0;
+  at = offline ? Math.min(...offlineSources.values()) : null;
   if (net.offline === offline && (!offline || net.at === at)) return;
   net.offline = offline;
-  net.at = offline ? Math.min(at || Date.now(), net.at || Infinity) : null;
+  net.at = at;
   bus.emit("net", { ...net });
 }
 export function useNet() {
@@ -170,27 +189,32 @@ export function useLoad(loader, deps, key) {
     data: initial ? initial.data : undefined, error: null, loading: true, stale: null,
   });
   const seq = useRef(0);
+  const netSource = useRef(Symbol("load"));
 
   const reload = useCallback(async () => {
     const my = ++seq.current;
+    const epoch = sessionEpoch;
     setState((s) => ({ ...s, loading: true }));
     try {
       const data = await loader();
-      if (my !== seq.current) return;
+      if (my !== seq.current || epoch !== sessionEpoch) return;
       if (key) cache.write(key, data);
-      setNet(false);
+      setNet(netSource.current, false);
       setState({ data, error: null, loading: false, stale: null });
     } catch (err) {
-      if (my !== seq.current) return;
+      if (my !== seq.current || epoch !== sessionEpoch) return;
       const saved = key && isNetworkError(err) ? cache.read(key) : null;
-      if (isNetworkError(err)) setNet(true, saved && saved.at);
+      setNet(netSource.current, isNetworkError(err), saved && saved.at);
       setState((s) => ({
         data: saved ? saved.data : s.data, error: err, loading: false, stale: saved ? saved.at : null,
       }));
     }
   }, deps || []);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+    return () => { seq.current += 1; setNet(netSource.current, false); };
+  }, [reload]);
   return { ...state, reload };
 }
 
@@ -303,7 +327,8 @@ export function visitTime(iso, zone) {
     ещё надо сопоставить с сегодняшней, а это читается сразу. */
 export function daysUntil(iso, zone) {
   const day = (d) => {
-    try { return new Date(d.toLocaleDateString("en-CA", { timeZone: zone || undefined })); } catch (e) { return new Date(d.toDateString()); }
+    const parts = localDay(d, zone).split("-").map(Number);
+    return Date.UTC(parts[0], parts[1] - 1, parts[2]);
   };
   const n = Math.round((day(new Date(iso)) - day(new Date())) / 86400000);
   if (n < 0) return "";
@@ -314,6 +339,17 @@ export function daysUntil(iso, zone) {
   const word = mod10 === 1 && mod100 !== 11 ? "день"
     : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "дня" : "дней";
   return "Через " + n + " " + word;
+}
+
+/** ISO-дата точки без зависимости от разделителей локали Safari/Chrome. */
+export function localDay(value, zone) {
+  const date = new Date(value);
+  try {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en", {
+      timeZone: zone || undefined, year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(date).map((p) => [p.type, p.value]));
+    return [parts.year, parts.month, parts.day].join("-");
+  } catch (e) { return fmt.isoDate(date); }
 }
 
 /** Строка сводки: иконка, подпись сверху, значение снизу — как в
@@ -344,6 +380,26 @@ const SWIPE_CLOSE = 0.25;
 // Сколько окон открыто: окно поверх окна (форма машины поверх записи)
 // не должно вернуть прокрутку странице, закрывшись первым.
 let openSheets = 0;
+const sheetStack = [];
+const inertBefore = new Map();
+function syncSheetAccess() {
+  for (const [el, value] of inertBefore) el.inert = value;
+  inertBefore.clear();
+  const top = sheetStack[sheetStack.length - 1];
+  if (!top) return;
+  let node = top;
+  while (node && node !== document.body) {
+    const parent = node.parentElement;
+    if (!parent) break;
+    for (const sibling of parent.children) {
+      if (sibling !== node) {
+        if (!inertBefore.has(sibling)) inertBefore.set(sibling, sibling.inert);
+        sibling.inert = true;
+      }
+    }
+    node = parent;
+  }
+}
 
 /** Окно снизу поверх вкладки: мастер записи, перенос, формы гаража.
 
@@ -372,14 +428,45 @@ export function Sheet({ title, onClose, guard, actions, children, tall }) {
   }
 
   useEffect(() => {
+    const previousFocus = document.activeElement;
+    const currentPanel = panel.current;
+    sheetStack.push(currentPanel);
+    // Effects дочернего компонента могут выполниться раньше родителя.
+    // Вершину определяет вложенность DOM, а не порядок effects.
+    sheetStack.sort((a, b) => {
+      if (a.contains(b)) return -1;
+      if (b.contains(a)) return 1;
+      return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+    });
+    syncSheetAccess();
+    const focusable = () => [...currentPanel.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex="0"]')]
+      .filter((el) => !el.inert && el.getClientRects().length);
     const t = requestAnimationFrame(() => setPhase("open"));
-    const onKey = (e) => { if (e.key === "Escape" && !document.querySelector(".modal-backdrop")) close(); };
+    const focusFrame = requestAnimationFrame(() => (focusable()[0] || currentPanel).focus());
+    const onKey = (e) => {
+      if (sheetStack[sheetStack.length - 1] !== currentPanel || document.querySelector(".modal-backdrop")) return;
+      if (e.key === "Escape") { e.preventDefault(); close(); }
+      if (e.key === "Tab") {
+        const items = focusable();
+        const first = items[0], last = items[items.length - 1];
+        if (!first) { e.preventDefault(); currentPanel.focus(); }
+        else if (e.shiftKey && (document.activeElement === first || !currentPanel.contains(document.activeElement))) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && (document.activeElement === last || !currentPanel.contains(document.activeElement))) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    };
     document.addEventListener("keydown", onKey);
     // Под окном страница не должна прокручиваться вместе с ним.
     openSheets += 1;
     document.body.classList.add("sheet-open");
     return () => {
       cancelAnimationFrame(t);
+      cancelAnimationFrame(focusFrame);
+      sheetStack.splice(sheetStack.indexOf(currentPanel), 1);
+      syncSheetAccess();
+      if (previousFocus && previousFocus.isConnected && !previousFocus.inert) previousFocus.focus();
       document.removeEventListener("keydown", onKey);
       openSheets -= 1;
       if (!openSheets) document.body.classList.remove("sheet-open");
@@ -410,7 +497,7 @@ export function Sheet({ title, onClose, guard, actions, children, tall }) {
 
   const style = drag ? `transform:translateY(${drag}px);transition:none` : "";
   return html`<div class=${"sheet-layer is-" + phase} onClick=${(e) => { if (e.target === e.currentTarget) close(); }}>
-    <div class=${"sheet" + (tall ? " sheet-tall" : "")} role="dialog" aria-modal="true" aria-label=${title} ref=${panel} style=${style}
+    <div class=${"sheet" + (tall ? " sheet-tall" : "")} role="dialog" aria-modal="true" aria-label=${title} tabindex="-1" ref=${panel} style=${style}
       onPointerDown=${onDown} onPointerMove=${onMove} onPointerUp=${onUp} onPointerCancel=${onUp}>
       <span class="sheet-grab" aria-hidden="true"></span>
       <div class="sheet-bar">

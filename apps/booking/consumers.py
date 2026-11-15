@@ -16,11 +16,12 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
 from apps.booking import events
+from apps.common.ws_auth import LiveAccessMixin
 
 logger = logging.getLogger(__name__)
 
 
-class BookingStreamConsumer(AsyncJsonWebsocketConsumer):
+class BookingStreamConsumer(LiveAccessMixin, AsyncJsonWebsocketConsumer):
     async def connect(self) -> None:
         user = self.scope.get("user")
         if user is None or not user.is_authenticated:
@@ -30,6 +31,7 @@ class BookingStreamConsumer(AsyncJsonWebsocketConsumer):
         self.group = events.user_group(user.id)
         await self.channel_layer.group_add(self.group, self.channel_name)
         await self.accept()
+        self.watch_access()
 
         snapshot = await self._draft_snapshot(user)
         if snapshot is None:
@@ -38,16 +40,19 @@ class BookingStreamConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"event": events.DRAFT_UPDATED, "payload": snapshot})
 
     async def disconnect(self, code) -> None:
+        self.stop_access_watch()
         group = getattr(self, "group", None)
         if group:
             await self.channel_layer.group_discard(group, self.channel_name)
 
     async def receive_json(self, content, **kwargs) -> None:
         """Канал односторонний. Отвечаем только на ping, чтобы держать соединение."""
-        if content.get("action") == "ping":
+        if await self.access_allowed() and content.get("action") == "ping":
             await self.send_json({"event": "pong"})
 
     async def stream_event(self, message) -> None:
+        if not await self.access_allowed():
+            return
         await self.send_json(
             {"event": message["event"], "payload": message["payload"]}
         )

@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Автосервис — API замены масла
+  title: МойАвтоСервис — API
   version: 1.0.0
-  description: 'Бэкенд записи на замену масла: вход по SMS-коду, пошаговая запись
-    с черновиком на 5 минут, панель мастера.'
+  description: 'Запись на услуги автосервиса: вход по телефону, пошаговая запись с
+    черновиком на 5 минут, панель мастера.'
 paths:
   /api/v1/assistant/:
     get:
@@ -59,6 +59,83 @@ paths:
               schema:
                 $ref: '#/components/schemas/AssistantAnswer'
           description: ''
+  /api/v1/assistant/report/:
+    post:
+      operationId: assistant_report_create
+      summary: Сообщить о проблемном ответе ИИ
+      tags:
+      - assistant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssistantReportRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssistantReportRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssistantReportRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantReportResponse'
+          description: ''
+  /api/v1/auth/account/deletion/:
+    post:
+      operationId: auth_account_deletion_create
+      summary: Запросить удаление аккаунта и данных
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountDeletionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AccountDeletionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AccountDeletionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeletionResponse'
+          description: ''
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      summary: Завершить сессию
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
   /api/v1/auth/me/:
     get:
       operationId: auth_me_retrieve
@@ -2542,6 +2619,7 @@ paths:
       tags:
       - Обмен с 1С
       security:
+      - oneCKeyAuth: []
       - jwtAuth: []
       responses:
         '200':
@@ -2571,6 +2649,8 @@ paths:
             schema:
               $ref: '#/components/schemas/AckRequest'
         required: true
+      security:
+      - oneCKeyAuth: []
       responses:
         '200':
           content:
@@ -2601,6 +2681,8 @@ paths:
             schema:
               $ref: '#/components/schemas/ChangesRequest'
         required: true
+      security:
+      - oneCKeyAuth: []
       responses:
         '200':
           content:
@@ -2617,6 +2699,8 @@ paths:
       summary: Записи, заявки которых 1С сверяет с сайтом
       tags:
       - Обмен с 1С
+      security:
+      - oneCKeyAuth: []
       responses:
         '200':
           content:
@@ -2633,6 +2717,8 @@ paths:
       summary: Записи для выгрузки в 1С
       tags:
       - Обмен с 1С
+      security:
+      - oneCKeyAuth: []
       responses:
         '200':
           content:
@@ -2647,6 +2733,8 @@ paths:
       summary: Проверка связи и ключа
       tags:
       - Обмен с 1С
+      security:
+      - oneCKeyAuth: []
       responses:
         '200':
           content:
@@ -3101,6 +3189,24 @@ paths:
           description: ''
 components:
   schemas:
+    AccountDeletionRequest:
+      type: object
+      properties:
+        confirm:
+          type: boolean
+      required:
+      - confirm
+    AccountDeletionResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        requested_at:
+          type: string
+          format: date-time
+      required:
+      - requested_at
+      - status
     AckItemRequest:
       type: object
       properties:
@@ -3197,6 +3303,26 @@ components:
       required:
       - message
       - service_point
+    AssistantReportRequest:
+      type: object
+      properties:
+        chat:
+          type: string
+          format: uuid
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required:
+      - chat
+      - text
+    AssistantReportResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
     AssistantRoleEnum:
       enum:
       - user
@@ -4803,6 +4929,15 @@ components:
       - oil_title
       - seconds_left
       - service_title
+    LogoutRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+          maxLength: 4096
+      required:
+      - refresh
     MasterAvailableOil:
       type: object
       description: |-
@@ -4950,6 +5085,7 @@ components:
         status:
           allOf:
           - $ref: '#/components/schemas/BookingStatusEnum'
+          default: pending
           title: Статус
         status_display:
           type: string
@@ -5200,6 +5336,7 @@ components:
         status:
           allOf:
           - $ref: '#/components/schemas/BookingStatusEnum'
+          default: pending
           title: Статус
         status_display:
           type: string
@@ -5437,6 +5574,7 @@ components:
         status:
           allOf:
           - $ref: '#/components/schemas/BookingStatusEnum'
+          default: pending
           title: Статус
         service_point:
           type: string
@@ -7718,10 +7856,16 @@ components:
           format: date-time
           readOnly: true
           title: Дата регистрации
+        deletion_requested_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
       required:
       - car_model
       - car_plate
       - date_joined
+      - deletion_requested_at
       - id
       - phone
       - role
@@ -7777,3 +7921,8 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    oneCKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: OneC <ключ обмена>; JWT сотрудника сюда не подходит.

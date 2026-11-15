@@ -8,6 +8,12 @@
 }
 -keepattributes JavascriptInterface
 
+# Старый Tink из security-crypto ссылается на две аннотации статического
+# анализа. В runtime они не используются; остальные missing classes
+# продолжают считаться ошибкой R8.
+-dontwarn com.google.errorprone.annotations.Immutable
+-dontwarn javax.annotation.concurrent.GuardedBy
+
 # Вырезаем логи из релиза: в них легко утекают токены и телефоны.
 -assumenosideeffects class android.util.Log {
     public static int v(...);

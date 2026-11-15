@@ -46,7 +46,7 @@ def generate(output):
     ET.SubElement(generated, f"{{{XR}}}ValueId").text = "a9abe996-79ec-44a3-a130-8a933b002202"
     properties = sub(processor, "Properties")
     sub(properties, "Name", NAME)
-    synonym(properties, "Мой Сервис — мастер")
+    synonym(properties, "МойАвтоСервис — мастер")
     sub(properties, "Comment", "Прямое подключение к API. Платформа 8.5.1.1529.")
     sub(properties, "DefaultForm", f"ExternalDataProcessor.{NAME}.Form.Форма")
     sub(properties, "AuxiliaryForm")

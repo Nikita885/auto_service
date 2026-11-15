@@ -206,6 +206,9 @@ def create_booking(
         # Точка заблокирована, но один клиент может записываться на разные
         # точки одновременно — дубль по времени ловит уникальный индекс.
         with transaction.atomic():
+            from apps.accounts.services import lock_active_user
+
+            user = lock_active_user(user)
             booking = Booking.objects.create(
                 user=user,
                 service_point=point,

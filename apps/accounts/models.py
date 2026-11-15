@@ -26,14 +26,18 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
     # Автомобили клиента — в `garage.Car`: их бывает несколько, и записи
     # нужно знать, какой из них обслуживали.
 
-    # Точки, к которым привязан мастер. Пусто — значит видит все точки.
+    # Пустой список без отдельного разрешения не открывает всю сеть.
     # Клиентов это поле не касается.
     service_points = models.ManyToManyField(
         "catalog.ServicePoint",
         blank=True,
         related_name="masters",
         verbose_name="точки мастера",
-        help_text="Пусто = доступ ко всем точкам",
+        help_text="Назначьте точки или явно разрешите доступ ко всей сети ниже.",
+    )
+    allow_all_points = models.BooleanField(
+        "все точки при пустом списке назначений", default=False,
+        help_text="Только для сотрудников, которым нужен доступ ко всей сети.",
     )
 
     is_active = models.BooleanField("активен", default=True)
@@ -70,7 +74,20 @@ class User(UUIDModel, AbstractBaseUser, PermissionsMixin):
         if self.role == UserRole.ADMIN:
             return None
         ids = list(self.service_points.values_list("id", flat=True))
-        return ids or None
+        return ids or (None if self.allow_all_points else [])
+
+
+class AccountDeletionRequest(UUIDModel):
+    """Заявка на удаление; обработка видна сотрудникам в админке."""
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="deletion_request")
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    note = models.TextField(blank=True, verbose_name="Результат обработки")
+
+    class Meta:
+        verbose_name = "заявка на удаление аккаунта"
+        verbose_name_plural = "заявки на удаление аккаунтов"
 
 
 class OtpCodeQuerySet(models.QuerySet):

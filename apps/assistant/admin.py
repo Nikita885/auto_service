@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from apps.assistant.models import AssistantRequest
+from apps.assistant.models import AssistantFeedback, AssistantRequest
+
+
+@admin.register(AssistantFeedback)
+class AssistantFeedbackAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "reviewed")
+    list_filter = ("reviewed",)
+    readonly_fields = ("request", "reported_text", "created_at")
 
 
 @admin.register(AssistantRequest)

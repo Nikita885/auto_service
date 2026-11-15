@@ -82,7 +82,7 @@ class ServiceInline(admin.TabularInline):
     model = Service
     extra = 0
     fields = ("name", "price", "material_price", "is_limited", "quantity",
-              "is_active", "sort_order")
+              "is_active", "show_on_landing", "sort_order")
 
 
 @admin.register(ServiceCategory)
@@ -99,9 +99,9 @@ class ServiceCategoryAdmin(admin.ModelAdmin):
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
     list_display = ("name", "category", "price", "material_price", "is_limited",
-                    "quantity", "is_active")
-    list_filter = ("category__service_point", "is_active", "is_limited")
-    list_editable = ("price", "quantity", "is_active")
+                    "quantity", "is_active", "show_on_landing")
+    list_filter = ("category__service_point", "is_active", "is_limited", "show_on_landing")
+    list_editable = ("price", "quantity", "is_active", "show_on_landing")
     # Поиск нужен и сам по себе, и для autocomplete в позициях записи.
     search_fields = ("name", "category__name", "category__service_point__name")
     autocomplete_fields = ("category", "oil")

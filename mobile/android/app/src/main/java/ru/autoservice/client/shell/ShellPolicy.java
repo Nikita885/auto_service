@@ -75,6 +75,9 @@ public final class ShellPolicy {
         if ("client.refresh".equals(webKey)) {
             return TokenKeys.REFRESH;
         }
+        if (webKey != null && webKey.startsWith("client.cache.") && webKey.length() <= 128) {
+            return "cache." + webKey.substring("client.cache.".length());
+        }
         return null;
     }
 

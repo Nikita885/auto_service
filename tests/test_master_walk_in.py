@@ -338,7 +338,7 @@ def test_two_masters_race_for_last_post(master_user, point, stock, free_slot):
         pytest.skip("гонку ловит только PostgreSQL")
 
     OilStock.objects.filter(pk=stock.pk).update(quantity=5)
-    second_master = User.objects.create_master(phone="+79000000002")
+    second_master = User.objects.create_master(phone="+79000000002", allow_all_points=True)
     barrier = threading.Barrier(2)
     outcomes: list[str] = []
     lock = threading.Lock()

@@ -24,6 +24,9 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     # ImproperlyConfigured — так уже падала проверка кода приглашения.
     "referral_check": "100000/hour",
     "onec": "100000/hour",
+    "assistant": "100000/min",
+    "account_delete": "100000/hour",
+    "logout": "100000/hour",
 }
 
 OTP["DEBUG_EXPOSE_CODE"] = True

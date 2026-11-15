@@ -1,10 +1,5 @@
-/* Профиль: кто вы, ваши машины, адреса сервиса и выход.
-
-   Сгруппированный список (выбор заказчика при редизайне, Turo и Rivian на
-   Mobbin): шапка с именем и телефоном, ниже — строки. Имя правится окном
-   снизу: его видит мастер, когда вы приезжаете. Страницы политики
-   обработки данных пока нет — строки на неё тоже нет: мёртвая ссылка хуже
-   её отсутствия (тексты по 152-ФЗ — за заказчиком). */
+/* Профиль: личные данные, контакты сервиса, политика и запрос удаления.
+   Основные автомобильные сценарии находятся в гараже. */
 
 import { useCars } from "app/cars";
 import {
@@ -12,7 +7,7 @@ import {
 } from "app/lib";
 
 const svg = (name, size) => ({ __html: window.App.icon(name, size || 20) });
-const telHref = (phone) => "tel:" + String(phone || CONFIG.phone).replace(/[^\d+]/g, "");
+const telHref = (phone) => "tel:" + String(CONFIG.phone || phone).replace(/[^\d+]/g, "");
 
 export function Profile() {
   const me = useLoad(() => api.get("/auth/me/"), [], "me");
@@ -26,8 +21,18 @@ export function Profile() {
       confirmLabel: "Выйти", cancelLabel: "Остаться", danger: true,
     });
     if (!yes) return;
-    api.signOut();
+    const signingOut = api.signOut();
     bus.emit("signout");
+    await signingOut;
+  }
+
+  async function requestDeletion() {
+    const yes = await ask({ title: "Удалить аккаунт и данные?",
+      text: "Отправим запрос администратору. Он проверит незавершённые визиты и документы, которые необходимо сохранить. Это запрос на удаление профиля, машин и дневника.",
+      confirmLabel: "Отправить запрос", cancelLabel: "Оставить аккаунт", danger: true });
+    if (!yes) return;
+    const result = await call(() => api.post("/auth/account/deletion/", { confirm: true }));
+    if (result) { toast("Запрос принят. Для уточнения срока позвоните в сервис.", "ok"); me.reload(); }
   }
 
   if (me.error && !me.data) {
@@ -74,6 +79,16 @@ export function Profile() {
         </button>
       </div>
       <div class="list">
+        <a class="list-row" href=${CONFIG.privacyUrl} target="_blank" rel="noopener">
+          <span class="strip-ico" dangerouslySetInnerHTML=${svg("info")}></span>
+          <span class="list-body"><b>Конфиденциальность</b></span>
+          <span class="chev" dangerouslySetInnerHTML=${svg("right", 18)}></span>
+        </a>
+        <button class="list-row is-danger" type="button" disabled=${user && Boolean(user.deletion_requested_at)} onClick=${requestDeletion}>
+          <span class="strip-ico" dangerouslySetInnerHTML=${svg("x")}></span>
+          <span class="list-body"><b>${user && user.deletion_requested_at ? "Запрос на удаление принят" : "Удалить аккаунт"}</b>
+            <span class="muted">Профиль и связанные данные</span></span>
+        </button>
         <button class="list-row is-danger" type="button" onClick=${signOut}>
           <span class="strip-ico" dangerouslySetInnerHTML=${svg("logout")}></span>
           <span class="list-body"><b>Выйти</b></span>
@@ -118,7 +133,8 @@ function PointsSheet({ onClose }) {
     ? "https://yandex.ru/maps/?rtext=~" + p.latitude + "," + p.longitude + "&rtt=auto"
     : "https://yandex.ru/maps/?text=" + encodeURIComponent(p.address));
   return html`<${Sheet} title="Адреса" onClose=${onClose}>
-    ${!list.data ? html`<div class="stack-sm"><${Skel} h="var(--space-9)" r="var(--radius-lg)" /><${Skel} h="var(--space-9)" r="var(--radius-lg)" /></div>`
+    ${list.error && !list.data ? html`<${LoadError} error=${list.error} onRetry=${list.reload} />`
+      : !list.data ? html`<div class="stack-sm"><${Skel} h="var(--space-9)" r="var(--radius-lg)" /><${Skel} h="var(--space-9)" r="var(--radius-lg)" /></div>`
       : html`<div class="stack">${list.data.map((p) => html`<section class="card pad point-card" key=${p.id}>
           <b>${p.name}</b>
           <span class="muted">${p.address}</span>

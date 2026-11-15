@@ -31,7 +31,7 @@ def onec_settings(settings):
 
 @pytest.fixture
 def onec_user(db) -> User:
-    return User.objects.create_master(phone=ONEC_PHONE, full_name="1С")
+    return User.objects.create_master(phone=ONEC_PHONE, full_name="1С", allow_all_points=True)
 
 
 @pytest.fixture

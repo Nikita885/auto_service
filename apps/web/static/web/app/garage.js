@@ -35,7 +35,6 @@ const KIND_COLOR = {
 // Пробег подставляем там, где он важен для напоминаний и расхода.
 const NEEDS_MILEAGE = ["fuel", "oil", "service", "tires"];
 // Быстрые кнопки «добавить»: то, что пишут чаще всего; остальное — «Ещё».
-const QUICK = ["fuel", "wash", "service"];
 
 const km = (n) => fmt.number(n) + " км";
 const svg = (name, size) => ({ __html: window.App.icon(name, size || 20) });
@@ -89,7 +88,7 @@ export function Garage() {
         <span class="empty-ico" dangerouslySetInnerHTML=${svg("car", 24)}></span>
         <div>
           <b>Добавьте машину</b>
-          <p class="muted">Гараж подскажет, когда менять масло и резину, напомнит про ОСАГО и посчитает расходы и расход топлива.</p>
+          <p class="muted">Сохраняйте историю обслуживания и записывайте автомобиль в сервис.</p>
         </div>
       </section>
       <section class="card pad"><${CarForm} full submitLabel="Добавить машину" onSaved=${() => done("Машина добавлена")} /></section>
@@ -98,21 +97,22 @@ export function Garage() {
     body = html`<${LoadError} error=${summary.error} onRetry=${summary.reload} />`;
   } else {
     body = html`<div class="stack-lg">
-      <${OilGauge} s=${s} />
-      <${DocTiles} s=${s} carId=${carId} onSettings=${() => setSheet({ type: "car" })} onDone=${done} />
-      <section>
-        <h2 class="section-title">Добавить</h2>
-        <div class="quick-add">
-          ${QUICK.map((kind) => {
-            const [, label, ico] = KINDS.find((k) => k[0] === kind);
-            return html`<button class="quick-btn" type="button" key=${kind} onClick=${() => setSheet({ type: "entry", kind })}>
-              <span dangerouslySetInnerHTML=${svg(ico)}></span>${label}</button>`;
-          })}
-          <button class="quick-btn" type="button" onClick=${() => setSheet({ type: "entry" })}>
-            <span dangerouslySetInnerHTML=${svg("plus")}></span>Ещё</button>
-        </div>
-      </section>
-      <${Stats} s=${s} />
+      <${NextReminder} s=${s} onOpen=${() => setSheet({ type: "care" })} />
+      <button class="btn btn-primary btn-lg btn-block" type="button" onClick=${() => setSheet({ type: "entry" })}>
+        <span dangerouslySetInnerHTML=${svg("plus", 18)}></span>Добавить запись
+      </button>
+      <div class="list garage-sections">
+        <button class="list-row" type="button" onClick=${() => setSheet({ type: "care" })}>
+          <span class="strip-ico" dangerouslySetInnerHTML=${svg("calendar")}></span>
+          <span class="list-body"><b>Обслуживание и документы</b><span class="muted">Напоминания, ОСАГО и техосмотр</span></span>
+          <span class="chev" dangerouslySetInnerHTML=${svg("right", 18)}></span>
+        </button>
+        <button class="list-row" type="button" onClick=${() => setSheet({ type: "stats" })}>
+          <span class="strip-ico" dangerouslySetInnerHTML=${svg("chart")}></span>
+          <span class="list-body"><b>Расходы</b><span class="muted">${money(s.month.total)} за этот месяц</span></span>
+          <span class="chev" dangerouslySetInnerHTML=${svg("right", 18)}></span>
+        </button>
+      </div>
       <${Recent} s=${s} onOpen=${(entry) => setSheet({ type: "entry", entry })}
         onAll=${() => setSheet({ type: "journal" })} />
     </div>`;
@@ -132,6 +132,13 @@ export function Garage() {
         onClick=${() => setSheet({ type: "car" })} dangerouslySetInnerHTML=${svg("edit", 20)}></button>`}
     </div>
     ${body}
+    ${sheet && sheet.type === "care" && s && html`<${Sheet} tall title="Обслуживание и документы" onClose=${() => setSheet(null)}>
+      <div class="stack-lg"><${OilGauge} s=${s} />
+      <${DocTiles} s=${s} carId=${carId} onSettings=${() => setSheet({ type: "car" })} onDone=${done} /></div>
+    </${Sheet}>`}
+    ${sheet && sheet.type === "stats" && s && html`<${Sheet} tall title="Расходы автомобиля" onClose=${() => setSheet(null)}>
+      <${Stats} s=${s} />
+    </${Sheet}>`}
     ${sheet && sheet.type === "cars" && html`<${Sheet} title="Машины" onClose=${() => setSheet(null)}>
       <div class="list">
         ${(cars || []).map((c) => html`<button class="list-row" type="button" key=${c.id}
@@ -158,6 +165,19 @@ export function Garage() {
       <${Journal} carId=${carId} onOpen=${(entry) => setSheet({ type: "entry", entry })} />
     </${Sheet}>`}
   </main>`;
+}
+
+function NextReminder({ s, onOpen }) {
+  const urgent = (s.reminders || []).find((r) => r.status === "overdue")
+    || (s.reminders || []).find((r) => r.status === "soon");
+  if (!urgent) return html`<p class="hint garage-note">История и напоминания для вашего автомобиля — в одном месте.</p>`;
+  const labels = { oil: "Замена масла", tires: "Смена резины", osago: "ОСАГО", inspection: "Техосмотр" };
+  return html`<button class="strip reminder-compact" type="button" onClick=${onOpen}>
+    <span class="strip-ico" dangerouslySetInnerHTML=${svg("calendar")}></span>
+    <span class="strip-body"><b>${labels[urgent.kind] || "Проверьте напоминание"}</b>
+      <span class="muted">${urgent.status === "overdue" ? "Срок наступил — посмотрите детали" : "Скоро — посмотрите детали"}</span></span>
+    <span class="chev" dangerouslySetInnerHTML=${svg("right", 18)}></span>
+  </button>`;
 }
 
 function GarageSkeleton() {
@@ -322,12 +342,12 @@ function EntryRow({ entry, onOpen }) {
 function Recent({ s, onOpen, onAll }) {
   return html`<section>
     <div class="row" style="justify-content:space-between">
-      <h2 class="section-title">Дневник</h2>
+      <h2 class="section-title">Последние записи</h2>
       ${s.recent.length > 0 && html`<button class="link-btn" type="button" onClick=${onAll}>Весь</button>`}
     </div>
     ${s.recent.length
-      ? html`<div class="list">${s.recent.map((e) => html`<${EntryRow} key=${e.id} entry=${e} onOpen=${onOpen} />`)}</div>`
-      : html`<p class="muted">Здесь будут заправки, мойки и ремонт. Замены масла у нас появятся сами.</p>`}
+      ? html`<div class="list">${s.recent.slice(0, 3).map((e) => html`<${EntryRow} key=${e.id} entry=${e} onOpen=${onOpen} />`)}</div>`
+      : html`<p class="muted">Здесь появится история вашего автомобиля. Добавьте первую запись — заправку, ремонт или обслуживание.</p>`}
   </section>`;
 }
 

@@ -27,7 +27,7 @@ const svg = (name, size) => ({ __html: window.App.icon(name, size || 20) });
 const ENTRY_TITLE = {
   payout: "Начислено за ночь",
   accrual: "Начислено",
-  spend: "Оплата замены баллами",
+  spend: "Оплата обслуживания баллами",
   adjustment: "Исправление",
 };
 
@@ -70,7 +70,7 @@ export function Bonus({ user }) {
   return html`<main class="screen">
     <div class="screen-head">
       <h1>Бонусы</h1>
-      <p>Друг меняет масло — вам приходят баллы. Ими оплачивается часть следующей замены.</p>
+      <p>Друг обслуживает автомобиль — вам приходят баллы. Ими можно оплатить часть следующего визита.</p>
     </div>
     ${body}
     ${open === "qr" && s && html`<${Sheet} title="QR-код приглашения" onClose=${close}>
@@ -144,7 +144,7 @@ function NextPayout({ s }) {
 
 function InviteButton({ s }) {
   async function share() {
-    const message = "Меняю масло по записи, без очереди. Заходи по ссылке, код приглашения "
+    const message = "Обслуживаю автомобиль в МойАвтоСервис. Заходи по ссылке, код приглашения "
       + s.code + ": " + s.invite_url;
     const result = await shareText(message);
     if (result === "copied") toast("Приглашение скопировано — отправьте его другу", "ok");
@@ -201,7 +201,7 @@ function HowItWorks({ s }) {
   const left = Number(s.left_leg);
   const right = Number(s.right_leg);
   return html`<div class="stack">
-    <p class="muted">Ваши друзья и друзья ваших друзей встают в две команды. Баллы с их замен копятся в каждой
+    <p class="muted">Ваши друзья и друзья ваших друзей встают в две команды. Баллы с их обслуживания копятся в каждой
       команде отдельно. Каждую ночь в 00:00 ${s.payout_timezone_label} вам начисляется то, что набрала меньшая
       команда, а если команды равны — обе. Остаток ждёт следующей ночи.</p>
     <div class="legs">

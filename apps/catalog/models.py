@@ -357,6 +357,10 @@ class Service(BaseModel):
         help_text="Сколько есть сейчас. Учитывается только при «количество ограничено».",
     )
     is_active = models.BooleanField("включена в работу", default=True)
+    show_on_landing = models.BooleanField(
+        "показывать на лендинге", default=False,
+        help_text="Название и описание появятся на сайте без цены и остатков.",
+    )
     sort_order = models.PositiveSmallIntegerField("порядок показа", default=100)
     # Из какой позиции масла выросла услуга. Нужна двум местам: старому
     # API масел, которое остаётся работать, пока обновляются приложения,

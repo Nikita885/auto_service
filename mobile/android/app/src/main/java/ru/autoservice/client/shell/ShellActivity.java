@@ -115,7 +115,8 @@ public class ShellActivity extends AppCompatActivity {
         s.setAllowContentAccess(false);
         // Размер шрифта — как в вёрстке, а не по системной настройке: иначе
         // одни и те же экраны на Android и iPhone разъезжались бы.
-        s.setTextZoom(100);
+        s.setTextZoom(Math.round(getResources().getConfiguration().fontScale * 100));
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setUserAgentString(s.getUserAgentString() + " MoiServisAndroid/" + BuildConfig.VERSION_NAME);
 
         web.addJavascriptInterface(bridge, NativeBridge.NAME);
@@ -166,6 +167,11 @@ public class ShellActivity extends AppCompatActivity {
 
     private final class ShellChrome extends WebChromeClient {
         @Override
+        public void onPermissionRequestCanceled(PermissionRequest request) {
+            if (pendingCamera == request) pendingCamera = null;
+        }
+
+        @Override
         public void onPermissionRequest(PermissionRequest request) {
             Uri origin = request.getOrigin();
             boolean ownPage = policy.isInternal(
@@ -192,7 +198,7 @@ public class ShellActivity extends AppCompatActivity {
         if (request == null) {
             return;
         }
-        if (granted) {
+        if (granted && bridge.trusted && !isFinishing() && !isDestroyed()) {
             request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
         } else {
             // Страница сама скажет «нет доступа к камере» и предложит ввести код руками.
@@ -319,6 +325,10 @@ public class ShellActivity extends AppCompatActivity {
     protected void onDestroy() {
         App.setInviteListener(this, null);
         main.removeCallbacksAndMessages(null);
+        if (pendingCamera != null) { pendingCamera.deny(); pendingCamera = null; }
+        views.web.removeJavascriptInterface(NativeBridge.NAME);
+        views.web.stopLoading();
+        views.web.destroy();
         super.onDestroy();
     }
 }

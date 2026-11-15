@@ -45,7 +45,9 @@ def other_user(db) -> User:
 
 @pytest.fixture
 def master_user(db) -> User:
-    return User.objects.create_master(phone="+79000000001", full_name="Мастер")
+    return User.objects.create_master(
+        phone="+79000000001", full_name="Мастер", allow_all_points=True,
+    )
 
 
 @pytest.fixture

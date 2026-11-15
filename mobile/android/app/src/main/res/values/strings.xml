@@ -5,7 +5,7 @@
   «Поделиться». Формулировки — те же, что у веб-приложения.
 -->
 <resources>
-    <string name="app_name">Мой Сервис</string>
+    <string name="app_name">МойАвтоСервис</string>
     <string name="share_title">Поделиться приглашением</string>
 
     <string name="offline_title">Нет связи с сервером</string>

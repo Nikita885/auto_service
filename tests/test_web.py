@@ -22,7 +22,7 @@ def test_ru_plural(n, expected):
 
 
 def test_tel_href_keeps_only_digits_and_plus():
-    assert tel_href("+7 (499) 123-45-67") == "+74991234567"
+    assert tel_href("+7 (3519) 48-12-12") == "+73519481212"
     assert tel_href("8 900 111 22 33") == "89001112233"
     assert tel_href("") == ""
 
@@ -102,10 +102,10 @@ def test_landing_does_not_promise_reminder_when_it_is_off(client, settings, poin
 
 @pytest.mark.django_db
 def test_landing_phone_links_are_dialable(client, settings, point):
-    settings.COMPANY = {**settings.COMPANY, "PHONE": "+7 (499) 123-45-67"}
+    settings.COMPANY = {**settings.COMPANY, "PHONE": "+7 (3519) 48-12-12"}
     html = _landing(client)
 
-    assert 'href="tel:+74991234567"' in html
+    assert 'href="tel:+73519481212"' in html
     assert 'href="tel:+7 (499)' not in html
 
 
@@ -121,7 +121,7 @@ def test_web_app_page_has_everything_for_iphone(client):
     assert "viewport-fit=cover" in html
     # Модули подключаются картой импорта с адресами из {% static %}: в проде
     # в них хеш содержимого, и обновление доезжает до телефона.
-    assert '<script type="importmap">' in html
+    assert 'type="importmap"' in html
     assert '"app/main": "/static/web/app/main.js"' in html
     assert 'id="app-config"' in html
 
@@ -235,10 +235,10 @@ def _app_config(client, **extra):
     return json.loads(raw)
 
 
-def test_web_app_is_not_usable_from_browser_in_production(client, settings):
-    """Только установленное на главный экран: из Safari — инструкция, без входа."""
+def test_web_app_supports_browser_booking_and_account_deletion(client, settings):
+    """Установка необязательна, в том числе для публичного пути удаления."""
     settings.DEBUG = False
-    assert _app_config(client)["allowBrowser"] is False
+    assert _app_config(client)["allowBrowser"] is True
 
 
 def test_web_app_sends_android_to_play_with_invite(client, stores):

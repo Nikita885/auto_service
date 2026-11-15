@@ -17,7 +17,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'web/css/landing.css' %}">
-<script>
+<script nonce="{{ request.csp_nonce }}">
   document.documentElement.dataset.theme = "dark";
   document.documentElement.classList.add("has-js");
 </script>
@@ -40,7 +40,7 @@
       <p class="invite-from">{{ inviter_name }} приглашает вас в</p>
       <h1 class="invite-title">{{ company.NAME }}</h1>
       <p class="invite-lead">
-        Замена масла по записи: свой пост к назначенному времени, без очереди.
+        Обслуживание автомобиля по записи: свой пост к назначенному времени, без очереди.
       </p>
 
       <p class="invite-label">Код приглашения</p>
@@ -97,7 +97,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
   // Копирование кода. Без JS страница остаётся рабочей: код виден и
   // выделяется мышью, кнопка просто ничего не делает.
   document.querySelectorAll("[data-copy]").forEach(function (button) {
